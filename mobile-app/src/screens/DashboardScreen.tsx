@@ -1,0 +1,220 @@
+import React from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { Button } from '../components/Button';
+import { Card } from '../components/Card';
+import { Pill } from '../components/Pill';
+import { Screen } from '../components/Screen';
+import { useApp } from '../context/AppContext';
+import { colors, radius, spacing, typography } from '../theme';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/AppNavigator';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
+
+export function DashboardScreen({ navigation }: Props) {
+  const {
+    user,
+    turf,
+    session,
+    progress,
+    queue,
+    isOnline,
+    isSyncing,
+    statusMessage,
+    errorMessage,
+    refreshTurf,
+    startTurf,
+    endTurf,
+    syncQueue,
+  } = useApp();
+
+  async function handleStart() {
+    try {
+      await startTurf();
+    } catch (error) {
+      Alert.alert('Unable to start turf', error instanceof Error ? error.message : 'Please try again.');
+    }
+  }
+
+  async function handleEnd() {
+    try {
+      await endTurf();
+    } catch (error) {
+      Alert.alert('Unable to end turf', error instanceof Error ? error.message : 'Please try again.');
+    }
+  }
+
+  async function handleRefresh() {
+    try {
+      await refreshTurf();
+    } catch (error) {
+      Alert.alert('Refresh failed', error instanceof Error ? error.message : 'Unable to load turf snapshot.');
+    }
+  }
+
+  return (
+    <Screen>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.hero}>
+          <Text style={styles.heroTitle}>Hello, {user?.firstName || 'Canvasser'}.</Text>
+          <Text style={styles.heroCopy}>
+            Keep the buttons large, keep the taps simple, and keep the log moving.
+          </Text>
+          <View style={styles.row}>
+            <Pill label={isOnline ? 'Online' : 'Offline'} tone={isOnline ? 'success' : 'warning'} />
+            <Pill label={`${queue.length} queued`} tone={queue.length > 0 ? 'gold' : 'default'} />
+            <Pill label={session?.endTime ? 'Closed' : session ? 'Active session' : 'Idle'} />
+          </View>
+        </View>
+
+        <Card style={styles.turfCard}>
+          <Text style={styles.sectionLabel}>My Turf</Text>
+          <Text style={styles.turfName}>{turf?.name || 'No turf assigned'}</Text>
+          <Text style={styles.turfCopy}>
+            {turf?.description || 'Once a turf is assigned, start the session to begin logging visits.'}
+          </Text>
+
+          <View style={styles.statsRow}>
+            <Stat label="Completed" value={`${progress.completed}/${progress.total || 0}`} />
+            <Stat label="Pending sync" value={`${progress.pendingSync}`} />
+            <Stat label="Queued" value={`${queue.length}`} />
+          </View>
+
+          <View style={styles.actionColumn}>
+            <Button label="Start Turf" onPress={() => void handleStart()} />
+            <Button label="End Turf" onPress={() => void handleEnd()} variant="secondary" />
+            <Button label="Refresh Turf" onPress={() => void handleRefresh()} variant="ghost" />
+          </View>
+        </Card>
+
+        <Card style={styles.quickCard}>
+          <Text style={styles.sectionLabel}>Quick Actions</Text>
+          <View style={styles.actionColumn}>
+            <Button
+              label="Open Address List"
+              onPress={() => navigation.navigate('AddressList')}
+            />
+            <Button label="Sync Queue" onPress={() => void syncQueue()} variant="secondary" loading={isSyncing} />
+            <Button label="Review Queue" onPress={() => navigation.navigate('Queue')} variant="ghost" />
+          </View>
+        </Card>
+
+        {(statusMessage || errorMessage) && (
+          <Card style={styles.notice}>
+            <Text style={styles.noticeLabel}>Status</Text>
+            <Text style={styles.noticeText}>{statusMessage || errorMessage}</Text>
+          </Card>
+        )}
+
+        <Card style={styles.tipCard}>
+          <Text style={styles.sectionLabel}>Field Notes</Text>
+          <Text style={styles.tipText}>
+            Use the address detail screen to capture GPS and submit the result with minimal typing.
+          </Text>
+        </Card>
+      </ScrollView>
+    </Screen>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: {
+    padding: spacing.lg,
+    gap: spacing.lg,
+  },
+  hero: {
+    backgroundColor: colors.navy,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  heroTitle: {
+    color: '#fff',
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: '900',
+  },
+  heroCopy: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: typography.body,
+    lineHeight: 22,
+  },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  turfCard: {
+    gap: spacing.md,
+  },
+  sectionLabel: {
+    color: colors.blue,
+    fontSize: typography.small,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  turfName: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  turfCopy: {
+    color: colors.muted,
+    lineHeight: 22,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  stat: {
+    flex: 1,
+    backgroundColor: colors.cream,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  statValue: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  statLabel: {
+    color: colors.muted,
+    fontSize: typography.small,
+    marginTop: 4,
+  },
+  actionColumn: {
+    gap: spacing.sm,
+  },
+  quickCard: {
+    gap: spacing.md,
+  },
+  notice: {
+    gap: spacing.xs,
+  },
+  noticeLabel: {
+    color: colors.blue,
+    fontWeight: '800',
+  },
+  noticeText: {
+    color: colors.text,
+  },
+  tipCard: {
+    gap: spacing.xs,
+    backgroundColor: colors.goldSoft,
+  },
+  tipText: {
+    color: colors.text,
+    lineHeight: 21,
+  },
+});

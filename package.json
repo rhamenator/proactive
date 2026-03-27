@@ -1,0 +1,22 @@
+{
+  "name": "proactive-field-canvassing-system",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "backend",
+    "admin-dashboard",
+    "mobile-app"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @proactive/backend && npm run build --workspace @proactive/admin-dashboard && npm run typecheck --workspace mobile-app",
+    "test": "npm test --workspace @proactive/backend -- --runInBand",
+    "typecheck": "npm run typecheck --workspace @proactive/admin-dashboard && npm run typecheck --workspace mobile-app",
+    "prisma:generate": "npm run prisma:generate --workspace @proactive/backend",
+    "dev:backend": "npm run start:dev --workspace @proactive/backend",
+    "dev:admin": "npm run dev --workspace @proactive/admin-dashboard",
+    "dev:mobile": "npm run start --workspace mobile-app"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

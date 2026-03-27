@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  canvasser
+}
+
+enum AssignmentStatus {
+  assigned
+  active
+  completed
+  removed
+}
+
+enum VisitResult {
+  knocked
+  lit_drop
+  not_home
+  refused
+  talked_to_voter
+  other
+}
+
+model User {
+  id           String          @id @default(uuid()) @db.Uuid
+  firstName    String          @map("first_name")
+  lastName     String          @map("last_name")
+  email        String          @unique
+  passwordHash String          @map("password_hash")
+  role         UserRole
+  isActive     Boolean         @default(true) @map("is_active")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  createdTurfs Turf[]          @relation("TurfsCreated")
+  assignments  TurfAssignment[]
+  sessions     TurfSession[]
+  visits       VisitLog[]
+
+  @@map("users")
+}
+
+model Turf {
+  id          String          @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  createdById  String?         @map("created_by") @db.Uuid
+  createdAt    DateTime        @default(now()) @map("created_at")
+  createdBy    User?           @relation("TurfsCreated", fields: [createdById], references: [id])
+  addresses    Address[]
+  assignments  TurfAssignment[]
+  sessions     TurfSession[]
+  visits       VisitLog[]
+
+  @@map("turfs")
+}
+
+model Address {
+  id            String      @id @default(uuid()) @db.Uuid
+  turfId        String      @map("turf_id") @db.Uuid
+  addressLine1  String      @map("address_line1")
+  city          String
+  state         String
+  zip           String?
+  latitude      Decimal?    @db.Decimal(9, 6)
+  longitude     Decimal?    @db.Decimal(9, 6)
+  vanId         String?     @map("van_id")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  turf          Turf        @relation(fields: [turfId], references: [id], onDelete: Cascade)
+  visitLogs     VisitLog[]
+
+  @@index([turfId])
+  @@map("addresses")
+}
+
+model TurfAssignment {
+  id           String           @id @default(uuid()) @db.Uuid
+  turfId       String           @map("turf_id") @db.Uuid
+  canvasserId  String           @map("canvasser_id") @db.Uuid
+  assignedAt   DateTime         @default(now()) @map("assigned_at")
+  status       AssignmentStatus @default(assigned)
+  turf         Turf             @relation(fields: [turfId], references: [id], onDelete: Cascade)
+  canvasser    User             @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
+
+  @@index([turfId])
+  @@index([canvasserId])
+  @@map("turf_assignments")
+}
+
+model TurfSession {
+  id         String    @id @default(uuid()) @db.Uuid
+  turfId     String    @map("turf_id") @db.Uuid
+  canvasserId String   @map("canvasser_id") @db.Uuid
+  startTime  DateTime  @map("start_time")
+  endTime    DateTime? @map("end_time")
+  startLat   Decimal?  @map("start_lat") @db.Decimal(9, 6)
+  startLng   Decimal?  @map("start_lng") @db.Decimal(9, 6)
+  endLat     Decimal?  @map("end_lat") @db.Decimal(9, 6)
+  endLng     Decimal?  @map("end_lng") @db.Decimal(9, 6)
+  turf       Turf      @relation(fields: [turfId], references: [id], onDelete: Cascade)
+  canvasser  User      @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
+
+  @@index([turfId])
+  @@index([canvasserId])
+  @@map("turf_sessions")
+}
+
+model VisitLog {
+  id                    String      @id @default(uuid()) @db.Uuid
+  turfId                String      @map("turf_id") @db.Uuid
+  addressId             String      @map("address_id") @db.Uuid
+  canvasserId           String      @map("canvasser_id") @db.Uuid
+  visitTime             DateTime    @default(now()) @map("visit_time")
+  latitude              Decimal?    @db.Decimal(9, 6)
+  longitude             Decimal?    @db.Decimal(9, 6)
+  result                VisitResult
+  contactMade           Boolean     @default(false) @map("contact_made")
+  notes                 String?
+  vanExported           Boolean     @default(false) @map("van_exported")
+  geofenceValidated     Boolean     @default(true) @map("geofence_validated")
+  geofenceDistanceMeters Int?        @map("geofence_distance_meters")
+  turf                  Turf        @relation(fields: [turfId], references: [id], onDelete: Cascade)
+  address               Address     @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  canvasser             User        @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
+
+  @@index([turfId])
+  @@index([addressId])
+  @@index([canvasserId])
+  @@map("visit_logs")
+}

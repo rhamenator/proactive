@@ -1,0 +1,15 @@
+node_modules
+.DS_Store
+.env
+.env.*
+!.env.example
+dist
+.next
+.expo
+coverage
+*.log
+*.tsbuildinfo
+backend/generated
+mobile-app/.expo
+mobile-app/dist
+admin-dashboard/.next
