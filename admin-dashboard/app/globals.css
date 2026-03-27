@@ -190,7 +190,34 @@ select {
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
+}
+
+.heading-reset {
+  margin-top: 0;
+}
+
+.heading-reset-tight {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.inline-actions-between {
+  justify-content: space-between;
+}
+
+.card-subtle {
+  box-shadow: none;
+  background: var(--surface-strong);
+}
+
+.muted-no-bottom {
+  margin-bottom: 0;
+}
+
+.progress-row {
+  margin-bottom: 0.35rem;
 }
 
 .grid {

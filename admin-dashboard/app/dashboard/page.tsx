@@ -68,14 +68,14 @@ export default function DashboardPage() {
           <Card className="stack">
             <div>
               <p className="section-kicker">Active Canvassers</p>
-              <h2 style={{ marginTop: 0 }}>Open turf sessions</h2>
+              <h2 className="heading-reset">Open turf sessions</h2>
             </div>
 
             {summary?.activeCanvassers.length ? (
               <div className="stack">
                 {summary.activeCanvassers.map((session) => (
-                  <div key={session.id} className="card" style={{ boxShadow: 'none', background: 'var(--surface-strong)' }}>
-                    <div className="inline-actions" style={{ justifyContent: 'space-between' }}>
+                  <div key={session.id} className="card card-subtle">
+                    <div className="inline-actions inline-actions-between">
                       <div>
                         <strong>
                           {session.canvasser.firstName} {session.canvasser.lastName}
@@ -84,7 +84,7 @@ export default function DashboardPage() {
                       </div>
                       <Badge tone="success">{session.turf.name}</Badge>
                     </div>
-                    <p className="muted" style={{ marginBottom: 0 }}>
+                    <p className="muted muted-no-bottom">
                       Started {new Date(session.startTime).toLocaleString()}
                     </p>
                   </div>
@@ -98,14 +98,14 @@ export default function DashboardPage() {
           <Card className="stack">
             <div>
               <p className="section-kicker">Turf Progress</p>
-              <h2 style={{ marginTop: 0 }}>Completion by turf</h2>
+              <h2 className="heading-reset">Completion by turf</h2>
             </div>
 
             {summary?.turfs.length ? (
               <div className="stack">
                 {summary.turfs.map((turf) => (
                   <div key={turf.id}>
-                    <div className="inline-actions" style={{ justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <div className="inline-actions inline-actions-between progress-row">
                       <strong>{turf.name}</strong>
                       <Badge tone={turf.progressPercent >= 75 ? 'success' : turf.progressPercent >= 35 ? 'gold' : 'default'}>
                         {turf.progressPercent}% complete

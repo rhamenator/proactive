@@ -62,8 +62,8 @@ export default function LoginPage() {
         <Card className="login-card">
           <div>
             <p className="section-kicker">Admin Login</p>
-            <h2 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Sign in to the operations dashboard</h2>
-            <p className="muted" style={{ marginTop: 0 }}>
+            <h2 className="heading-reset-tight">Sign in to the operations dashboard</h2>
+            <p className="muted heading-reset">
               API target: {apiUrl}
             </p>
           </div>

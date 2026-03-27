@@ -80,7 +80,7 @@ export default function CanvassersPage() {
             <form className="stack" onSubmit={handleCreate}>
               <div>
                 <p className="section-kicker">Add Canvasser</p>
-                <h2 style={{ marginTop: 0 }}>Create a field account</h2>
+                <h2 className="heading-reset">Create a field account</h2>
               </div>
 
               <div className="grid two">
@@ -109,10 +109,10 @@ export default function CanvassersPage() {
           </Card>
 
           <Card className="stack">
-            <div className="inline-actions" style={{ justifyContent: 'space-between' }}>
+            <div className="inline-actions inline-actions-between">
               <div>
                 <p className="section-kicker">Roster</p>
-                <h2 style={{ marginTop: 0 }}>Available field staff</h2>
+                <h2 className="heading-reset">Available field staff</h2>
               </div>
               <Button variant="ghost" onClick={() => void load()} disabled={loading}>
                 {loading ? 'Loading...' : 'Refresh'}
@@ -121,8 +121,8 @@ export default function CanvassersPage() {
 
             <div className="stack">
               {canvassers.map((canvasser) => (
-                <Card key={canvasser.id} className="stack" style={{ boxShadow: 'none', background: 'var(--surface-strong)' } as React.CSSProperties}>
-                  <div className="inline-actions" style={{ justifyContent: 'space-between' }}>
+                <Card key={canvasser.id} className="stack card-subtle">
+                  <div className="inline-actions inline-actions-between">
                     <div>
                       <strong>
                         {canvasser.firstName} {canvasser.lastName}

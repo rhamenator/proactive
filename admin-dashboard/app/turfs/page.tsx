@@ -161,7 +161,7 @@ export default function TurfsPage() {
             <form className="stack" onSubmit={handleCreateTurf}>
               <div>
                 <p className="section-kicker">Create Turf</p>
-                <h2 style={{ marginTop: 0 }}>Manual turf entry</h2>
+                <h2 className="heading-reset">Manual turf entry</h2>
               </div>
 
               <div className="field-group">
@@ -182,7 +182,7 @@ export default function TurfsPage() {
             <form className="stack" onSubmit={handleImport}>
               <div>
                 <p className="section-kicker">CSV Import</p>
-                <h2 style={{ marginTop: 0 }}>VAN-ready list upload</h2>
+                <h2 className="heading-reset">VAN-ready list upload</h2>
                 <p className="muted">Upload a CSV, confirm the headers, and create grouped turf records.</p>
               </div>
 
@@ -227,10 +227,10 @@ export default function TurfsPage() {
         </div>
 
         <Card className="stack">
-          <div className="inline-actions" style={{ justifyContent: 'space-between' }}>
+          <div className="inline-actions inline-actions-between">
             <div>
               <p className="section-kicker">Current Turfs</p>
-              <h2 style={{ marginTop: 0 }}>Assignment board</h2>
+              <h2 className="heading-reset">Assignment board</h2>
             </div>
             <Button variant="ghost" onClick={() => void load()} disabled={loading}>
               {loading ? 'Loading...' : 'Refresh'}
@@ -267,6 +267,8 @@ export default function TurfsPage() {
                     <td>
                       <div className="inline-actions">
                         <Select
+                          aria-label={`Assign canvasser for ${turf.name}`}
+                          title={`Assign canvasser for ${turf.name}`}
                           value={assignmentSelection[turf.id] ?? ''}
                           onChange={(event) =>
                             setAssignmentSelection((current) => ({
