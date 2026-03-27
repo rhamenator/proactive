@@ -203,6 +203,8 @@ export default function TurfsPage() {
                       <label htmlFor={`map-${field}`}>{label}</label>
                       <Select
                         id={`map-${field}`}
+                        aria-label={label}
+                        title={label}
                         value={mapping[field] ?? ''}
                         onChange={(event) =>
                           setMapping((current) => ({
