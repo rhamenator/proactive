@@ -12,6 +12,7 @@ describe('TurfsService', () => {
       findFirst: jest.fn()
     },
     turfAssignment: {
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       updateMany: jest.fn(),
       create: jest.fn()
@@ -134,5 +135,87 @@ describe('TurfsService', () => {
       throw new Error('Expected a completed session snapshot');
     }
     expect(result.status).toBe('completed');
+  });
+
+  it('returns an existing open session when startSession is called twice', async () => {
+    const tx = {
+      turfAssignment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'assignment-1',
+          status: AssignmentStatus.assigned
+        }),
+        update: jest.fn()
+      },
+      turf: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'turf-1',
+          isShared: false
+        }),
+        update: jest.fn()
+      },
+      turfSession: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            id: 'session-1',
+            turfId: 'turf-1',
+            canvasserId: 'canvasser-1',
+            startTime: new Date('2026-03-28T10:00:00.000Z'),
+            endTime: null,
+            status: SessionStatus.active,
+            startLat: 42.9,
+            startLng: -85.6,
+            endLat: null,
+            endLng: null
+          }),
+        create: jest.fn()
+      }
+    };
+    prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+
+    const result = await service.startSession({
+      canvasserId: 'canvasser-1',
+      turfId: 'turf-1'
+    });
+
+    expect(tx.turfAssignment.update).not.toHaveBeenCalled();
+    expect(tx.turfSession.create).not.toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'session-1',
+        status: SessionStatus.active
+      })
+    );
+  });
+
+  it('returns an empty turf snapshot when the canvasser has no assignment', async () => {
+    prisma.turfAssignment.findFirst.mockResolvedValue(null);
+
+    const result = await service.getMyTurf('canvasser-1');
+
+    expect(result).toEqual({
+      assignment: null,
+      turf: null,
+      session: null,
+      progress: {
+        completed: 0,
+        total: 0,
+        pendingSync: 0
+      },
+      addresses: []
+    });
+  });
+
+  it('infers CSV mappings from common header aliases', () => {
+    const mapping = service.inferMappingFromHeaders(['VAN ID', 'Street Address', 'City', 'District']);
+
+    expect(mapping).toEqual({
+      vanId: 'VAN ID',
+      addressLine1: 'Street Address',
+      city: 'City',
+      turfName: 'District'
+    });
   });
 });

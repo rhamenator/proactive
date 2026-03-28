@@ -5,6 +5,8 @@
 		}
 	],
 	"settings": {
+		"jest.rootPath": "backend",
+		"jest.jestCommandLine": "npx jest --config ./jest.config.cjs --runInBand",
 		"explorerExclude.backup": {}
 	}
 }
