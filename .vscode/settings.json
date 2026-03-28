@@ -1,4 +1,6 @@
 {
+    "jest.rootPath": ".",
+    "jest.jestCommandLine": "npx jest --runInBand",
     "html-validate.validate": [
         "html",
         "markdown",
