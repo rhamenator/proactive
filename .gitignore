@@ -13,3 +13,4 @@ backend/generated
 mobile-app/.expo
 mobile-app/dist
 admin-dashboard/.next
+.history
