@@ -13,16 +13,8 @@ import type { VisitResult } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddressDetail'>;
 
-const results: Array<{ value: VisitResult; label: string }> = [
-  { value: 'knocked', label: 'Knocked' },
-  { value: 'lit_drop', label: 'Lit Drop' },
-  { value: 'not_home', label: 'Not Home' },
-  { value: 'refused', label: 'Refused' },
-  { value: 'talked_to_voter', label: 'Talked to Voter' },
-];
-
 export function AddressDetailScreen({ navigation, route }: Props) {
-  const { getAddressById, submitVisit } = useApp();
+  const { getAddressById, outcomes, submitVisit } = useApp();
   const [selected, setSelected] = useState<VisitResult | null>(null);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -76,13 +68,13 @@ export function AddressDetailScreen({ navigation, route }: Props) {
         <Card style={styles.resultCard}>
           <Text style={styles.section}>Result</Text>
           <View style={styles.grid}>
-            {results.map((item) => {
-              const active = selected === item.value;
+            {outcomes.filter((item) => item.isActive).map((item) => {
+              const active = selected === item.code;
               return (
                 <Button
-                  key={item.value}
+                  key={item.code}
                   label={item.label}
-                  onPress={() => setSelected(item.value)}
+                  onPress={() => setSelected(item.code)}
                   variant={active ? 'result' : 'secondary'}
                   style={styles.resultButton}
                 />

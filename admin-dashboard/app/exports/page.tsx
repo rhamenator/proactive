@@ -5,10 +5,11 @@ import { useEffect, useState } from 'react';
 import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Select } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
-import { useAuthedApi } from '../../src/lib/auth-context';
+import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
 import type { TurfListItem } from '../../src/lib/types';
 
 export default function ExportsPage() {
+  const { user } = useAuth();
   const api = useAuthedApi();
   const [turfs, setTurfs] = useState<TurfListItem[]>([]);
   const [selectedTurfId, setSelectedTurfId] = useState('');
@@ -18,11 +19,28 @@ export default function ExportsPage() {
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
+    if (user?.role !== 'admin') {
+      return;
+    }
     void api
       .listTurfs()
       .then(setTurfs)
       .catch((value) => setError(getErrorMessage(value)));
-  }, [api]);
+  }, [api, user?.role]);
+
+  if (user?.role !== 'admin') {
+    return (
+      <ProtectedFrame title="Exports" eyebrow="Restricted">
+        <Card className="stack">
+          <p className="section-kicker">Admin Only</p>
+          <h2 className="heading-reset">Export access is restricted</h2>
+          <p className="muted">
+            Supervisors can review dashboard, turf, GPS, and outcome data, but only admins can generate exports.
+          </p>
+        </Card>
+      </ProtectedFrame>
+    );
+  }
 
   async function handleExport() {
     setDownloading(true);

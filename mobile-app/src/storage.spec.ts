@@ -120,7 +120,7 @@ describe('mobile storage helpers', () => {
           turfId: 'turf-1',
           sessionId: 'session-1',
           addressId: 'address-1',
-          result: 'talked_to_voter',
+          outcomeCode: 'talked_to_voter',
           contactMade: true,
           gpsStatus: 'flagged',
           capturedAt: '2026-03-28T10:00:00.000Z'

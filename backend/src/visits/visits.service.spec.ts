@@ -12,6 +12,10 @@ describe('VisitsService', () => {
     address: {
       findUnique: jest.fn()
     },
+    outcomeDefinition: {
+      findFirst: jest.fn(),
+      findMany: jest.fn()
+    },
     turfAssignment: {
       findFirst: jest.fn()
     },
@@ -33,10 +37,18 @@ describe('VisitsService', () => {
     prisma.address.findUnique.mockResolvedValue({
       id: 'address-1',
       turfId: 'turf-1',
+      organizationId: 'org-1',
+      campaignId: 'campaign-1',
       latitude: 42.9634,
       longitude: -85.6681,
-      turf: { id: 'turf-1' },
+      turf: { id: 'turf-1', organizationId: 'org-1', campaignId: 'campaign-1' },
       ...overrides
+    });
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-1',
+      code: 'knocked',
+      label: 'Knocked',
+      requiresNote: false
     });
     prisma.turfAssignment.findFirst.mockResolvedValue({
       id: 'assignment-1',
@@ -74,7 +86,7 @@ describe('VisitsService', () => {
     const result = await service.logVisit({
       canvasserId: 'canvasser-1',
       addressId: 'address-1',
-      result: VisitResult.knocked,
+      outcomeCode: VisitResult.knocked,
       localRecordUuid: 'local-1'
     });
 
@@ -85,6 +97,18 @@ describe('VisitsService', () => {
     expect(result).toBe(existingVisit);
   });
 
+  it('lists active outcomes in display order', async () => {
+    prisma.outcomeDefinition.findMany.mockResolvedValue([{ id: 'outcome-1', code: 'knocked' }]);
+
+    const result = await service.listActiveOutcomes();
+
+    expect(prisma.outcomeDefinition.findMany).toHaveBeenCalledWith({
+      where: { isActive: true },
+      orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
+    });
+    expect(result).toEqual([{ id: 'outcome-1', code: 'knocked' }]);
+  });
+
   it('flags low-accuracy visits and records the sync/geofence side effects', async () => {
     mockAssignedAddress();
     const tx = mockSuccessfulTransaction();
@@ -92,7 +116,7 @@ describe('VisitsService', () => {
     const result = await service.logVisit({
       canvasserId: 'canvasser-1',
       addressId: 'address-1',
-      result: VisitResult.knocked,
+      outcomeCode: VisitResult.knocked,
       latitude: 42.9634,
       longitude: -85.6681,
       accuracyMeters: 45
@@ -100,6 +124,9 @@ describe('VisitsService', () => {
 
     expect(tx.visitLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
+        outcomeDefinitionId: 'outcome-1',
+        outcomeCode: 'knocked',
+        outcomeLabel: 'Knocked',
         gpsStatus: GpsStatus.low_accuracy,
         geofenceValidated: false,
         syncStatus: SyncStatus.synced
@@ -135,7 +162,7 @@ describe('VisitsService', () => {
     const result = await service.logVisit({
       canvasserId: 'canvasser-1',
       addressId: 'address-1',
-      result: VisitResult.knocked,
+      outcomeCode: VisitResult.knocked,
       idempotencyKey: 'idem-1'
     });
 
@@ -153,18 +180,58 @@ describe('VisitsService', () => {
       service.logVisit({
         canvasserId: 'canvasser-1',
         addressId: 'address-1',
-        result: VisitResult.knocked
+        outcomeCode: VisitResult.knocked
       })
     ).rejects.toThrow('Address not found');
+  });
+
+  it('rejects visits when the outcome code is unknown', async () => {
+    mockAssignedAddress();
+    prisma.outcomeDefinition.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.logVisit({
+        canvasserId: 'canvasser-1',
+        addressId: 'address-1',
+        outcomeCode: 'unknown_code'
+      })
+    ).rejects.toThrow('Visit outcome is not recognized');
+  });
+
+  it('rejects visits when the selected outcome requires notes', async () => {
+    mockAssignedAddress();
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-2',
+      code: 'refused',
+      label: 'Refused',
+      requiresNote: true
+    });
+
+    await expect(
+      service.logVisit({
+        canvasserId: 'canvasser-1',
+        addressId: 'address-1',
+        outcomeCode: 'refused',
+        notes: '   '
+      })
+    ).rejects.toThrow('Notes are required for the selected visit outcome');
   });
 
   it('rejects visits when the canvasser is not assigned to the turf', async () => {
     prisma.address.findUnique.mockResolvedValue({
       id: 'address-1',
       turfId: 'turf-1',
+      organizationId: 'org-1',
+      campaignId: 'campaign-1',
       latitude: 42.9634,
       longitude: -85.6681,
-      turf: { id: 'turf-1' }
+      turf: { id: 'turf-1', organizationId: 'org-1', campaignId: 'campaign-1' }
+    });
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-1',
+      code: 'knocked',
+      label: 'Knocked',
+      requiresNote: false
     });
     prisma.turfAssignment.findFirst.mockResolvedValue(null);
 
@@ -172,7 +239,7 @@ describe('VisitsService', () => {
       service.logVisit({
         canvasserId: 'canvasser-1',
         addressId: 'address-1',
-        result: VisitResult.knocked
+        outcomeCode: VisitResult.knocked
       })
     ).rejects.toThrow('Canvasser is not assigned to this turf');
   });
@@ -186,7 +253,7 @@ describe('VisitsService', () => {
         canvasserId: 'canvasser-1',
         addressId: 'address-1',
         sessionId: 'session-1',
-        result: VisitResult.knocked
+        outcomeCode: VisitResult.knocked
       })
     ).rejects.toThrow('Visit session is invalid for this turf');
   });
@@ -199,7 +266,7 @@ describe('VisitsService', () => {
       service.logVisit({
         canvasserId: 'canvasser-1',
         addressId: 'address-1',
-        result: VisitResult.knocked
+        outcomeCode: VisitResult.knocked
       })
     ).rejects.toThrow('This household has reached the maximum attempts for this turf cycle');
   });
@@ -215,7 +282,7 @@ describe('VisitsService', () => {
       service.logVisit({
         canvasserId: 'canvasser-1',
         addressId: 'address-1',
-        result: VisitResult.knocked
+        outcomeCode: VisitResult.knocked
       })
     ).rejects.toThrow('Please wait 5 minutes before logging another attempt for this household');
 
@@ -229,7 +296,7 @@ describe('VisitsService', () => {
     const result = await service.logVisit({
       canvasserId: 'canvasser-1',
       addressId: 'address-1',
-      result: VisitResult.knocked,
+      outcomeCode: VisitResult.knocked,
       latitude: 42.9634,
       longitude: -85.6681,
       accuracyMeters: 10
@@ -260,7 +327,7 @@ describe('VisitsService', () => {
     const result = await service.logVisit({
       canvasserId: 'canvasser-1',
       addressId: 'address-1',
-      result: VisitResult.knocked,
+      outcomeCode: VisitResult.knocked,
       latitude: 43.0,
       longitude: -86.0,
       accuracyMeters: 10
@@ -291,7 +358,7 @@ describe('VisitsService', () => {
     const result = await service.logVisit({
       canvasserId: 'canvasser-1',
       addressId: 'address-1',
-      result: VisitResult.knocked,
+      outcomeCode: VisitResult.knocked,
       latitude: 42.9634,
       longitude: -85.6681,
       accuracyMeters: 10

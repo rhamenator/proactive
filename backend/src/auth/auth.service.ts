@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'node:crypto';
@@ -9,6 +9,10 @@ import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
+  private readonly authRateLimitWindowMs = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
+  private readonly authRateLimitMaxAttempts = Number(process.env.AUTH_RATE_LIMIT_MAX_ATTEMPTS ?? 10);
+  private readonly authRateLimitState = new Map<string, { count: number; resetAt: number }>();
+
   constructor(
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
@@ -67,6 +71,35 @@ export class AuthService {
     return new Date(Date.now() + minutes * 60 * 1000);
   }
 
+  private getRateLimitKey(action: string, identifier: string) {
+    return `${action}:${identifier.trim().toLowerCase()}`;
+  }
+
+  private assertWithinRateLimit(action: string, identifier: string) {
+    const key = this.getRateLimitKey(action, identifier);
+    const now = Date.now();
+    const entry = this.authRateLimitState.get(key);
+
+    if (!entry || entry.resetAt <= now) {
+      this.authRateLimitState.set(key, {
+        count: 1,
+        resetAt: now + this.authRateLimitWindowMs
+      });
+      return;
+    }
+
+    if (entry.count >= this.authRateLimitMaxAttempts) {
+      throw new HttpException('Too many authentication attempts. Please try again later.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    entry.count += 1;
+    this.authRateLimitState.set(key, entry);
+  }
+
+  private clearRateLimit(action: string, identifier: string) {
+    this.authRateLimitState.delete(this.getRateLimitKey(action, identifier));
+  }
+
   private async issueSession(user: {
     id: string;
     firstName: string;
@@ -104,6 +137,7 @@ export class AuthService {
 
   async validateUser(email: string, password: string) {
     const normalizedEmail = email.trim().toLowerCase();
+    this.assertWithinRateLimit('login', normalizedEmail);
     const user = await this.usersService.findByEmail(normalizedEmail);
     if (!user || !user.isActive || user.status !== 'active') {
       await this.auditService.log({
@@ -177,6 +211,7 @@ export class AuthService {
       });
     }
 
+    this.clearRateLimit('login', normalizedEmail);
     return this.usersService.findById(user.id);
   }
 
@@ -256,6 +291,7 @@ export class AuthService {
 
   async requestPasswordReset(email: string) {
     const normalizedEmail = email.trim().toLowerCase();
+    this.assertWithinRateLimit('password-reset', normalizedEmail);
     const user = await this.usersService.findByEmail(normalizedEmail);
     if (!user) {
       return { success: true };

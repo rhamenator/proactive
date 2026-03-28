@@ -155,11 +155,13 @@ export class TurfsService {
   }
 
   async createTurf(input: { name: string; description?: string }, createdById: string) {
+    const creator = await this.usersService.findById(createdById);
     return this.prisma.turf.create({
       data: {
         name: input.name,
         description: input.description,
         createdById,
+        organizationId: creator.organizationId ?? null,
         status: TurfStatus.unassigned
       }
     });
@@ -223,6 +225,8 @@ export class TurfsService {
         data: {
           turfId,
           canvasserId,
+          organizationId: turf.organizationId,
+          campaignId: turf.campaignId,
           assignedByUserId: actorUserId,
           reassignmentReason: reasonText,
           status: AssignmentStatus.assigned
@@ -312,6 +316,7 @@ export class TurfsService {
     turfName?: string;
     mapping?: CsvMapping;
   }) {
+    const creator = await this.usersService.findById(input.createdById);
     const records = parse(input.csv, {
       columns: true,
       skip_empty_lines: true,
@@ -342,6 +347,7 @@ export class TurfsService {
           name: turfName,
           description: `Imported from CSV on ${new Date().toISOString()}`,
           createdById: input.createdById,
+          organizationId: creator.organizationId ?? null,
           status: TurfStatus.unassigned
         }
       });
@@ -359,6 +365,8 @@ export class TurfsService {
         await this.prisma.address.create({
           data: {
             turfId: turf.id,
+            organizationId: turf.organizationId,
+            campaignId: turf.campaignId,
             addressLine1,
             city,
             state,
@@ -418,6 +426,8 @@ export class TurfsService {
           ...address,
           status: latestVisit ? 'completed' : 'pending',
           lastResult: latestVisit?.result ?? null,
+          lastOutcomeCode: latestVisit?.outcomeCode ?? null,
+          lastOutcomeLabel: latestVisit?.outcomeLabel ?? latestVisit?.result ?? null,
           lastVisitAt: latestVisit?.visitTime ?? null,
           pendingSync: false
         };
@@ -485,7 +495,8 @@ export class TurfsService {
         longitude: address.longitude ? Number(address.longitude) : null,
         vanId: address.vanId,
         status: latestVisit ? 'completed' : 'pending',
-        lastResult: latestVisit?.result ?? null,
+        lastResult: latestVisit?.outcomeLabel ?? latestVisit?.result ?? null,
+        lastOutcomeCode: latestVisit?.outcomeCode ?? null,
         lastVisitAt: latestVisit?.visitTime ?? null,
         pendingSync: false
       };
@@ -558,6 +569,8 @@ export class TurfsService {
         data: {
           turfId: input.turfId,
           canvasserId: input.canvasserId,
+          organizationId: assignment.organizationId,
+          campaignId: assignment.campaignId,
           startTime: new Date(),
           status: SessionStatus.active,
           lastActivityAt: new Date(),

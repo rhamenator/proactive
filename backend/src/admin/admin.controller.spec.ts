@@ -5,7 +5,11 @@ describe('AdminController', () => {
   const adminService = {
     dashboardSummary: jest.fn(),
     activeCanvassers: jest.fn(),
-    listCanvassers: jest.fn()
+    listCanvassers: jest.fn(),
+    listOutcomeDefinitions: jest.fn(),
+    gpsReviewQueue: jest.fn(),
+    overrideGpsResult: jest.fn(),
+    upsertOutcomeDefinition: jest.fn()
   };
   const usersService = {
     createCanvasser: jest.fn(),
@@ -33,10 +37,14 @@ describe('AdminController', () => {
     controller.dashboardSummary();
     controller.activeCanvassers();
     controller.listCanvassers();
+    controller.listOutcomeDefinitions();
+    controller.gpsReviewQueue();
 
     expect(adminService.dashboardSummary).toHaveBeenCalled();
     expect(adminService.activeCanvassers).toHaveBeenCalled();
     expect(adminService.listCanvassers).toHaveBeenCalled();
+    expect(adminService.listOutcomeDefinitions).toHaveBeenCalled();
+    expect(adminService.gpsReviewQueue).toHaveBeenCalled();
   });
 
   it('delegates create, invite, and update field-user flows', () => {
@@ -74,5 +82,30 @@ describe('AdminController', () => {
 
     expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'user-2', 'admin-1', 'Coverage');
     expect(turfsService.reopenTurf).toHaveBeenCalledWith('turf-1', 'admin-1', 'Need more attempts');
+  });
+
+  it('delegates outcome management and GPS override actions', () => {
+    controller.createOutcomeDefinition({
+      code: 'refused',
+      label: 'Refused',
+      requiresNote: true
+    });
+    controller.updateOutcomeDefinition('8cb8fd34-5625-48f7-8a91-6657bdbf2c6d', {
+      code: 'refused',
+      label: 'Refused at door',
+      requiresNote: true
+    });
+    controller.overrideGpsResult(
+      '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
+      { reason: 'Supervisor confirmed doorstep visit' },
+      { sub: 'supervisor-1', email: 'sup@example.com', role: UserRole.supervisor }
+    );
+
+    expect(adminService.upsertOutcomeDefinition).toHaveBeenCalledTimes(2);
+    expect(adminService.overrideGpsResult).toHaveBeenCalledWith({
+      visitLogId: '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
+      actorUserId: 'supervisor-1',
+      reason: 'Supervisor confirmed doorstep visit'
+    });
   });
 });

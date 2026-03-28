@@ -191,4 +191,4 @@ Use this only for changes compatible with the installed runtime version. Native 
 
 ## Role Model Note
 
-The current mobile app still implements the canvasser flow only. The client’s newer role model adds `supervisor` as a core role, which should be handled as product/application work separately from the deployment pipeline.
+The mobile app intentionally implements the canvasser flow only. Supervisors use the web dashboard for operational review, turf management, and GPS exception handling.

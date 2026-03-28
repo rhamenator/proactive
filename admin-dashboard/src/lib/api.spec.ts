@@ -117,6 +117,43 @@ describe('admin api client', () => {
     expect(result.blob.size).toBe(8);
   });
 
+  it('supports outcome and GPS review admin requests', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ id: 'outcome-1', code: 'knocked', label: 'Knocked' }]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'geo-1', visitLogId: 'visit-1' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      );
+
+    const client = createApiClient('token-123');
+    const outcomes = await client.listOutcomeDefinitions();
+    const override = await client.overrideGpsResult('visit-1', 'Supervisor confirmed the doorstep');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/admin/outcomes', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3001/admin/gps-review/visit-1/override', {
+      method: 'POST',
+      body: JSON.stringify({ reason: 'Supervisor confirmed the doorstep' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(outcomes[0].code).toBe('knocked');
+    expect(override).toEqual({ id: 'geo-1', visitLogId: 'visit-1' });
+  });
+
   it('exposes a stable fallback for unknown thrown values', () => {
     expect(getErrorMessage(new ApiError('Boom', 500))).toBe('Boom');
     expect(getErrorMessage('bad')).toBe('Something went wrong');

@@ -5,7 +5,7 @@ import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } fro
 import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input, TextArea } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
-import { useAuthedApi } from '../../src/lib/auth-context';
+import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
 import type { CanvasserRecord, TurfListItem } from '../../src/lib/types';
 
 const mappingFields = [
@@ -20,7 +20,9 @@ const mappingFields = [
 ] as const;
 
 export default function TurfsPage() {
+  const { user } = useAuth();
   const api = useAuthedApi();
+  const isAdmin = user?.role === 'admin';
   const [turfs, setTurfs] = useState<TurfListItem[]>([]);
   const [canvassers, setCanvassers] = useState<CanvasserRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -169,6 +171,7 @@ export default function TurfsPage() {
         {error ? <div className="notice notice-error">{error}</div> : null}
 
         <div className="split">
+          {isAdmin ? (
           <Card>
             <form className="stack" onSubmit={handleCreateTurf}>
               <div>
@@ -189,7 +192,21 @@ export default function TurfsPage() {
               <Button type="submit">Create Turf</Button>
             </form>
           </Card>
+          ) : (
+            <Card>
+              <div className="stack">
+                <div>
+                  <p className="section-kicker">Read-only</p>
+                  <h2 className="heading-reset">Supervisor turf controls</h2>
+                </div>
+                <p className="muted">
+                  Supervisors can review, reassign, and reopen turf work below. Turf creation and CSV import remain admin-only.
+                </p>
+              </div>
+            </Card>
+          )}
 
+          {isAdmin ? (
           <Card>
             <form className="stack" onSubmit={handleImport}>
               <div>
@@ -242,6 +259,7 @@ export default function TurfsPage() {
               </Button>
             </form>
           </Card>
+          ) : null}
         </div>
 
         <Card className="stack">

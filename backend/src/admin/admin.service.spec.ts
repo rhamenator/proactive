@@ -3,6 +3,7 @@ import { AdminService } from './admin.service';
 
 describe('AdminService', () => {
   const prisma = {
+    $transaction: jest.fn(),
     user: {
       count: jest.fn(),
       findMany: jest.fn()
@@ -23,7 +24,21 @@ describe('AdminService', () => {
     },
     visitLog: {
       count: jest.fn(),
-      findMany: jest.fn()
+      findMany: jest.fn(),
+      update: jest.fn()
+    },
+    outcomeDefinition: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
+    },
+    visitGeofenceResult: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn()
+    },
+    auditLog: {
+      create: jest.fn()
     }
   };
 
@@ -101,5 +116,122 @@ describe('AdminService', () => {
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }]
     });
     expect(result).toHaveLength(1);
+  });
+
+  it('lists configurable outcomes in display order', async () => {
+    prisma.outcomeDefinition.findMany.mockResolvedValue([{ id: 'outcome-1', code: 'knocked' }]);
+
+    const result = await service.listOutcomeDefinitions();
+
+    expect(prisma.outcomeDefinition.findMany).toHaveBeenCalledWith({
+      orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
+    });
+    expect(result).toEqual([{ id: 'outcome-1', code: 'knocked' }]);
+  });
+
+  it('creates and updates outcome definitions with normalized values', async () => {
+    prisma.outcomeDefinition.create.mockResolvedValue({ id: 'outcome-2', code: 'refused' });
+    prisma.outcomeDefinition.update.mockResolvedValue({ id: 'outcome-2', code: 'refused' });
+
+    const created = await service.upsertOutcomeDefinition({
+      code: ' refused ',
+      label: ' Refused ',
+      requiresNote: true,
+      displayOrder: 40
+    });
+    const updated = await service.upsertOutcomeDefinition({
+      id: 'outcome-2',
+      code: 'refused',
+      label: 'Refused At Door',
+      isActive: false
+    });
+
+    expect(prisma.outcomeDefinition.create).toHaveBeenCalledWith({
+      data: {
+        code: 'refused',
+        label: 'Refused',
+        requiresNote: true,
+        isFinalDisposition: true,
+        displayOrder: 40,
+        isActive: true
+      }
+    });
+    expect(prisma.outcomeDefinition.update).toHaveBeenCalledWith({
+      where: { id: 'outcome-2' },
+      data: {
+        code: 'refused',
+        label: 'Refused At Door',
+        requiresNote: false,
+        isFinalDisposition: true,
+        displayOrder: 0,
+        isActive: false
+      }
+    });
+    expect(created).toEqual({ id: 'outcome-2', code: 'refused' });
+    expect(updated).toEqual({ id: 'outcome-2', code: 'refused' });
+  });
+
+  it('returns the GPS review queue with canvasser and turf context', async () => {
+    prisma.visitGeofenceResult.findMany.mockResolvedValue([{ id: 'geo-1' }]);
+
+    const result = await service.gpsReviewQueue();
+
+    expect(prisma.visitGeofenceResult.findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [{ gpsStatus: { not: 'verified' } }, { overrideFlag: true }]
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        address: true,
+        visitLog: {
+          include: {
+            canvasser: { select: expect.any(Object) },
+            turf: { select: { id: true, name: true } }
+          }
+        }
+      }
+    });
+    expect(result).toEqual([{ id: 'geo-1' }]);
+  });
+
+  it('applies GPS overrides and writes an audit trail', async () => {
+    prisma.visitGeofenceResult.findUnique.mockResolvedValue({
+      visitLogId: 'visit-1',
+      overrideFlag: false,
+      failureReason: 'outside_radius',
+      gpsStatus: 'flagged'
+    });
+    prisma.visitGeofenceResult.update.mockResolvedValue({ id: 'geo-1', overrideFlag: true });
+    prisma.visitLog.update.mockResolvedValue({ id: 'visit-1', geofenceValidated: true });
+    prisma.auditLog.create.mockResolvedValue({ id: 'audit-1' });
+    prisma.$transaction.mockImplementation(async (operations) => Promise.all(operations));
+
+    const result = await service.overrideGpsResult({
+      visitLogId: 'visit-1',
+      actorUserId: 'admin-1',
+      reason: 'Manual verification'
+    });
+
+    expect(prisma.visitGeofenceResult.update).toHaveBeenCalledWith({
+      where: { visitLogId: 'visit-1' },
+      data: expect.objectContaining({
+        overrideFlag: true,
+        overrideReason: 'Manual verification',
+        overrideByUserId: 'admin-1',
+        overrideAt: expect.any(Date)
+      })
+    });
+    expect(prisma.visitLog.update).toHaveBeenCalledWith({
+      where: { id: 'visit-1' },
+      data: { geofenceValidated: true }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorUserId: 'admin-1',
+        actionType: 'gps_override_applied',
+        entityId: 'visit-1'
+      })
+    });
+    expect(result).toEqual({ id: 'geo-1', overrideFlag: true });
   });
 });

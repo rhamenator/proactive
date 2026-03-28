@@ -9,6 +9,8 @@ Admins use the web dashboard to:
 - manage field users
 - assign or reassign turfs
 - review dashboard progress
+- review flagged GPS submissions and apply overrides
+- manage outcome definitions
 - export results
 
 ## Sign In
@@ -63,6 +65,20 @@ Use `Dashboard` to review:
 - total turfs
 - address completion
 - visit counts
+
+## Review GPS Exceptions
+
+1. Open `GPS Review`.
+2. Review flagged or overridden submissions.
+3. Confirm the visit notes, address, turf, and canvasser context.
+4. Apply an override only when operations staff have validated the submission.
+
+## Manage Outcome Definitions
+
+1. Open `Outcomes`.
+2. Review the active visit outcomes shown to mobile canvassers.
+3. Add or edit outcomes as needed.
+4. Mark an outcome inactive instead of deleting it when historical records already use it.
 
 ## Export Results
 

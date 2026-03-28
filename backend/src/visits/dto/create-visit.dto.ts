@@ -2,21 +2,20 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
-  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength
 } from 'class-validator';
-import { VisitResult } from '@prisma/client';
 
 export class CreateVisitDto {
   @IsUUID()
   addressId!: string;
 
-  @IsEnum(VisitResult)
-  result!: VisitResult;
+  @IsString()
+  @MaxLength(100)
+  outcomeCode!: string;
 
   @IsOptional()
   @IsBoolean()

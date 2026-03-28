@@ -11,11 +11,24 @@ export class VisitsService {
     private readonly auditService: AuditService
   ) {}
 
+  private normalizeLegacyResult(outcomeCode: string) {
+    const normalized = outcomeCode.trim();
+    const allowed = new Set<string>(Object.values(VisitResult));
+    return allowed.has(normalized) ? (normalized as VisitResult) : VisitResult.other;
+  }
+
+  async listActiveOutcomes() {
+    return this.prisma.outcomeDefinition.findMany({
+      where: { isActive: true },
+      orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
+    });
+  }
+
   async logVisit(input: {
     canvasserId: string;
     addressId: string;
     sessionId?: string;
-    result: VisitResult;
+    outcomeCode: string;
     contactMade?: boolean;
     notes?: string;
     latitude?: number;
@@ -50,6 +63,21 @@ export class VisitsService {
 
     if (!address) {
       throw new BadRequestException('Address not found');
+    }
+
+    const outcomeDefinition = await this.prisma.outcomeDefinition.findFirst({
+      where: {
+        code: input.outcomeCode,
+        isActive: true
+      }
+    });
+
+    if (!outcomeDefinition) {
+      throw new BadRequestException('Visit outcome is not recognized');
+    }
+
+    if (outcomeDefinition.requiresNote && !input.notes?.trim()) {
+      throw new BadRequestException('Notes are required for the selected visit outcome');
     }
 
     const assignment = await this.prisma.turfAssignment.findFirst({
@@ -173,7 +201,12 @@ export class VisitsService {
           addressId: address.id,
           sessionId: visitSession,
           canvasserId: input.canvasserId,
-          result: input.result,
+          organizationId: address.organizationId ?? address.turf.organizationId,
+          campaignId: address.campaignId ?? address.turf.campaignId,
+          outcomeDefinitionId: outcomeDefinition.id,
+          result: this.normalizeLegacyResult(outcomeDefinition.code),
+          outcomeCode: outcomeDefinition.code,
+          outcomeLabel: outcomeDefinition.label,
           contactMade: input.contactMade ?? false,
           notes: input.notes,
           latitude: input.latitude,
@@ -234,6 +267,8 @@ export class VisitsService {
             addressId: address.id,
             turfId: address.turfId,
             result: visit.result,
+            outcomeCode: visit.outcomeCode,
+            outcomeLabel: visit.outcomeLabel,
             gpsStatus: visit.gpsStatus,
             syncStatus: visit.syncStatus,
             localRecordUuid: visit.localRecordUuid,

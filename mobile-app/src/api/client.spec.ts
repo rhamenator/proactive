@@ -36,6 +36,25 @@ describe('mobile api client', () => {
     });
   });
 
+  it('loads active visit outcomes for the mobile workflow', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify([{ id: 'outcome-1', code: 'knocked', label: 'Knocked' }]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
+
+    const result = await api.listOutcomes('token-123');
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3001/visits/outcomes', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(result).toEqual([{ id: 'outcome-1', code: 'knocked', label: 'Knocked' }]);
+  });
+
   it('posts visit submissions as JSON payloads', async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ id: 'visit-1' }), {
@@ -52,7 +71,7 @@ describe('mobile api client', () => {
       turfId: 'turf-1',
       sessionId: 'session-1',
       addressId: 'address-1',
-      result: 'knocked',
+      outcomeCode: 'knocked',
       contactMade: true,
       notes: 'Reached voter',
       latitude: 42.96,
@@ -72,7 +91,7 @@ describe('mobile api client', () => {
         turfId: 'turf-1',
         sessionId: 'session-1',
         addressId: 'address-1',
-        result: 'knocked',
+        outcomeCode: 'knocked',
         contactMade: true,
         notes: 'Reached voter',
         latitude: 42.96,

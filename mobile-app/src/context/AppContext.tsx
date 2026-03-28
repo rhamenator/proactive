@@ -8,6 +8,7 @@ import type {
   Address,
   AddressState,
   GpsStatus,
+  OutcomeDefinition,
   QueuedVisit,
   Role,
   Turf,
@@ -27,6 +28,7 @@ type AppContextValue = {
   user: User | null;
   token: string | null;
   role: Role | null;
+  outcomes: OutcomeDefinition[];
   turf: Turf | null;
   session: TurfSession | null;
   addresses: Address[];
@@ -42,7 +44,7 @@ type AppContextValue = {
   resumeTurf: () => Promise<void>;
   completeTurf: () => Promise<void>;
   endTurf: () => Promise<void>;
-  submitVisit: (addressId: string, result: VisitResult, notes?: string) => Promise<void>;
+  submitVisit: (addressId: string, outcomeCode: VisitResult, notes?: string) => Promise<void>;
   syncQueue: () => Promise<void>;
   getAddressById: (addressId: string) => Address | undefined;
 };
@@ -147,6 +149,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [outcomes, setOutcomes] = useState<OutcomeDefinition[]>([]);
   const [turf, setTurf] = useState<Turf | null>(null);
   const [session, setSession] = useState<TurfSession | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -173,7 +176,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         if (sessionData.token) {
           try {
-            const [me, snapshot] = await Promise.all([api.me(sessionData.token), api.myTurf(sessionData.token)]);
+            const [me, snapshot, nextOutcomes] = await Promise.all([
+              api.me(sessionData.token),
+              api.myTurf(sessionData.token),
+              api.listOutcomes(sessionData.token)
+            ]);
             if (!mounted) {
               return;
             }
@@ -183,21 +190,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
               await clearSession();
               setToken(null);
               setUser(null);
+              setOutcomes([]);
               setQueue([]);
               setAddressState({});
               return;
             }
 
             setUser(me);
+            setOutcomes(nextOutcomes);
             applySnapshot(snapshot, sessionData.addressState);
           } catch (error) {
             setErrorMessage(getErrorMessage(error));
             await clearSession();
             setToken(null);
             setUser(null);
+            setOutcomes([]);
           }
         } else {
           setUser(null);
+          setOutcomes([]);
         }
       } finally {
         if (mounted) {
@@ -293,7 +304,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToken(authToken);
     setUser(response.user);
     await saveSession(authToken, response.user);
-    const snapshot = await api.myTurf(authToken);
+    const [snapshot, nextOutcomes] = await Promise.all([
+      api.myTurf(authToken),
+      api.listOutcomes(authToken)
+    ]);
+    setOutcomes(nextOutcomes);
     applySnapshot(snapshot, addressState);
     setStatusMessage('Signed in. Turf snapshot loaded.');
   }
@@ -301,6 +316,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   async function logout() {
     setToken(null);
     setUser(null);
+    setOutcomes([]);
     setTurf(null);
     setSession(null);
     setAddresses([]);
@@ -348,7 +364,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await completeTurf();
   }
 
-  async function submitVisit(addressId: string, result: VisitResult, notes?: string) {
+  async function submitVisit(addressId: string, outcomeCode: VisitResult, notes?: string) {
     if (!token || !turf) {
       throw new Error('Sign in and load a turf before logging visits.');
     }
@@ -356,6 +372,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const address = addresses.find((item) => item.id === addressId);
     if (!address) {
       throw new Error('Address not found on this turf.');
+    }
+
+    const outcome = outcomes.find((item) => item.code === outcomeCode && item.isActive);
+    if (!outcome) {
+      throw new Error('The selected visit outcome is not available.');
+    }
+    if (outcome.requiresNote && !notes?.trim()) {
+      throw new Error('Notes are required for the selected visit outcome.');
     }
 
     const localRecordUuid = createLocalRecordUuid();
@@ -369,8 +393,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       turfId: turf.id,
       sessionId: session?.id,
       addressId,
-      result,
-      contactMade: result === 'talked_to_voter',
+      outcomeCode,
+      contactMade: outcomeCode === 'talked_to_voter',
       notes: notes?.trim() || undefined,
       latitude: location.latitude ?? undefined,
       longitude: location.longitude ?? undefined,
@@ -381,7 +405,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
 
     const localState: AddressState = {
-      result,
+      result: outcome.label,
+      outcomeCode,
       submittedAt: payload.clientCreatedAt,
       synced: false,
       syncStatus: 'pending',
@@ -476,7 +501,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setAddressState((current) => ({
             ...current,
             [item.payload.addressId]: {
-              result: item.payload.result,
+              result: outcomes.find((outcome) => outcome.code === item.payload.outcomeCode)?.label ?? item.payload.outcomeCode,
+              outcomeCode: item.payload.outcomeCode,
               submittedAt: item.payload.clientCreatedAt,
               synced: true,
               syncStatus: 'synced',
@@ -499,7 +525,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setAddressState((current) => ({
             ...current,
             [item.payload.addressId]: {
-              result: item.payload.result,
+              result: outcomes.find((outcome) => outcome.code === item.payload.outcomeCode)?.label ?? item.payload.outcomeCode,
+              outcomeCode: item.payload.outcomeCode,
               submittedAt: item.payload.clientCreatedAt,
               synced: false,
               syncStatus: 'failed',
@@ -545,6 +572,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     user,
     token,
     role: user?.role ?? null,
+    outcomes,
     turf,
     session,
     addresses,

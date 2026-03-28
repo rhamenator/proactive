@@ -1,10 +1,67 @@
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
   const passwordHash = await bcrypt.hash('Password123!', 10);
+  const organization = await prisma.organization.upsert({
+    where: { code: 'default' },
+    update: {},
+    create: {
+      code: 'default',
+      name: 'PROACTIVE Default Organization'
+    }
+  });
+
+  const campaign = await prisma.campaign.upsert({
+    where: {
+      organizationId_code: {
+        organizationId: organization.id,
+        code: 'general'
+      }
+    },
+    update: {},
+    create: {
+      organizationId: organization.id,
+      code: 'general',
+      name: 'General'
+    }
+  });
+
+  const defaultOutcomes: Array<Prisma.OutcomeDefinitionCreateInput> = [
+    { code: 'knocked', label: 'Knocked', displayOrder: 10 },
+    { code: 'lit_drop', label: 'Lit Drop', displayOrder: 20 },
+    { code: 'not_home', label: 'Not Home', displayOrder: 30 },
+    { code: 'refused', label: 'Refused', requiresNote: true, displayOrder: 40 },
+    { code: 'talked_to_voter', label: 'Talked to Voter', displayOrder: 50 },
+    { code: 'other', label: 'Other', requiresNote: true, displayOrder: 60 }
+  ];
+
+  for (const outcome of defaultOutcomes) {
+    await prisma.outcomeDefinition.upsert({
+      where: { code: outcome.code },
+      update: {
+        label: outcome.label,
+        requiresNote: outcome.requiresNote ?? false,
+        displayOrder: outcome.displayOrder,
+        isFinalDisposition: true,
+        isActive: true,
+        organizationId: organization.id,
+        campaignId: campaign.id
+      },
+      create: {
+        code: outcome.code,
+        label: outcome.label,
+        requiresNote: outcome.requiresNote ?? false,
+        displayOrder: outcome.displayOrder,
+        isFinalDisposition: true,
+        isActive: true,
+        organizationId: organization.id,
+        campaignId: campaign.id
+      }
+    });
+  }
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@proactive.local' },
@@ -14,7 +71,8 @@ async function main() {
       lastName: 'Director',
       email: 'admin@proactive.local',
       passwordHash,
-      role: UserRole.admin
+      role: UserRole.admin,
+      organizationId: organization.id
     }
   });
 
@@ -26,7 +84,8 @@ async function main() {
       lastName: 'Canvasser',
       email: 'canvasser@proactive.local',
       passwordHash,
-      role: UserRole.canvasser
+      role: UserRole.canvasser,
+      organizationId: organization.id
     }
   });
 
@@ -38,7 +97,8 @@ async function main() {
       lastName: 'Supervisor',
       email: 'supervisor@proactive.local',
       passwordHash,
-      role: UserRole.supervisor
+      role: UserRole.supervisor,
+      organizationId: organization.id
     }
   });
 
@@ -47,9 +107,13 @@ async function main() {
       name: 'Sample Turf 1',
       description: 'Starter turf for local development',
       createdById: admin.id,
+      organizationId: organization.id,
+      campaignId: campaign.id,
       addresses: {
         create: [
           {
+            organizationId: organization.id,
+            campaignId: campaign.id,
             addressLine1: '100 Main St',
             city: 'Grand Rapids',
             state: 'MI',
@@ -59,6 +123,8 @@ async function main() {
             vanId: 'VAN-1001'
           },
           {
+            organizationId: organization.id,
+            campaignId: campaign.id,
             addressLine1: '102 Main St',
             city: 'Grand Rapids',
             state: 'MI',
@@ -75,11 +141,13 @@ async function main() {
   await prisma.turfAssignment.create({
     data: {
       turfId: turf.id,
-      canvasserId: canvasser.id
+      canvasserId: canvasser.id,
+      organizationId: organization.id,
+      campaignId: campaign.id
     }
   });
 
-  console.log('Seeded users, turf, and addresses.');
+  console.log('Seeded organization, campaign, outcomes, users, turf, and addresses.');
 }
 
 main()

@@ -72,6 +72,12 @@ function normalizeQueuedVisit(item: unknown): QueuedVisit | null {
         : new Date().toISOString();
   const payloadLocalRecordUuid =
     typeof payload.localRecordUuid === 'string' ? payload.localRecordUuid : localRecordUuid;
+  const outcomeCode =
+    typeof payload.outcomeCode === 'string'
+      ? payload.outcomeCode
+      : typeof payload.result === 'string'
+        ? payload.result
+        : 'knocked';
   const clientCreatedAt =
     typeof payload.clientCreatedAt === 'string'
       ? payload.clientCreatedAt
@@ -105,7 +111,7 @@ function normalizeQueuedVisit(item: unknown): QueuedVisit | null {
       turfId: String(payload.turfId ?? ''),
       sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : null,
       addressId: String(payload.addressId ?? ''),
-      result: payload.result as QueuedVisit['payload']['result'],
+      outcomeCode,
       contactMade: Boolean(payload.contactMade),
       notes: typeof payload.notes === 'string' ? payload.notes : undefined,
       latitude,
@@ -144,14 +150,8 @@ function normalizeAddressState(item: unknown): AddressState | null {
   const syncStatus = normalizeVisitSyncStatus(raw.syncStatus, synced);
 
   return {
-    result:
-      raw.result === 'knocked' ||
-      raw.result === 'lit_drop' ||
-      raw.result === 'not_home' ||
-      raw.result === 'refused' ||
-      raw.result === 'talked_to_voter'
-        ? raw.result
-        : null,
+    result: typeof raw.result === 'string' ? raw.result : null,
+    outcomeCode: typeof raw.outcomeCode === 'string' ? raw.outcomeCode : null,
     submittedAt: typeof raw.submittedAt === 'string' ? raw.submittedAt : null,
     synced: syncStatus === 'synced',
     syncStatus,

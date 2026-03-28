@@ -2,15 +2,12 @@
 
 ## Current Role Limitations
 
-- admin dashboard supports `admin` only
-- mobile app supports `canvasser` only
-- `supervisor` exists in code but is not complete as an end-user workflow
+- admin dashboard supports `admin` and `supervisor`
+- mobile app supports `canvasser` only by design
 
 ## Current Workflow Gaps
 
-- no full GPS review/override UI
 - no conflict-resolution UI for flagged sync items
-- no configurable visit outcome model yet
 - no org/campaign scoping model yet
 - no MFA enforcement flow yet
 

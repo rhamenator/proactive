@@ -5,7 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
-import { useAuthedApi } from '../../src/lib/auth-context';
+import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
 import type { FieldUserRecord } from '../../src/lib/types';
 
 const roleLabels: Record<FieldUserRecord['role'], string> = {
@@ -15,7 +15,9 @@ const roleLabels: Record<FieldUserRecord['role'], string> = {
 };
 
 export default function CanvassersPage() {
+  const { user } = useAuth();
   const api = useAuthedApi();
+  const isAdmin = user?.role === 'admin';
   const [users, setUsers] = useState<FieldUserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +86,7 @@ export default function CanvassersPage() {
         {error ? <div className="notice notice-error">{error}</div> : null}
 
         <div className="split">
+          {isAdmin ? (
           <Card>
             <form className="stack" onSubmit={handleCreate}>
               <div>
@@ -133,6 +136,19 @@ export default function CanvassersPage() {
               <Button type="submit">Create {roleLabels[form.role]}</Button>
             </form>
           </Card>
+          ) : (
+            <Card>
+              <div className="stack">
+                <div>
+                  <p className="section-kicker">Read-only</p>
+                  <h2 className="heading-reset">Supervisor roster view</h2>
+                </div>
+                <p className="muted">
+                  Supervisors can review the field roster here, but only admins can create or modify field users.
+                </p>
+              </div>
+            </Card>
+          )}
 
           <Card className="stack">
             <div className="inline-actions inline-actions-between">
@@ -167,11 +183,13 @@ export default function CanvassersPage() {
                       ? 'Supervisor accounts can be assigned field teams once the backend exposes scoped supervision.'
                       : 'Canvasser accounts are field-ready for turf work and visit logging.'}
                   </div>
-                  <div className="inline-actions">
-                    <Button variant="secondary" onClick={() => void toggleActive(user)}>
-                      {user.isActive ? 'Deactivate' : 'Reactivate'}
-                    </Button>
-                  </div>
+                  {isAdmin ? (
+                    <div className="inline-actions">
+                      <Button variant="secondary" onClick={() => void toggleActive(user)}>
+                        {user.isActive ? 'Deactivate' : 'Reactivate'}
+                      </Button>
+                    </div>
+                  ) : null}
                 </Card>
               ))}
               {!users.length ? <div className="empty-state muted">No field users found.</div> : null}

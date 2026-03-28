@@ -268,8 +268,16 @@ describe('TurfsService', () => {
       name: 'Ward 1',
       description: 'Main route',
       createdById: 'admin-1',
+      organizationId: 'org-1',
       status: TurfStatus.unassigned
     };
+    usersService.findById.mockResolvedValue({
+      id: 'admin-1',
+      role: UserRole.admin,
+      isActive: true,
+      status: 'active',
+      organizationId: 'org-1'
+    });
     prisma.turf.create.mockResolvedValue(createdTurf);
 
     const result = await service.createTurf(
@@ -285,6 +293,7 @@ describe('TurfsService', () => {
         name: 'Ward 1',
         description: 'Main route',
         createdById: 'admin-1',
+        organizationId: 'org-1',
         status: TurfStatus.unassigned
       }
     });

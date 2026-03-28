@@ -5,12 +5,21 @@ import { usePathname, useRouter } from 'next/navigation';
 import React, { useEffect } from 'react';
 
 import { useAuth } from '../lib/auth-context';
+import type { Role } from '../lib/types';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/turfs', label: 'Turfs' },
-  { href: '/canvassers', label: 'Field Users' },
-  { href: '/exports', label: 'Exports' }
+type NavItem = {
+  href: string;
+  label: string;
+  roles: Role[];
+};
+
+const navItems: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', roles: ['admin', 'supervisor'] },
+  { href: '/turfs', label: 'Turfs', roles: ['admin', 'supervisor'] },
+  { href: '/gps-review', label: 'GPS Review', roles: ['admin', 'supervisor'] },
+  { href: '/outcomes', label: 'Outcomes', roles: ['admin', 'supervisor'] },
+  { href: '/canvassers', label: 'Field Users', roles: ['admin', 'supervisor'] },
+  { href: '/exports', label: 'Exports', roles: ['admin'] }
 ];
 
 export function ProtectedFrame({
@@ -48,6 +57,8 @@ export function ProtectedFrame({
     return null;
   }
 
+  const visibleNavItems = navItems.filter((item) => (user ? item.roles.includes(user.role) : true));
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -56,7 +67,7 @@ export function ProtectedFrame({
           <strong>Field Canvassing</strong>
         </div>
         <nav className="nav">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const active = pathname === item.href;
             return (
               <Link key={item.href} href={item.href} className={`nav-link ${active ? 'is-active' : ''}`}>
@@ -72,6 +83,7 @@ export function ProtectedFrame({
               {user?.firstName} {user?.lastName}
             </strong>
             <span>{user?.email}</span>
+            <span>{user?.role}</span>
           </div>
           <button className="button button-secondary button-full" onClick={() => void logout()}>
             Sign out
@@ -86,7 +98,7 @@ export function ProtectedFrame({
             <h1>{title}</h1>
           </div>
           <div className="header-actions">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <Link key={item.href} href={item.href} className={`header-link ${pathname === item.href ? 'is-active' : ''}`}>
                 {item.label}
               </Link>

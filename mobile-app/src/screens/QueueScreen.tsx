@@ -42,7 +42,7 @@ export function QueueScreen() {
               {item.addressMeta.city}, {item.addressMeta.state}
               {item.addressMeta.zip ? ` ${item.addressMeta.zip}` : ''}
             </Text>
-            <Text style={styles.meta}>Result: {formatResult(item.payload.result)}</Text>
+            <Text style={styles.meta}>Result: {formatResult(item.payload.outcomeCode)}</Text>
             <Text style={styles.meta}>
               Saved: {new Date(item.createdAt).toLocaleString()}
             </Text>

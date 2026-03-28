@@ -1,7 +1,9 @@
 import type {
   DashboardSummary,
   FieldUserRecord,
+  GpsReviewItem,
   LoginResponse,
+  OutcomeDefinitionRecord,
   SafeUser,
   TurfAddressImportResult,
   TurfListItem
@@ -124,6 +126,47 @@ export function createApiClient(token?: string | null) {
     },
     listCanvassers() {
       return requestJson<FieldUserRecord[]>('/admin/canvassers', {}, token);
+    },
+    listOutcomeDefinitions() {
+      return requestJson<OutcomeDefinitionRecord[]>('/admin/outcomes', {}, token);
+    },
+    createOutcomeDefinition(payload: {
+      code: string;
+      label: string;
+      requiresNote?: boolean;
+      isFinalDisposition?: boolean;
+      displayOrder?: number;
+      isActive?: boolean;
+    }) {
+      return requestJson<OutcomeDefinitionRecord>('/admin/outcomes', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }, token);
+    },
+    updateOutcomeDefinition(
+      id: string,
+      payload: {
+        code: string;
+        label: string;
+        requiresNote?: boolean;
+        isFinalDisposition?: boolean;
+        displayOrder?: number;
+        isActive?: boolean;
+      }
+    ) {
+      return requestJson<OutcomeDefinitionRecord>(`/admin/outcomes/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }, token);
+    },
+    gpsReviewQueue() {
+      return requestJson<GpsReviewItem[]>('/admin/gps-review', {}, token);
+    },
+    overrideGpsResult(visitLogId: string, reason: string) {
+      return requestJson(`/admin/gps-review/${visitLogId}/override`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      }, token);
     },
     createCanvasser(payload: {
       firstName: string;

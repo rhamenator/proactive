@@ -10,6 +10,49 @@ export interface SafeUser {
   createdAt: string;
 }
 
+export interface OutcomeDefinitionRecord {
+  id: string;
+  code: string;
+  label: string;
+  requiresNote: boolean;
+  isFinalDisposition: boolean;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface GpsReviewItem {
+  id: string;
+  visitLogId: string;
+  gpsStatus: 'verified' | 'flagged' | 'missing' | 'low_accuracy';
+  failureReason?: string | null;
+  distanceFromTargetFeet?: string | number | null;
+  validationRadiusFeet: number;
+  overrideFlag: boolean;
+  overrideReason?: string | null;
+  overrideAt?: string | null;
+  address: {
+    id: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+  };
+  visitLog: {
+    id: string;
+    outcomeCode?: string | null;
+    outcomeLabel?: string | null;
+    result?: string | null;
+    notes?: string | null;
+    visitTime: string;
+    canvasser: SafeUser;
+    turf: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
 export interface LoginResponse {
   token?: string;
   accessToken: string;
@@ -94,6 +137,8 @@ export interface TurfSessionSnapshot {
       vanId?: string | null;
       visitLogs?: Array<{
         result: string;
+        outcomeCode?: string;
+        outcomeLabel?: string;
         visitTime: string;
       }>;
     }>;

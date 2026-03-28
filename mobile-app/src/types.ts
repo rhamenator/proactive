@@ -1,15 +1,20 @@
 export type Role = 'admin' | 'supervisor' | 'canvasser';
 
-export type VisitResult =
-  | 'knocked'
-  | 'lit_drop'
-  | 'not_home'
-  | 'refused'
-  | 'talked_to_voter';
+export type VisitResult = string;
 
 export type GpsStatus = 'verified' | 'flagged' | 'missing' | 'low_accuracy';
 
 export type VisitSyncStatus = 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict';
+
+export interface OutcomeDefinition {
+  id: string;
+  code: string;
+  label: string;
+  requiresNote: boolean;
+  isFinalDisposition: boolean;
+  displayOrder: number;
+  isActive: boolean;
+}
 
 export interface User {
   id: string;
@@ -52,6 +57,7 @@ export interface Address {
   vanId?: string | null;
   status?: 'pending' | 'completed';
   lastResult?: VisitResult | null;
+  lastOutcomeCode?: string | null;
   lastVisitAt?: string | null;
   pendingSync?: boolean;
 }
@@ -77,7 +83,7 @@ export interface VisitSubmission {
   turfId: string;
   sessionId?: string | null;
   addressId: string;
-  result: VisitResult;
+  outcomeCode: string;
   contactMade: boolean;
   notes?: string;
   latitude?: number | null;
@@ -105,6 +111,7 @@ export interface QueuedVisit {
 
 export interface AddressState {
   result: VisitResult | null;
+  outcomeCode?: string | null;
   submittedAt: string | null;
   synced: boolean;
   syncStatus: VisitSyncStatus;

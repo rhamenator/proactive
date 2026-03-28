@@ -73,8 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!accessToken) {
       throw new Error('Login response did not include a token.');
     }
-    if (response.user.role !== 'admin') {
-      throw new Error('This dashboard is restricted to admin accounts.');
+    if (response.user.role !== 'admin' && response.user.role !== 'supervisor') {
+      throw new Error('This dashboard is restricted to admin and supervisor accounts.');
     }
 
     setToken(accessToken);

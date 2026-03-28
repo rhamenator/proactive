@@ -40,6 +40,66 @@ export class AdminController {
     return this.adminService.listCanvassers();
   }
 
+  @Get('outcomes')
+  @Roles(UserRole.admin, UserRole.supervisor)
+  listOutcomeDefinitions() {
+    return this.adminService.listOutcomeDefinitions();
+  }
+
+  @Post('outcomes')
+  createOutcomeDefinition(
+    @Body()
+    body: {
+      code: string;
+      label: string;
+      requiresNote?: boolean;
+      isFinalDisposition?: boolean;
+      displayOrder?: number;
+      isActive?: boolean;
+    }
+  ) {
+    return this.adminService.upsertOutcomeDefinition(body);
+  }
+
+  @Patch('outcomes/:id')
+  updateOutcomeDefinition(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body()
+    body: {
+      code: string;
+      label: string;
+      requiresNote?: boolean;
+      isFinalDisposition?: boolean;
+      displayOrder?: number;
+      isActive?: boolean;
+    }
+  ) {
+    return this.adminService.upsertOutcomeDefinition({
+      id,
+      ...body
+    });
+  }
+
+  @Get('gps-review')
+  @Roles(UserRole.admin, UserRole.supervisor)
+  gpsReviewQueue() {
+    return this.adminService.gpsReviewQueue();
+  }
+
+  @Post('gps-review/:visitLogId/override')
+  @Roles(UserRole.admin, UserRole.supervisor)
+  overrideGpsResult(
+    @Param('visitLogId', ParseUUIDPipe) visitLogId: string,
+    @Body() body: { reason: string },
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.adminService.overrideGpsResult({
+      visitLogId,
+      actorUserId: user.sub,
+      reason: body.reason
+    });
+  }
+
   @Post('canvassers')
   createCanvasser(
     @Body()

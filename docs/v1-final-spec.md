@@ -64,8 +64,8 @@ Where the client documents provided ranges or optional patterns, use these defau
 
 - Organization support: implement a single default organization in v1, but include `organization_id` on major records
 - Campaign support: include nullable `campaign_id` in schema where relevant, but do not require campaign management UI in v1
-- Roles in v1 UI: `admin` and `canvasser` only
-- `supervisor` role: future-ready only, not enabled in v1 authorization flows
+- Roles in v1 UI: `admin`, `supervisor`, and `canvasser`
+- `supervisor` role: enabled in v1 for operational review, turf reassignment/reopen, GPS review, and read-only outcome visibility
 - Password minimum length: 10 characters
 - Password rule: at least 1 letter and 1 number
 - Activation flow: admin-created accounts only in v1; invited users activate via email link
@@ -102,6 +102,24 @@ Admins can:
 - override GPS issues and conflict states
 
 Admins must use MFA.
+
+### Supervisor
+
+Supervisors can:
+
+- sign in to the web dashboard
+- view dashboard progress and active canvasser activity
+- view field users
+- review turfs and reassign or reopen them
+- review GPS exceptions and apply overrides
+- view configured outcome definitions
+
+Supervisors cannot:
+
+- create or deactivate users
+- create or import turfs
+- edit outcome definitions
+- export operational data
 
 ### Canvasser
 
@@ -657,9 +675,7 @@ v1 is acceptable when all of the following are true:
 
 These do not block v1 implementation because safe defaults are chosen above, but they should be revisited with the client:
 
-- whether `supervisor` becomes a real v1 role
 - whether multi-campaign support should move from schema-only to user-facing v1 functionality
 - the first exact VAN upload profile to support
 - final legal/privacy wording for GPS notice and user consent
 - whether encrypted local storage is sufficient or a stronger device-bound secure storage model is required for all cached data
-

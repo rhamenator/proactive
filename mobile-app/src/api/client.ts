@@ -1,4 +1,4 @@
-import type { Address, LoginResponse, TurfSnapshot, VisitSubmission } from '../types';
+import type { Address, LoginResponse, OutcomeDefinition, TurfSnapshot, VisitSubmission } from '../types';
 
 const baseUrl = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
 
@@ -46,6 +46,10 @@ export const api = {
 
   myTurf(token: string) {
     return request<TurfSnapshot>('/my-turf', {}, token);
+  },
+
+  listOutcomes(token: string) {
+    return request<OutcomeDefinition[]>('/visits/outcomes', {}, token);
   },
 
   getAddresses(token: string, turfId: string) {
