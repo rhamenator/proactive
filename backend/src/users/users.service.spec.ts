@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
@@ -44,6 +44,40 @@ describe('UsersService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('sanitizes optional user fields to stable defaults', () => {
+    const result = service.sanitize(
+      buildUser({
+        status: null,
+        mfaEnabled: null,
+        invitedAt: undefined,
+        activatedAt: undefined,
+        lastLoginAt: undefined
+      })
+    );
+
+    expect(result.status).toBe('active');
+    expect(result.mfaEnabled).toBe(false);
+    expect(result.invitedAt).toBeNull();
+    expect(result.activatedAt).toBeNull();
+    expect(result.lastLoginAt).toBeNull();
+  });
+
+  it('normalizes email when looking up a user by email', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await service.findByEmail(' Taylor@Example.com ');
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { email: 'taylor@example.com' }
+    });
+  });
+
+  it('throws when a user lookup by id does not find a record', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(service.findById('missing-user')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('defaults created field users to the canvasser role and normalizes email', async () => {
@@ -133,6 +167,88 @@ describe('UsersService', () => {
         lastName: 'Field',
         email: 'jordan@example.com',
         password: 'Password123!'
+      })
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('updates a canvasser with normalized email, active status, role, and hashed password', async () => {
+    prisma.user.findUnique.mockResolvedValue(buildUser({ id: 'user-2' }));
+    prisma.user.update.mockImplementation(async ({ data }) => buildUser({ id: 'user-2', ...data }));
+
+    const result = await service.updateCanvasser('user-2', {
+      firstName: 'Jordan',
+      lastName: 'Lane',
+      email: ' Jordan@Example.com ',
+      password: 'NewPassword123!',
+      isActive: false,
+      role: UserRole.supervisor
+    });
+
+    expect(bcrypt.hash).toHaveBeenCalledWith('NewPassword123!', 10);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-2' },
+      data: expect.objectContaining({
+        firstName: 'Jordan',
+        lastName: 'Lane',
+        email: 'jordan@example.com',
+        isActive: false,
+        status: 'inactive',
+        role: UserRole.supervisor,
+        passwordHash: 'hashed-password'
+      })
+    });
+    expect(result.role).toBe(UserRole.supervisor);
+    expect(result.status).toBe('inactive');
+  });
+
+  it('rejects updates for missing canvassers', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.updateCanvasser('missing-user', {
+        firstName: 'Jamie'
+      })
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('creates invited canvassers with normalized email and invited status', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockImplementation(async ({ data }) => buildUser(data));
+
+    const result = await service.createInvitedCanvasser({
+      firstName: 'Riley',
+      lastName: 'Stone',
+      email: ' Riley@Example.com ',
+      passwordHash: 'invite-hash',
+      role: UserRole.supervisor
+    });
+
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        email: 'riley@example.com',
+        passwordHash: 'invite-hash',
+        role: UserRole.supervisor,
+        isActive: false,
+        status: 'invited'
+      })
+    });
+    expect(result.status).toBe('invited');
+    expect(result.isActive).toBe(false);
+  });
+
+  it('rejects duplicate invited canvassers', async () => {
+    prisma.user.findUnique.mockResolvedValue(buildUser());
+
+    await expect(
+      service.createInvitedCanvasser({
+        firstName: 'Riley',
+        lastName: 'Stone',
+        email: 'riley@example.com',
+        passwordHash: 'invite-hash'
       })
     ).rejects.toBeInstanceOf(ConflictException);
 

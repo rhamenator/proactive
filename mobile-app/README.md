@@ -23,6 +23,35 @@ cp .env.example .env
 npm start
 ```
 
+## Local App Use
+
+Use this path for development and day-to-day QA.
+
+1. Make sure the backend API is running from the repo root:
+
+```bash
+npm run dev:backend
+```
+
+2. Start the Expo app from [mobile-app](/home/rich/dev/proactive/mobile-app):
+
+```bash
+npm start
+```
+
+3. Open the app on:
+
+- an iOS simulator
+- an Android emulator
+- a physical device through Expo Go or a development build
+
+4. Sign in with a canvasser account and verify:
+
+- assigned turf appears
+- session start/pause/resume/complete actions work
+- visits queue offline and sync when connectivity returns
+- GPS prompts appear when turf or visit actions require location
+
 ## Notes
 
 - `EXPO_PUBLIC_API_URL` should point at the backend NestJS service.
@@ -67,8 +96,54 @@ npm run eas:build:ios:preview
 npm run eas:build:android:preview
 ```
 
-- iOS preview builds are typically distributed through TestFlight or internal install links.
-- Android preview builds can be distributed through Play Internal Testing or direct internal install artifacts.
+#### iOS internal testing
+
+Recommended path:
+
+1. Build the preview binary:
+
+```bash
+npm run eas:build:ios:preview
+```
+
+2. Upload/distribute through TestFlight.
+3. Add internal testers in App Store Connect.
+4. Testers install the app through the TestFlight app.
+
+Notes:
+
+- This is the safest in-org iPhone/iPad path.
+- True direct sideloading on iOS is limited and usually requires Apple ad hoc or enterprise distribution setup outside normal local install flows.
+
+#### Android internal testing and side-loading
+
+Recommended path for fastest in-org testing:
+
+1. Build the preview binary:
+
+```bash
+npm run eas:build:android:preview
+```
+
+2. Download the generated APK or internal artifact from EAS.
+3. Transfer it to the tester device.
+4. On the Android device, allow installs from the file manager/browser if prompted.
+5. Open the APK and install it.
+
+Alternative managed path:
+
+- Use Google Play Internal Testing if you want tester groups, version tracking, and managed updates instead of manual APK installs.
+
+#### Internal tester checklist
+
+Before handing the app to non-engineering staff, verify:
+
+- preview build points to the correct preview/staging API
+- tester accounts already exist and have assigned turf
+- GPS permissions are described to testers in advance
+- at least one full online workflow and one offline-sync workflow have been tested
+- Android testers know whether they are installing a direct APK or using Play Internal Testing
+- iOS testers know they will install through TestFlight
 
 ### Production store builds
 
@@ -96,6 +171,23 @@ npm run eas:update:production
 ```
 
 Use this only for changes compatible with the installed runtime version. Native dependency or permission changes still require a new store build.
+
+## Recommended In-Org Test Flow
+
+1. Build `preview` binaries, not `production`.
+2. Point preview builds at a non-production backend.
+3. Seed or create canvasser test accounts before distribution.
+4. Assign one or more test turfs before testers sign in.
+5. Distribute through TestFlight on iOS and either direct APK install or Play Internal Testing on Android.
+6. Ask testers to verify:
+
+- login
+- turf visibility
+- session lifecycle
+- visit logging
+- offline queueing
+- sync recovery
+- GPS permission and validation behavior
 
 ## Role Model Note
 

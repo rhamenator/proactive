@@ -9,6 +9,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "eas:build:ios:preview": "npx eas build --platform ios --profile preview",
     "eas:build:android:preview": "npx eas build --platform android --profile preview",
     "eas:build:ios:production": "npx eas build --platform ios --profile production",
@@ -33,7 +35,9 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~5.9.2"
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
   },
   "private": true
 }

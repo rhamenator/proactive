@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspace @proactive/backend && npm run build --workspace @proactive/admin-dashboard && npm run typecheck --workspace mobile-app",
-    "test": "npm test --workspace @proactive/backend -- --runInBand",
+    "test": "npm test --workspace @proactive/backend -- --runInBand && npm test --workspace @proactive/admin-dashboard && npm test --workspace mobile-app",
+    "test:coverage": "npm test --workspace @proactive/backend -- --runInBand --coverage --coverageReporters=text-summary && npm run test:coverage --workspace @proactive/admin-dashboard && npm run test:coverage --workspace mobile-app",
     "typecheck": "npm run typecheck --workspace @proactive/admin-dashboard && npm run typecheck --workspace mobile-app",
     "prisma:generate": "npm run prisma:generate --workspace @proactive/backend",
     "dev:backend": "npm run start:dev --workspace @proactive/backend",
