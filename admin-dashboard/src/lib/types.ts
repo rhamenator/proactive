@@ -21,6 +21,7 @@ export interface TurfListItem {
   id: string;
   name: string;
   description?: string | null;
+  lifecycleStatus?: 'open' | 'paused' | 'completed' | 'closed';
   createdAt: string;
   _count?: {
     addresses: number;
@@ -56,6 +57,7 @@ export interface DashboardSummary {
     id: string;
     name: string;
     description?: string | null;
+    lifecycleStatus?: 'open' | 'paused' | 'completed' | 'closed';
     addressCount: number;
     assignmentCount: number;
     activeSessionCount: number;

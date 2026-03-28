@@ -38,6 +38,9 @@ type AppContextValue = {
   logout: () => Promise<void>;
   refreshTurf: () => Promise<void>;
   startTurf: () => Promise<void>;
+  pauseTurf: () => Promise<void>;
+  resumeTurf: () => Promise<void>;
+  completeTurf: () => Promise<void>;
   endTurf: () => Promise<void>;
   submitVisit: (addressId: string, result: VisitResult, notes?: string) => Promise<void>;
   syncQueue: () => Promise<void>;
@@ -237,6 +240,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     applySnapshot(snapshot, addressState);
   }
 
+  async function performTurfAction(
+    request: (authToken: string, payload: { turfId: string; latitude?: number | null; longitude?: number | null }) => Promise<unknown>,
+    successMessage: string,
+    warningMessage: string
+  ) {
+    if (!token || !turf) {
+      throw new Error('No turf is assigned.');
+    }
+
+    setErrorMessage(null);
+    const location = await captureLocation();
+    await request(token, {
+      turfId: turf.id,
+      latitude: location.latitude,
+      longitude: location.longitude,
+    });
+    await refreshTurf();
+    setStatusMessage(
+      location.gpsStatus === 'verified' ? successMessage : warningMessage
+    );
+  }
+
   async function login(email: string, password: string) {
     setErrorMessage(null);
     const response = await api.login(email, password);
@@ -271,33 +296,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   async function startTurf() {
-    if (!token || !turf) {
-      throw new Error('No turf is assigned.');
-    }
-    setErrorMessage(null);
-    const location = await captureLocation();
-    await api.startTurf(token, {
-      turfId: turf.id,
-      latitude: location.latitude,
-      longitude: location.longitude,
-    });
-    await refreshTurf();
-    setStatusMessage('Turf started and GPS captured.');
+    await performTurfAction(
+      api.startTurf,
+      'Turf started and GPS captured.',
+      'Turf started with a GPS warning.'
+    );
+  }
+
+  async function pauseTurf() {
+    await performTurfAction(
+      api.pauseTurf,
+      'Turf paused and GPS captured.',
+      'Turf paused with a GPS warning.'
+    );
+  }
+
+  async function resumeTurf() {
+    await performTurfAction(
+      api.resumeTurf,
+      'Turf resumed and GPS captured.',
+      'Turf resumed with a GPS warning.'
+    );
+  }
+
+  async function completeTurf() {
+    await performTurfAction(
+      api.completeTurf,
+      'Turf completed and GPS captured.',
+      'Turf completed with a GPS warning.'
+    );
   }
 
   async function endTurf() {
-    if (!token || !turf) {
-      throw new Error('No turf is assigned.');
-    }
-    setErrorMessage(null);
-    const location = await captureLocation();
-    await api.endTurf(token, {
-      turfId: turf.id,
-      latitude: location.latitude,
-      longitude: location.longitude,
-    });
-    await refreshTurf();
-    setStatusMessage('Turf closed and GPS captured.');
+    await completeTurf();
   }
 
   async function submitVisit(addressId: string, result: VisitResult, notes?: string) {
@@ -508,6 +539,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     logout,
     refreshTurf,
     startTurf,
+    pauseTurf,
+    resumeTurf,
+    completeTurf,
     endTurf,
     submitVisit,
     syncQueue,

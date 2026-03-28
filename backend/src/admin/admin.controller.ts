@@ -1,11 +1,14 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import { AuthService } from '../auth/auth.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
+import { TurfsService } from '../turfs/turfs.service';
 import { UsersService } from '../users/users.service';
+import { InviteCanvasserDto } from './dto/invite-canvasser.dto';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
@@ -14,7 +17,9 @@ import { AdminService } from './admin.service';
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
+    private readonly authService: AuthService,
+    private readonly turfsService: TurfsService
   ) {}
 
   @Get('dashboard-summary')
@@ -40,6 +45,11 @@ export class AdminController {
     return this.usersService.createCanvasser(body);
   }
 
+  @Post('canvassers/invite')
+  inviteCanvasser(@Body() body: InviteCanvasserDto) {
+    return this.authService.inviteCanvasser(body);
+  }
+
   @Patch('canvassers/:id')
   updateCanvasser(
     @Param('id') id: string,
@@ -47,5 +57,23 @@ export class AdminController {
     body: Partial<{ firstName: string; lastName: string; email: string; password: string; isActive: boolean }>
   ) {
     return this.usersService.updateCanvasser(id, body);
+  }
+
+  @Post('turfs/:id/reassign')
+  reassignTurf(
+    @Param('id', ParseUUIDPipe) turfId: string,
+    @Body() body: { canvasserId: string; reason?: string },
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.turfsService.assignTurf(turfId, body.canvasserId, user.sub, body.reason);
+  }
+
+  @Post('turfs/:id/reopen')
+  reopenTurf(
+    @Param('id', ParseUUIDPipe) turfId: string,
+    @Body() body: { reason?: string },
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.turfsService.reopenTurf(turfId, user.sub, body.reason);
   }
 }

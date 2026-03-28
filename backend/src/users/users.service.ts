@@ -10,6 +10,11 @@ export type SafeUser = {
   email: string;
   role: UserRole;
   isActive: boolean;
+  status: string;
+  mfaEnabled: boolean;
+  invitedAt: Date | null;
+  activatedAt: Date | null;
+  lastLoginAt: Date | null;
   createdAt: Date;
 };
 
@@ -24,13 +29,25 @@ export class UsersService {
     email: string;
     role: UserRole;
     isActive: boolean;
+    status: string;
+    mfaEnabled: boolean;
+    invitedAt: Date | null;
+    activatedAt: Date | null;
+    lastLoginAt: Date | null;
     createdAt: Date;
   }): SafeUser {
-    return { ...user };
+    return {
+      ...user,
+      status: user.status ?? 'active',
+      mfaEnabled: user.mfaEnabled ?? false,
+      invitedAt: user.invitedAt ?? null,
+      activatedAt: user.activatedAt ?? null,
+      lastLoginAt: user.lastLoginAt ?? null
+    };
   }
 
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email } });
+    return this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
   }
 
   async findById(id: string) {
@@ -55,7 +72,8 @@ export class UsersService {
     email: string;
     password: string;
   }) {
-    const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
+    const normalizedEmail = input.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
       throw new ConflictException('A user with this email already exists');
     }
@@ -65,9 +83,11 @@ export class UsersService {
       data: {
         firstName: input.firstName,
         lastName: input.lastName,
-        email: input.email,
+        email: normalizedEmail,
         passwordHash,
-        role: UserRole.canvasser
+        role: UserRole.canvasser,
+        status: 'active',
+        activatedAt: new Date()
       }
     });
 
@@ -86,8 +106,11 @@ export class UsersService {
     const data: Prisma.UserUpdateInput = {};
     if (input.firstName !== undefined) data.firstName = input.firstName;
     if (input.lastName !== undefined) data.lastName = input.lastName;
-    if (input.email !== undefined) data.email = input.email;
-    if (input.isActive !== undefined) data.isActive = input.isActive;
+    if (input.email !== undefined) data.email = input.email.trim().toLowerCase();
+    if (input.isActive !== undefined) {
+      data.isActive = input.isActive;
+      data.status = input.isActive ? 'active' : 'inactive';
+    }
     if (input.password !== undefined) {
       data.passwordHash = await bcrypt.hash(input.password, 10);
     }
@@ -95,6 +118,34 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data
+    });
+
+    return this.sanitize(user);
+  }
+
+  async createInvitedCanvasser(input: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    passwordHash: string;
+  }) {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) {
+      throw new ConflictException('A user with this email already exists');
+    }
+
+    const user = await this.prisma.user.create({
+      data: {
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: normalizedEmail,
+        passwordHash: input.passwordHash,
+        role: UserRole.canvasser,
+        isActive: false,
+        status: 'invited',
+        invitedAt: new Date()
+      }
     });
 
     return this.sanitize(user);

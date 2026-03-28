@@ -23,6 +23,7 @@ export interface Turf {
   id: string;
   name: string;
   description?: string | null;
+  lifecycleStatus?: 'open' | 'paused' | 'completed' | 'closed';
   createdAt?: string;
 }
 
@@ -32,6 +33,7 @@ export interface TurfSession {
   canvasserId: string;
   startTime: string;
   endTime?: string | null;
+  status?: 'active' | 'paused' | 'completed';
   startLat?: number | null;
   startLng?: number | null;
   endLat?: number | null;

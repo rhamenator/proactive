@@ -161,9 +161,20 @@ export function createApiClient(token?: string | null) {
       }, token);
     },
     assignTurf(turfId: string, canvasserId: string) {
-      return requestJson(`/turfs/${turfId}/assign`, {
+      return requestJson(`/admin/turfs/${turfId}/reassign`, {
         method: 'POST',
         body: JSON.stringify({ canvasserId })
+      }, token);
+    },
+    reassignTurf(turfId: string, canvasserId: string) {
+      return requestJson(`/admin/turfs/${turfId}/reassign`, {
+        method: 'POST',
+        body: JSON.stringify({ canvasserId })
+      }, token);
+    },
+    reopenTurf(turfId: string) {
+      return requestJson(`/admin/turfs/${turfId}/reopen`, {
+        method: 'POST'
       }, token);
     },
     importTurfs(payload: { file: File; turfName?: string; mapping?: string }) {

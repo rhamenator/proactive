@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Get,
   Param,
@@ -12,7 +13,6 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import multer from 'multer';
 import { UserRole } from '@prisma/client';
-import { BadRequestException } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -21,6 +21,7 @@ import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface'
 import { AssignTurfDto } from './dto/assign-turf.dto';
 import { CreateTurfDto } from './dto/create-turf.dto';
 import { ImportCsvDto } from './dto/import-csv.dto';
+import { TurfSessionActionDto } from './dto/turf-session-action.dto';
 import { TurfsService } from './turfs.service';
 
 @Controller()
@@ -43,8 +44,12 @@ export class TurfsController {
   @Post('turfs/:id/assign')
   @UseGuards(RolesGuard)
   @Roles(UserRole.admin)
-  assignTurf(@Param('id', ParseUUIDPipe) turfId: string, @Body() body: AssignTurfDto) {
-    return this.turfsService.assignTurf(turfId, body.canvasserId);
+  assignTurf(
+    @Param('id', ParseUUIDPipe) turfId: string,
+    @Body() body: AssignTurfDto,
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.turfsService.assignTurf(turfId, body.canvasserId, user.sub);
   }
 
   @Post('turfs/import-csv')
@@ -83,16 +88,16 @@ export class TurfsController {
   }
 
   @Get('my-turf')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.canvasser)
   getMyTurf(@CurrentUser() user: JwtUserPayload) {
     return this.turfsService.getMyTurf(user.sub);
   }
 
   @Post('turf/start')
-  async startTurf(
-    @Body()
-    body: { turfId: string; latitude?: number; longitude?: number },
-    @CurrentUser() user: JwtUserPayload
-  ) {
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.canvasser)
+  async startTurf(@Body() body: TurfSessionActionDto, @CurrentUser() user: JwtUserPayload) {
     return this.turfsService.startSession({
       canvasserId: user.sub,
       turfId: body.turfId,
@@ -101,13 +106,47 @@ export class TurfsController {
     });
   }
 
+  @Post('turf/pause')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.canvasser)
+  pauseTurf(@Body() body: TurfSessionActionDto, @CurrentUser() user: JwtUserPayload) {
+    return this.turfsService.pauseSession({
+      canvasserId: user.sub,
+      turfId: body.turfId,
+      latitude: body.latitude,
+      longitude: body.longitude
+    });
+  }
+
+  @Post('turf/resume')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.canvasser)
+  resumeTurf(@Body() body: TurfSessionActionDto, @CurrentUser() user: JwtUserPayload) {
+    return this.turfsService.resumeSession({
+      canvasserId: user.sub,
+      turfId: body.turfId,
+      latitude: body.latitude,
+      longitude: body.longitude
+    });
+  }
+
+  @Post('turf/complete')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.canvasser)
+  completeTurf(@Body() body: TurfSessionActionDto, @CurrentUser() user: JwtUserPayload) {
+    return this.turfsService.completeSession({
+      canvasserId: user.sub,
+      turfId: body.turfId,
+      latitude: body.latitude,
+      longitude: body.longitude
+    });
+  }
+
   @Post('turf/end')
-  async endTurf(
-    @Body()
-    body: { turfId: string; latitude?: number; longitude?: number },
-    @CurrentUser() user: JwtUserPayload
-  ) {
-    return this.turfsService.endSession({
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.canvasser)
+  endTurf(@Body() body: TurfSessionActionDto, @CurrentUser() user: JwtUserPayload) {
+    return this.turfsService.completeSession({
       canvasserId: user.sub,
       turfId: body.turfId,
       latitude: body.latitude,

@@ -133,15 +133,27 @@ export default function TurfsPage() {
   async function handleAssign(turfId: string) {
     const canvasserId = assignmentSelection[turfId];
     if (!canvasserId) {
-      setError('Choose a canvasser before assigning.');
+      setError('Choose a canvasser before reassigning.');
       return;
     }
 
     setError(null);
     setMessage(null);
     try {
-      await api.assignTurf(turfId, canvasserId);
-      setMessage('Turf assigned.');
+      await api.reassignTurf(turfId, canvasserId);
+      setMessage('Turf reassigned.');
+      await load();
+    } catch (value) {
+      setError(getErrorMessage(value));
+    }
+  }
+
+  async function handleReopen(turfId: string) {
+    setError(null);
+    setMessage(null);
+    try {
+      await api.reopenTurf(turfId);
+      setMessage('Turf reopened.');
       await load();
     } catch (value) {
       setError(getErrorMessage(value));
@@ -271,34 +283,43 @@ export default function TurfsPage() {
                     </td>
                     <td>{turf._count?.visits ?? 0}</td>
                     <td>
-                      <div className="inline-actions">
-                        <label className="sr-only" id={`assign-canvasser-${turf.id}-label`} htmlFor={`assign-canvasser-${turf.id}`}>
-                          Assign canvasser for {turf.name}
-                        </label>
-                        <select
-                          title="Assign canvasser"
-                          className="select"
-                          id={`assign-canvasser-${turf.id}`}
-                          aria-labelledby={`assign-canvasser-${turf.id}-label`}
-                          aria-label={`Assign canvasser for ${turf.name}`}
-                          value={assignmentSelection[turf.id] ?? ''}
-                          onChange={(event) =>
-                            setAssignmentSelection((current) => ({
-                              ...current,
-                              [turf.id]: event.target.value
-                            }))
-                          }
-                        >
-                          <option value="">Choose canvasser</option>
-                          {canvassers.map((canvasser) => (
-                            <option key={canvasser.id} value={canvasser.id}>
-                              {canvasser.firstName} {canvasser.lastName}
-                            </option>
-                          ))}
-                        </select>
-                        <Button variant="secondary" onClick={() => void handleAssign(turf.id)}>
-                          Assign
-                        </Button>
+                      <div className="stack">
+                        <div className="inline-actions">
+                          <label className="sr-only" id={`assign-canvasser-${turf.id}-label`} htmlFor={`assign-canvasser-${turf.id}`}>
+                            Assign canvasser for {turf.name}
+                          </label>
+                          <select
+                            title="Assign canvasser"
+                            className="select"
+                            id={`assign-canvasser-${turf.id}`}
+                            aria-labelledby={`assign-canvasser-${turf.id}-label`}
+                            aria-label={`Assign canvasser for ${turf.name}`}
+                            value={assignmentSelection[turf.id] ?? ''}
+                            onChange={(event) =>
+                              setAssignmentSelection((current) => ({
+                                ...current,
+                                [turf.id]: event.target.value
+                              }))
+                            }
+                          >
+                            <option value="">Choose canvasser</option>
+                            {canvassers.map((canvasser) => (
+                              <option key={canvasser.id} value={canvasser.id}>
+                                {canvasser.firstName} {canvasser.lastName}
+                              </option>
+                            ))}
+                          </select>
+                          <Button variant="secondary" onClick={() => void handleAssign(turf.id)}>
+                            Reassign
+                          </Button>
+                        </div>
+                        {(turf.lifecycleStatus === 'completed' || turf.lifecycleStatus === 'closed' || (!turf.lifecycleStatus && (turf.activeSessionCount ?? 0) === 0 && (turf._count?.assignments ?? 0) > 0)) ? (
+                          <div className="inline-actions">
+                            <Button variant="ghost" onClick={() => void handleReopen(turf.id)}>
+                              Reopen
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

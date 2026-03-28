@@ -50,6 +50,23 @@ enum VisitSource {
   admin_entry
 }
 
+enum TurfStatus {
+  unassigned
+  assigned
+  in_progress
+  paused
+  completed
+  reopened
+  archived
+}
+
+enum SessionStatus {
+  active
+  paused
+  ended
+  force_closed
+}
+
 model User {
   id           String          @id @default(uuid()) @db.Uuid
   firstName    String          @map("first_name")
@@ -58,12 +75,22 @@ model User {
   passwordHash String          @map("password_hash")
   role         UserRole
   isActive     Boolean         @default(true) @map("is_active")
+  status       String          @default("active")
+  mfaEnabled   Boolean         @default(false) @map("mfa_enabled")
+  failedLoginAttempts Int      @default(0) @map("failed_login_attempts")
+  lockedUntil  DateTime?       @map("locked_until")
+  invitedAt    DateTime?       @map("invited_at")
+  activatedAt  DateTime?       @map("activated_at")
+  lastLoginAt  DateTime?       @map("last_login_at")
   createdAt    DateTime        @default(now()) @map("created_at")
   createdTurfs Turf[]          @relation("TurfsCreated")
   assignments  TurfAssignment[]
   sessions     TurfSession[]
   visits       VisitLog[]
   auditLogs    AuditLog[]      @relation("AuditActor")
+  refreshTokens AuthRefreshToken[]
+  activationTokens ActivationToken[]
+  resetTokens   PasswordResetToken[]
 
   @@map("users")
 }
@@ -72,7 +99,14 @@ model Turf {
   id          String          @id @default(uuid()) @db.Uuid
   name        String
   description String?
+  status      TurfStatus      @default(unassigned)
+  isShared    Boolean         @default(false) @map("is_shared")
   createdById  String?         @map("created_by") @db.Uuid
+  completedAt  DateTime?       @map("completed_at")
+  completedById String?        @map("completed_by") @db.Uuid
+  reopenedAt   DateTime?       @map("reopened_at")
+  reopenedById String?         @map("reopened_by") @db.Uuid
+  reopenedReason String?       @map("reopened_reason")
   createdAt    DateTime        @default(now()) @map("created_at")
   createdBy    User?           @relation("TurfsCreated", fields: [createdById], references: [id])
   addresses    Address[]
@@ -106,7 +140,10 @@ model TurfAssignment {
   id           String           @id @default(uuid()) @db.Uuid
   turfId       String           @map("turf_id") @db.Uuid
   canvasserId  String           @map("canvasser_id") @db.Uuid
+  assignedByUserId String?      @map("assigned_by_user_id") @db.Uuid
   assignedAt   DateTime         @default(now()) @map("assigned_at")
+  unassignedAt DateTime?        @map("unassigned_at")
+  reassignmentReason String?    @map("reassignment_reason")
   status       AssignmentStatus @default(assigned)
   turf         Turf             @relation(fields: [turfId], references: [id], onDelete: Cascade)
   canvasser    User             @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
@@ -122,7 +159,10 @@ model TurfSession {
   canvasserId String   @map("canvasser_id") @db.Uuid
   startTime  DateTime  @map("start_time")
   endTime    DateTime? @map("end_time")
-  status     String    @default("active")
+  status     SessionStatus    @default(active)
+  lastActivityAt DateTime? @map("last_activity_at")
+  pauseReason String?   @map("pause_reason")
+  endReason   String?   @map("end_reason")
   startLat   Decimal?  @map("start_lat") @db.Decimal(9, 6)
   startLng   Decimal?  @map("start_lng") @db.Decimal(9, 6)
   endLat     Decimal?  @map("end_lat") @db.Decimal(9, 6)
@@ -244,4 +284,45 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actionType])
   @@map("audit_logs")
+}
+
+model AuthRefreshToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  tokenHash   String   @unique @map("token_hash")
+  expiresAt   DateTime @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_refresh_tokens")
+}
+
+model ActivationToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  tokenHash   String   @unique @map("token_hash")
+  expiresAt   DateTime @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("activation_tokens")
+}
+
+model PasswordResetToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  tokenHash   String   @unique @map("token_hash")
+  expiresAt   DateTime @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }

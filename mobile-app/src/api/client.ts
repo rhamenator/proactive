@@ -62,11 +62,41 @@ export const api = {
     }, token);
   },
 
+  pauseTurf(
+    token: string,
+    payload: { turfId: string; latitude?: number | null; longitude?: number | null }
+  ) {
+    return request('/turf/pause', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, token);
+  },
+
+  resumeTurf(
+    token: string,
+    payload: { turfId: string; latitude?: number | null; longitude?: number | null }
+  ) {
+    return request('/turf/resume', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, token);
+  },
+
+  completeTurf(
+    token: string,
+    payload: { turfId: string; latitude?: number | null; longitude?: number | null }
+  ) {
+    return request('/turf/complete', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, token);
+  },
+
   endTurf(
     token: string,
     payload: { turfId: string; latitude?: number | null; longitude?: number | null }
   ) {
-    return request('/turf/end', {
+    return request('/turf/complete', {
       method: 'POST',
       body: JSON.stringify(payload),
     }, token);

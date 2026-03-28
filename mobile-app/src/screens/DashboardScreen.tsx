@@ -25,9 +25,18 @@ export function DashboardScreen({ navigation }: Props) {
     errorMessage,
     refreshTurf,
     startTurf,
-    endTurf,
+    pauseTurf,
+    resumeTurf,
+    completeTurf,
     syncQueue,
   } = useApp();
+
+  const sessionStatus =
+    session?.status ?? (session?.endTime ? 'completed' : session ? 'active' : 'idle');
+  const canResume = sessionStatus === 'paused';
+  const canPause = sessionStatus === 'active';
+  const canComplete = sessionStatus === 'active' || sessionStatus === 'paused';
+  const canStart = sessionStatus === 'idle' || sessionStatus === 'completed';
 
   async function handleStart() {
     try {
@@ -39,9 +48,25 @@ export function DashboardScreen({ navigation }: Props) {
 
   async function handleEnd() {
     try {
-      await endTurf();
+      await completeTurf();
     } catch (error) {
-      Alert.alert('Unable to end turf', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert('Unable to complete turf', error instanceof Error ? error.message : 'Please try again.');
+    }
+  }
+
+  async function handlePause() {
+    try {
+      await pauseTurf();
+    } catch (error) {
+      Alert.alert('Unable to pause turf', error instanceof Error ? error.message : 'Please try again.');
+    }
+  }
+
+  async function handleResume() {
+    try {
+      await resumeTurf();
+    } catch (error) {
+      Alert.alert('Unable to resume turf', error instanceof Error ? error.message : 'Please try again.');
     }
   }
 
@@ -64,7 +89,17 @@ export function DashboardScreen({ navigation }: Props) {
           <View style={styles.row}>
             <Pill label={isOnline ? 'Online' : 'Offline'} tone={isOnline ? 'success' : 'warning'} />
             <Pill label={`${queue.length} queued`} tone={queue.length > 0 ? 'gold' : 'default'} />
-            <Pill label={session?.endTime ? 'Closed' : session ? 'Active session' : 'Idle'} />
+            <Pill
+              label={
+                sessionStatus === 'paused'
+                  ? 'Paused'
+                  : sessionStatus === 'active'
+                    ? 'Active session'
+                    : sessionStatus === 'completed'
+                      ? 'Closed'
+                      : 'Idle'
+              }
+            />
           </View>
         </View>
 
@@ -75,6 +110,22 @@ export function DashboardScreen({ navigation }: Props) {
             {turf?.description || 'Once a turf is assigned, start the session to begin logging visits.'}
           </Text>
 
+          <View style={styles.row}>
+            <Pill
+              label={
+                sessionStatus === 'paused'
+                  ? 'Paused'
+                  : sessionStatus === 'active'
+                    ? 'Active session'
+                    : sessionStatus === 'completed'
+                      ? 'Completed'
+                      : 'Idle'
+              }
+              tone={sessionStatus === 'paused' ? 'warning' : sessionStatus === 'active' ? 'success' : 'default'}
+            />
+            <Pill label={session?.endTime ? 'Closed' : 'Open'} tone={session?.endTime ? 'default' : 'gold'} />
+          </View>
+
           <View style={styles.statsRow}>
             <Stat label="Completed" value={`${progress.completed}/${progress.total || 0}`} />
             <Stat label="Pending sync" value={`${progress.pendingSync}`} />
@@ -82,8 +133,10 @@ export function DashboardScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.actionColumn}>
-            <Button label="Start Turf" onPress={() => void handleStart()} />
-            <Button label="End Turf" onPress={() => void handleEnd()} variant="secondary" />
+            {canStart ? <Button label="Start Turf" onPress={() => void handleStart()} /> : null}
+            {canPause ? <Button label="Pause Turf" onPress={() => void handlePause()} variant="secondary" /> : null}
+            {canResume ? <Button label="Resume Turf" onPress={() => void handleResume()} /> : null}
+            {canComplete ? <Button label="Complete Turf" onPress={() => void handleEnd()} variant="result" /> : null}
             <Button label="Refresh Turf" onPress={() => void handleRefresh()} variant="ghost" />
           </View>
         </Card>
