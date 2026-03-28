@@ -268,7 +268,11 @@ export default function TurfsPage() {
                     <td>{turf._count?.visits ?? 0}</td>
                     <td>
                       <div className="inline-actions">
+                        <label className="sr-only" htmlFor={`assign-canvasser-${turf.id}`}>
+                          Assign canvasser for {turf.name}
+                        </label>
                         <Select
+                          id={`assign-canvasser-${turf.id}`}
                           aria-label={`Assign canvasser for ${turf.name}`}
                           title={`Assign canvasser for ${turf.name}`}
                           value={assignmentSelection[turf.id] ?? ''}
