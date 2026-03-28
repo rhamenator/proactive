@@ -98,6 +98,13 @@ npm run test
 npm run test:coverage
 ```
 
+## Documentation
+
+- Internal wiki: [docs/wiki/README.md](/home/rich/dev/proactive/docs/wiki/README.md)
+- End-user help: [docs/help/README.md](/home/rich/dev/proactive/docs/help/README.md)
+- Product baseline: [docs/v1-final-spec.md](/home/rich/dev/proactive/docs/v1-final-spec.md)
+- Current implementation gaps: [docs/gap-analysis.md](/home/rich/dev/proactive/docs/gap-analysis.md)
+
 ## Internal Mobile Testing
 
 For in-organization testing, the mobile app can be used in three practical ways:
