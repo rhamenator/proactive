@@ -3,7 +3,9 @@
         "html",
         "markdown",
         "vue",
-        "vue-html"
+        "vue-html",
+        "jsx",
+        "tsx"
     ],
     "files.exclude": {
         "**/.git": true,
