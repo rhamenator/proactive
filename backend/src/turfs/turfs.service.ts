@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { AssignmentStatus, UserRole } from '@prisma/client';
 import { parse } from 'csv-parse/sync';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { CsvField, CsvMapping, normalizeHeader, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
@@ -22,7 +23,8 @@ const csvFieldHeaders: Record<CsvField, string[]> = {
 export class TurfsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
+    private readonly auditService: AuditService
   ) {}
 
   async listTurfs() {
@@ -75,13 +77,26 @@ export class TurfsService {
       throw new BadRequestException('Selected user is not a canvasser');
     }
 
-    return this.prisma.turfAssignment.create({
+    const assignment = await this.prisma.turfAssignment.create({
       data: {
         turfId,
         canvasserId,
         status: AssignmentStatus.assigned
       }
     });
+
+    await this.auditService.log({
+      actorUserId: null,
+      actionType: 'turf_assigned',
+      entityType: 'turf',
+      entityId: turfId,
+      newValuesJson: {
+        canvasserId,
+        assignmentId: assignment.id
+      }
+    });
+
+    return assignment;
   }
 
   async importCsv(input: {
@@ -149,11 +164,21 @@ export class TurfsService {
       }
     }
 
-    return {
+    const result = {
       turfsCreated: createdTurfs.length,
       addressesImported: addressCount,
       turfs: importedTurfs
     };
+
+    await this.auditService.log({
+      actorUserId: input.createdById,
+      actionType: 'csv_import_completed',
+      entityType: 'turf_import',
+      entityId: createdTurfs[0] ?? 'none',
+      newValuesJson: result
+    });
+
+    return result;
   }
 
   async getTurfAddresses(turfId: string) {
@@ -315,15 +340,30 @@ export class TurfsService {
       return existing;
     }
 
-    return this.prisma.turfSession.create({
+    const session = await this.prisma.turfSession.create({
       data: {
         turfId: input.turfId,
         canvasserId: input.canvasserId,
         startTime: new Date(),
+        status: 'active',
         startLat: input.latitude,
         startLng: input.longitude
       }
     });
+
+    await this.auditService.log({
+      actorUserId: input.canvasserId,
+      actionType: 'turf_started',
+      entityType: 'turf',
+      entityId: input.turfId,
+      newValuesJson: {
+        sessionId: session.id,
+        latitude: input.latitude,
+        longitude: input.longitude
+      }
+    });
+
+    return session;
   }
 
   async endSession(input: {
@@ -354,14 +394,29 @@ export class TurfsService {
       data: { status: AssignmentStatus.completed }
     });
 
-    return this.prisma.turfSession.update({
+    const updated = await this.prisma.turfSession.update({
       where: { id: session.id },
       data: {
         endTime: new Date(),
+        status: 'ended',
         endLat: input.latitude,
         endLng: input.longitude
       }
     });
+
+    await this.auditService.log({
+      actorUserId: input.canvasserId,
+      actionType: 'turf_completed',
+      entityType: 'turf',
+      entityId: input.turfId,
+      newValuesJson: {
+        sessionId: session.id,
+        latitude: input.latitude,
+        longitude: input.longitude
+      }
+    });
+
+    return updated;
   }
 
   inferMappingFromHeaders(headers: string[]) {

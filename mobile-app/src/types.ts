@@ -7,6 +7,10 @@ export type VisitResult =
   | 'refused'
   | 'talked_to_voter';
 
+export type GpsStatus = 'verified' | 'flagged' | 'missing' | 'low_accuracy';
+
+export type VisitSyncStatus = 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict';
+
 export interface User {
   id: string;
   firstName: string;
@@ -64,19 +68,29 @@ export interface TurfSnapshot {
 }
 
 export interface VisitSubmission {
+  localRecordUuid: string;
+  idempotencyKey: string;
+  clientCreatedAt: string;
+  submittedAt: string;
   turfId: string;
+  sessionId?: string | null;
   addressId: string;
   result: VisitResult;
   contactMade: boolean;
   notes?: string;
-  latitude: number;
-  longitude: number;
-  submittedAt: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  accuracyMeters?: number | null;
+  gpsStatus: GpsStatus;
+  gpsFailureReason?: string | null;
+  capturedAt: string;
 }
 
 export interface QueuedVisit {
   id: string;
+  localRecordUuid: string;
   createdAt: string;
+  syncStatus: VisitSyncStatus;
   payload: VisitSubmission;
   addressMeta: {
     addressLine1: string;
@@ -91,6 +105,12 @@ export interface AddressState {
   result: VisitResult | null;
   submittedAt: string | null;
   synced: boolean;
+  syncStatus: VisitSyncStatus;
+  localRecordUuid?: string | null;
+  clientCreatedAt?: string | null;
+  sessionId?: string | null;
+  gpsStatus?: GpsStatus | null;
+  accuracyMeters?: number | null;
 }
 
 export interface LoginResponse {

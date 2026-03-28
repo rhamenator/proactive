@@ -1,7 +1,9 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsDateString,
   IsEnum,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -27,10 +29,33 @@ export class CreateVisitDto {
   notes?: string;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => (value === null || value === undefined || value === '' ? undefined : Number(value)))
   latitude?: number;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => (value === null || value === undefined || value === '' ? undefined : Number(value)))
   longitude?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === null || value === undefined || value === '' ? undefined : Number(value)))
+  @IsNumber()
+  accuracyMeters?: number;
+
+  @IsOptional()
+  @IsUUID()
+  sessionId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  localRecordUuid?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  idempotencyKey?: string;
+
+  @IsOptional()
+  @IsDateString()
+  clientCreatedAt?: string;
 }

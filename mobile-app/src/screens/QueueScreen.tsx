@@ -33,13 +33,25 @@ export function QueueScreen() {
         }
         renderItem={({ item }) => (
           <Card style={styles.itemCard}>
+            <View style={styles.rowTop}>
+              <Pill label={formatSyncStatus(item.syncStatus)} tone={syncTone(item.syncStatus)} />
+              <Pill label={formatGpsStatus(item.payload.gpsStatus)} tone={gpsTone(item.payload.gpsStatus)} />
+            </View>
             <Text style={styles.address}>{item.addressMeta.addressLine1}</Text>
             <Text style={styles.meta}>
               {item.addressMeta.city}, {item.addressMeta.state}
               {item.addressMeta.zip ? ` ${item.addressMeta.zip}` : ''}
             </Text>
             <Text style={styles.meta}>Result: {formatResult(item.payload.result)}</Text>
-            <Text style={styles.meta}>Saved: {new Date(item.createdAt).toLocaleString()}</Text>
+            <Text style={styles.meta}>
+              Saved: {new Date(item.createdAt).toLocaleString()}
+            </Text>
+            <Text style={styles.meta}>
+              Client time: {new Date(item.payload.clientCreatedAt).toLocaleString()}
+            </Text>
+            <Text style={styles.meta}>
+              GPS accuracy: {formatAccuracy(item.payload.accuracyMeters)}
+            </Text>
           </Card>
         )}
         ListEmptyComponent={
@@ -60,6 +72,44 @@ function formatResult(value: string) {
     .join(' ');
 }
 
+function formatSyncStatus(value: string) {
+  return value
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function formatGpsStatus(value: string) {
+  return `GPS ${formatSyncStatus(value)}`;
+}
+
+function formatAccuracy(value?: number | null) {
+  if (value === null || value === undefined) {
+    return 'Unavailable';
+  }
+  return `${Math.round(value)} m`;
+}
+
+function syncTone(value: string) {
+  if (value === 'synced') {
+    return 'success';
+  }
+  if (value === 'failed' || value === 'conflict') {
+    return 'warning';
+  }
+  return 'gold';
+}
+
+function gpsTone(value: string) {
+  if (value === 'verified') {
+    return 'success';
+  }
+  if (value === 'missing' || value === 'low_accuracy') {
+    return 'warning';
+  }
+  return 'gold';
+}
+
 const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
@@ -68,6 +118,11 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.sm,
     marginBottom: spacing.sm,
+  },
+  rowTop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   title: {
     color: colors.text,

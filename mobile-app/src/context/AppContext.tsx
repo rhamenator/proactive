@@ -7,6 +7,7 @@ import { clearAppCache, clearSession, loadSession, saveAddressState, saveQueue, 
 import type {
   Address,
   AddressState,
+  GpsStatus,
   QueuedVisit,
   Role,
   Turf,
@@ -14,8 +15,10 @@ import type {
   TurfSnapshot,
   User,
   VisitResult,
+  VisitSyncStatus,
   VisitSubmission,
 } from '../types';
+import { createLocalRecordUuid } from '../utils/localIds';
 
 type AppContextValue = {
   isBootstrapping: boolean;
@@ -43,10 +46,23 @@ type AppContextValue = {
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
+type CapturedGps = {
+  latitude?: number | null;
+  longitude?: number | null;
+  accuracyMeters?: number | null;
+  gpsStatus: GpsStatus;
+  gpsFailureReason?: string | null;
+  capturedAt: string;
+};
+
+const GPS_ACCURACY_THRESHOLD_METERS = 30;
+
 function createQueuedVisit(address: Address, payload: VisitSubmission): QueuedVisit {
   return {
-    id: `${payload.addressId}-${Date.now()}`,
+    id: payload.localRecordUuid,
+    localRecordUuid: payload.localRecordUuid,
     createdAt: new Date().toISOString(),
+    syncStatus: 'pending',
     payload,
     addressMeta: {
       addressLine1: address.addressLine1,
@@ -58,20 +74,45 @@ function createQueuedVisit(address: Address, payload: VisitSubmission): QueuedVi
   };
 }
 
-async function captureLocation() {
-  const permission = await Location.requestForegroundPermissionsAsync();
-  if (permission.status !== Location.PermissionStatus.GRANTED) {
-    throw new Error('Location permission is required to submit visits.');
+async function captureLocation(): Promise<CapturedGps> {
+  const capturedAt = new Date().toISOString();
+
+  try {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== Location.PermissionStatus.GRANTED) {
+      return {
+        gpsStatus: 'missing',
+        gpsFailureReason: 'permission_denied',
+        capturedAt,
+      };
+    }
+
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+
+    const accuracyMeters =
+      typeof position.coords.accuracy === 'number' && Number.isFinite(position.coords.accuracy)
+        ? position.coords.accuracy
+        : null;
+
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracyMeters,
+      gpsStatus:
+        accuracyMeters !== null && accuracyMeters > GPS_ACCURACY_THRESHOLD_METERS
+          ? 'low_accuracy'
+          : 'verified',
+      capturedAt,
+    };
+  } catch (error) {
+    return {
+      gpsStatus: 'missing',
+      gpsFailureReason: error instanceof Error ? error.message : 'device_error',
+      capturedAt,
+    };
   }
-
-  const position = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.High,
-  });
-
-  return {
-    latitude: position.coords.latitude,
-    longitude: position.coords.longitude,
-  };
 }
 
 function mergeAddressState(addresses: Address[], addressState: Record<string, AddressState>) {
@@ -84,9 +125,9 @@ function mergeAddressState(addresses: Address[], addressState: Record<string, Ad
     return {
       ...address,
       lastResult: local.result ?? address.lastResult ?? null,
-      lastVisitAt: local.submittedAt ?? address.lastVisitAt ?? null,
+      lastVisitAt: local.clientCreatedAt ?? local.submittedAt ?? address.lastVisitAt ?? null,
       status: local.result ? 'completed' : address.status,
-      pendingSync: !local.synced,
+      pendingSync: local.syncStatus !== 'synced',
     };
   });
 }
@@ -162,7 +203,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!isOnline || !token || queue.length === 0) {
+    const hasSyncableItems = queue.some(
+      (item) => item.syncStatus === 'pending' || item.syncStatus === 'failed'
+    );
+
+    if (!isOnline || !token || !hasSyncableItems) {
       return;
     }
 
@@ -265,22 +310,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
       throw new Error('Address not found on this turf.');
     }
 
+    const localRecordUuid = createLocalRecordUuid();
     const location = await captureLocation();
+    const clientCreatedAt = new Date().toISOString();
     const payload: VisitSubmission = {
+      localRecordUuid,
+      idempotencyKey: localRecordUuid,
+      clientCreatedAt,
+      submittedAt: clientCreatedAt,
       turfId: turf.id,
+      sessionId: session?.id,
       addressId,
       result,
       contactMade: result === 'talked_to_voter',
       notes: notes?.trim() || undefined,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      submittedAt: new Date().toISOString(),
+      latitude: location.latitude ?? undefined,
+      longitude: location.longitude ?? undefined,
+      accuracyMeters: location.accuracyMeters ?? undefined,
+      gpsStatus: location.gpsStatus,
+      gpsFailureReason: location.gpsFailureReason ?? undefined,
+      capturedAt: location.capturedAt,
     };
 
     const localState: AddressState = {
       result,
-      submittedAt: payload.submittedAt,
+      submittedAt: payload.clientCreatedAt,
       synced: false,
+      syncStatus: 'pending',
+      localRecordUuid,
+      clientCreatedAt,
+      sessionId: payload.sessionId,
+      gpsStatus: payload.gpsStatus,
+      accuracyMeters: payload.accuracyMeters,
     };
 
     setAddressState((current) => ({
@@ -289,23 +350,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
 
     const queuedItem = createQueuedVisit(address, payload);
+    setQueue((current) => [...current, queuedItem]);
 
     if (!isOnline) {
-      setQueue((current) => [...current, queuedItem]);
-      setStatusMessage('Saved offline. It will sync when the connection returns.');
+      setStatusMessage(
+        location.gpsStatus === 'verified'
+          ? 'Saved offline. It will sync when the connection returns.'
+          : 'Saved offline with a GPS warning. It will sync when the connection returns.'
+      );
       return;
     }
 
+    setQueue((current) =>
+      current.map((item) =>
+        item.localRecordUuid === localRecordUuid ? { ...item, syncStatus: 'syncing' } : item
+      )
+    );
+
     try {
       await api.logVisit(token, payload);
+      setQueue((current) => current.filter((item) => item.localRecordUuid !== localRecordUuid));
       setAddressState((current) => ({
         ...current,
-        [addressId]: { ...localState, synced: true },
+        [addressId]: { ...localState, synced: true, syncStatus: 'synced' },
       }));
-      setStatusMessage('Visit submitted.');
+      setStatusMessage(
+        location.gpsStatus === 'verified'
+          ? 'Visit submitted.'
+          : 'Visit submitted with a GPS warning.'
+      );
       await refreshTurf();
     } catch (error) {
-      setQueue((current) => [...current, queuedItem]);
+      setQueue((current) =>
+        current.map((item) =>
+          item.localRecordUuid === localRecordUuid ? { ...item, syncStatus: 'failed' } : item
+        )
+      );
+      setAddressState((current) => ({
+        ...current,
+        [addressId]: { ...localState, syncStatus: 'failed' },
+      }));
       setStatusMessage('Saved locally after a network error. It will retry automatically.');
       setErrorMessage(getErrorMessage(error));
     }
@@ -321,32 +405,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setErrorMessage(null);
 
     try {
-      let remaining = [...queue];
+      const items = [...queue];
       let didChange = false;
+      let syncedCount = 0;
+      let failedCount = 0;
 
-      while (remaining.length > 0) {
-        const item = remaining[0];
+      for (const item of items) {
+        setQueue((current) =>
+          current.map((queuedItem) =>
+            queuedItem.localRecordUuid === item.localRecordUuid
+              ? { ...queuedItem, syncStatus: 'syncing' }
+              : queuedItem
+          )
+        );
         try {
           await api.logVisit(token, item.payload);
           didChange = true;
-          remaining = remaining.slice(1);
+          syncedCount += 1;
+          setQueue((current) =>
+            current.filter((queuedItem) => queuedItem.localRecordUuid !== item.localRecordUuid)
+          );
           setAddressState((current) => ({
             ...current,
             [item.payload.addressId]: {
               result: item.payload.result,
-              submittedAt: item.payload.submittedAt,
+              submittedAt: item.payload.clientCreatedAt,
               synced: true,
+              syncStatus: 'synced',
+              localRecordUuid: item.localRecordUuid,
+              clientCreatedAt: item.payload.clientCreatedAt,
+              sessionId: item.payload.sessionId,
+              gpsStatus: item.payload.gpsStatus,
+              accuracyMeters: item.payload.accuracyMeters ?? null,
             },
           }));
         } catch (error) {
+          failedCount += 1;
+          setQueue((current) =>
+            current.map((queuedItem) =>
+              queuedItem.localRecordUuid === item.localRecordUuid
+                ? { ...queuedItem, syncStatus: 'failed' }
+                : queuedItem
+            )
+          );
+          setAddressState((current) => ({
+            ...current,
+            [item.payload.addressId]: {
+              result: item.payload.result,
+              submittedAt: item.payload.clientCreatedAt,
+              synced: false,
+              syncStatus: 'failed',
+              localRecordUuid: item.localRecordUuid,
+              clientCreatedAt: item.payload.clientCreatedAt,
+              sessionId: item.payload.sessionId,
+              gpsStatus: item.payload.gpsStatus,
+              accuracyMeters: item.payload.accuracyMeters ?? null,
+            },
+          }));
           setErrorMessage(getErrorMessage(error));
-          break;
         }
       }
 
-      setQueue(remaining);
       if (didChange) {
-        setStatusMessage('Queued visits synced.');
+        if (failedCount > 0) {
+          setStatusMessage(
+            syncedCount === 1
+              ? '1 queued visit synced. Some records still need review.'
+              : `${syncedCount} queued visits synced. Some records still need review.`
+          );
+        } else {
+          setStatusMessage(
+            syncedCount === 1 ? 'Queued visit synced.' : 'Queued visits synced.'
+          );
+        }
         await refreshTurf();
       }
     } finally {

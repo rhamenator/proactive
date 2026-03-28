@@ -28,6 +28,28 @@ enum VisitResult {
   other
 }
 
+enum SyncStatus {
+  pending
+  syncing
+  synced
+  failed
+  conflict
+}
+
+enum GpsStatus {
+  verified
+  flagged
+  missing
+  low_accuracy
+}
+
+enum VisitSource {
+  mobile_app
+  web_app
+  csv_import
+  admin_entry
+}
+
 model User {
   id           String          @id @default(uuid()) @db.Uuid
   firstName    String          @map("first_name")
@@ -41,6 +63,7 @@ model User {
   assignments  TurfAssignment[]
   sessions     TurfSession[]
   visits       VisitLog[]
+  auditLogs    AuditLog[]      @relation("AuditActor")
 
   @@map("users")
 }
@@ -73,6 +96,7 @@ model Address {
   createdAt     DateTime    @default(now()) @map("created_at")
   turf          Turf        @relation(fields: [turfId], references: [id], onDelete: Cascade)
   visitLogs     VisitLog[]
+  geofenceResults VisitGeofenceResult[]
 
   @@index([turfId])
   @@map("addresses")
@@ -98,15 +122,18 @@ model TurfSession {
   canvasserId String   @map("canvasser_id") @db.Uuid
   startTime  DateTime  @map("start_time")
   endTime    DateTime? @map("end_time")
+  status     String    @default("active")
   startLat   Decimal?  @map("start_lat") @db.Decimal(9, 6)
   startLng   Decimal?  @map("start_lng") @db.Decimal(9, 6)
   endLat     Decimal?  @map("end_lat") @db.Decimal(9, 6)
   endLng     Decimal?  @map("end_lng") @db.Decimal(9, 6)
   turf       Turf      @relation(fields: [turfId], references: [id], onDelete: Cascade)
   canvasser  User      @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
+  visits     VisitLog[]
 
   @@index([turfId])
   @@index([canvasserId])
+  @@index([status])
   @@map("turf_sessions")
 }
 
@@ -114,10 +141,21 @@ model VisitLog {
   id                    String      @id @default(uuid()) @db.Uuid
   turfId                String      @map("turf_id") @db.Uuid
   addressId             String      @map("address_id") @db.Uuid
+  sessionId             String?     @map("session_id") @db.Uuid
   canvasserId           String      @map("canvasser_id") @db.Uuid
   visitTime             DateTime    @default(now()) @map("visit_time")
+  clientCreatedAt       DateTime?   @map("client_created_at")
+  serverReceivedAt      DateTime    @default(now()) @map("server_received_at")
+  localRecordUuid       String?     @unique @map("local_record_uuid")
+  idempotencyKey        String?     @unique @map("idempotency_key")
+  syncStatus            SyncStatus  @default(synced) @map("sync_status")
+  syncConflictFlag      Boolean     @default(false) @map("sync_conflict_flag")
+  syncConflictReason    String?     @map("sync_conflict_reason")
+  source                VisitSource @default(mobile_app)
   latitude              Decimal?    @db.Decimal(9, 6)
   longitude             Decimal?    @db.Decimal(9, 6)
+  accuracyMeters        Decimal?    @map("accuracy_meters") @db.Decimal(8, 2)
+  gpsStatus             GpsStatus   @default(missing) @map("gps_status")
   result                VisitResult
   contactMade           Boolean     @default(false) @map("contact_made")
   notes                 String?
@@ -126,10 +164,84 @@ model VisitLog {
   geofenceDistanceMeters Int?        @map("geofence_distance_meters")
   turf                  Turf        @relation(fields: [turfId], references: [id], onDelete: Cascade)
   address               Address     @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  session               TurfSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   canvasser             User        @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
+  geofenceResult        VisitGeofenceResult?
 
   @@index([turfId])
   @@index([addressId])
   @@index([canvasserId])
+  @@index([sessionId])
+  @@index([syncStatus])
   @@map("visit_logs")
+}
+
+model VisitGeofenceResult {
+  id                     String     @id @default(uuid()) @db.Uuid
+  visitLogId             String     @unique @map("visit_log_id") @db.Uuid
+  addressId              String     @map("address_id") @db.Uuid
+  targetLatitude         Decimal?   @map("target_latitude") @db.Decimal(9, 6)
+  targetLongitude        Decimal?   @map("target_longitude") @db.Decimal(9, 6)
+  capturedLatitude       Decimal?   @map("captured_latitude") @db.Decimal(9, 6)
+  capturedLongitude      Decimal?   @map("captured_longitude") @db.Decimal(9, 6)
+  accuracyMeters         Decimal?   @map("accuracy_meters") @db.Decimal(8, 2)
+  distanceFromTargetFeet Decimal?   @map("distance_from_target_feet") @db.Decimal(10, 2)
+  validationRadiusFeet   Int        @map("validation_radius_feet")
+  gpsStatus              GpsStatus  @map("gps_status")
+  failureReason          String?    @map("failure_reason")
+  capturedAt             DateTime?  @map("captured_at")
+  overrideFlag           Boolean    @default(false) @map("override_flag")
+  overrideReason         String?    @map("override_reason")
+  overrideByUserId       String?    @map("override_by_user_id") @db.Uuid
+  overrideAt             DateTime?  @map("override_at")
+  createdAt              DateTime   @default(now()) @map("created_at")
+  visitLog               VisitLog   @relation(fields: [visitLogId], references: [id], onDelete: Cascade)
+  address                Address    @relation(fields: [addressId], references: [id], onDelete: Cascade)
+
+  @@index([addressId])
+  @@index([gpsStatus])
+  @@map("visit_geofence_results")
+}
+
+model SyncEvent {
+  id              String     @id @default(uuid()) @db.Uuid
+  entityType      String     @map("entity_type")
+  entityId        String     @map("entity_id")
+  localRecordUuid String?    @map("local_record_uuid")
+  idempotencyKey  String?    @map("idempotency_key")
+  eventType       String     @map("event_type")
+  syncStatus      SyncStatus @map("sync_status")
+  attemptCount    Int        @default(1) @map("attempt_count")
+  errorCode       String?    @map("error_code")
+  errorMessage    String?    @map("error_message")
+  queuedAt        DateTime   @default(now()) @map("queued_at")
+  attemptedAt     DateTime?  @map("attempted_at")
+  completedAt     DateTime?  @map("completed_at")
+
+  @@index([entityType, entityId])
+  @@index([localRecordUuid])
+  @@index([syncStatus])
+  @@map("sync_events")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  actorUserId   String?  @map("actor_user_id") @db.Uuid
+  actionType    String   @map("action_type")
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  reasonCode    String?  @map("reason_code")
+  reasonText    String?  @map("reason_text")
+  oldValuesJson Json?    @map("old_values_json")
+  newValuesJson Json?    @map("new_values_json")
+  ipAddress     String?  @map("ip_address")
+  deviceId      String?  @map("device_id")
+  userAgent     String?  @map("user_agent")
+  createdAt     DateTime @default(now()) @map("created_at")
+  actorUser     User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@index([actionType])
+  @@map("audit_logs")
 }
