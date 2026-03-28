@@ -30,6 +30,18 @@ async function main() {
     }
   });
 
+  await prisma.user.upsert({
+    where: { email: 'supervisor@proactive.local' },
+    update: {},
+    create: {
+      firstName: 'Sample',
+      lastName: 'Supervisor',
+      email: 'supervisor@proactive.local',
+      passwordHash,
+      role: UserRole.supervisor
+    }
+  });
+
   const turf = await prisma.turf.create({
     data: {
       name: 'Sample Turf 1',

@@ -1,7 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { AssignmentStatus } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+
+const safeUserSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  role: true,
+  isActive: true,
+  status: true,
+  mfaEnabled: true,
+  invitedAt: true,
+  activatedAt: true,
+  lastLoginAt: true,
+  createdAt: true
+} as const;
 
 @Injectable()
 export class AdminService {
@@ -25,8 +39,15 @@ export class AdminService {
     const activeCanvassers = await this.prisma.turfSession.findMany({
       where: { endTime: null },
       include: {
-        canvasser: true,
-        turf: true
+        canvasser: {
+          select: safeUserSelect
+        },
+        turf: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
       orderBy: { startTime: 'desc' }
     });
@@ -47,6 +68,7 @@ export class AdminService {
       totals: {
         users,
         admins: await this.prisma.user.count({ where: { role: UserRole.admin } }),
+        supervisors: await this.prisma.user.count({ where: { role: UserRole.supervisor } }),
         canvassers: await this.prisma.user.count({ where: { role: UserRole.canvasser } }),
         turfs,
         addresses,
@@ -76,7 +98,9 @@ export class AdminService {
       where: { endTime: null },
       orderBy: { startTime: 'desc' },
       include: {
-        canvasser: true,
+        canvasser: {
+          select: safeUserSelect
+        },
         turf: {
           include: {
             addresses: true,
@@ -89,7 +113,12 @@ export class AdminService {
 
   async listCanvassers() {
     return this.prisma.user.findMany({
-      where: { role: UserRole.canvasser },
+      where: {
+        role: {
+          in: [UserRole.supervisor, UserRole.canvasser]
+        }
+      },
+      select: safeUserSelect,
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }]
     });
   }

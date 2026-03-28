@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -18,9 +18,28 @@ export type SafeUser = {
   createdAt: Date;
 };
 
+const fieldUserRoles = [UserRole.supervisor, UserRole.canvasser] as const;
+type FieldUserRole = (typeof fieldUserRoles)[number];
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private normalizeFieldUserRole(role?: UserRole): FieldUserRole {
+    if (role === undefined) {
+      return UserRole.canvasser;
+    }
+
+    if (role === UserRole.supervisor) {
+      return UserRole.supervisor;
+    }
+
+    if (role === UserRole.canvasser) {
+      return UserRole.canvasser;
+    }
+
+    throw new BadRequestException('Role must be canvasser or supervisor');
+  }
 
   sanitize(user: {
     id: string;
@@ -60,7 +79,7 @@ export class UsersService {
 
   async listCanvassers() {
     const users = await this.prisma.user.findMany({
-      where: { role: UserRole.canvasser },
+      where: { role: { in: [...fieldUserRoles] } },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }]
     });
     return users.map((user) => this.sanitize(user));
@@ -71,6 +90,7 @@ export class UsersService {
     lastName: string;
     email: string;
     password: string;
+    role?: UserRole;
   }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -85,7 +105,7 @@ export class UsersService {
         lastName: input.lastName,
         email: normalizedEmail,
         passwordHash,
-        role: UserRole.canvasser,
+        role: this.normalizeFieldUserRole(input.role),
         status: 'active',
         activatedAt: new Date()
       }
@@ -96,7 +116,14 @@ export class UsersService {
 
   async updateCanvasser(
     id: string,
-    input: Partial<{ firstName: string; lastName: string; email: string; password: string; isActive: boolean }>
+    input: Partial<{
+      firstName: string;
+      lastName: string;
+      email: string;
+      password: string;
+      isActive: boolean;
+      role: UserRole;
+    }>
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) {
@@ -110,6 +137,9 @@ export class UsersService {
     if (input.isActive !== undefined) {
       data.isActive = input.isActive;
       data.status = input.isActive ? 'active' : 'inactive';
+    }
+    if (input.role !== undefined) {
+      data.role = this.normalizeFieldUserRole(input.role);
     }
     if (input.password !== undefined) {
       data.passwordHash = await bcrypt.hash(input.password, 10);
@@ -128,6 +158,7 @@ export class UsersService {
     lastName: string;
     email: string;
     passwordHash: string;
+    role?: UserRole;
   }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -141,7 +172,7 @@ export class UsersService {
         lastName: input.lastName,
         email: normalizedEmail,
         passwordHash: input.passwordHash,
-        role: UserRole.canvasser,
+        role: this.normalizeFieldUserRole(input.role),
         isActive: false,
         status: 'invited',
         invitedAt: new Date()

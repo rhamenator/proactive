@@ -30,6 +30,8 @@ export class TurfsController {
   constructor(private readonly turfsService: TurfsService) {}
 
   @Get('turfs')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.admin, UserRole.supervisor)
   listTurfs() {
     return this.turfsService.listTurfs();
   }
@@ -43,7 +45,7 @@ export class TurfsController {
 
   @Post('turfs/:id/assign')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.admin)
+  @Roles(UserRole.admin, UserRole.supervisor)
   assignTurf(
     @Param('id', ParseUUIDPipe) turfId: string,
     @Body() body: AssignTurfDto,
@@ -83,6 +85,8 @@ export class TurfsController {
   }
 
   @Get('turfs/:id/addresses')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.admin, UserRole.supervisor)
   getAddresses(@Param('id', ParseUUIDPipe) turfId: string) {
     return this.turfsService.getTurfAddresses(turfId);
   }

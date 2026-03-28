@@ -382,7 +382,12 @@ export class AuthService {
     };
   }
 
-  async inviteCanvasser(input: { firstName: string; lastName: string; email: string }) {
+  async inviteCanvasser(input: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    role?: UserRole;
+  }) {
     const placeholderPasswordHash = await bcrypt.hash(this.createOpaqueToken(), 10);
     const user = await this.usersService.createInvitedCanvasser({
       ...input,
@@ -392,9 +397,12 @@ export class AuthService {
 
     await this.auditService.log({
       actorUserId: user.id,
-      actionType: 'canvasser_invited',
+      actionType: 'field_user_invited',
       entityType: 'user',
-      entityId: user.id
+      entityId: user.id,
+      newValuesJson: {
+        role: user.role
+      }
     });
 
     return {

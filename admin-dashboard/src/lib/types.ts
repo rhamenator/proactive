@@ -36,6 +36,7 @@ export interface DashboardSummary {
   totals: {
     users: number;
     admins: number;
+    supervisors: number;
     canvassers: number;
     turfs: number;
     addresses: number;

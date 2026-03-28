@@ -23,16 +23,19 @@ export class AdminController {
   ) {}
 
   @Get('dashboard-summary')
+  @Roles(UserRole.admin, UserRole.supervisor)
   dashboardSummary() {
     return this.adminService.dashboardSummary();
   }
 
   @Get('active-canvassers')
+  @Roles(UserRole.admin, UserRole.supervisor)
   activeCanvassers() {
     return this.adminService.activeCanvassers();
   }
 
   @Get('canvassers')
+  @Roles(UserRole.admin, UserRole.supervisor)
   listCanvassers() {
     return this.adminService.listCanvassers();
   }
@@ -40,7 +43,7 @@ export class AdminController {
   @Post('canvassers')
   createCanvasser(
     @Body()
-    body: { firstName: string; lastName: string; email: string; password: string }
+    body: { firstName: string; lastName: string; email: string; password: string; role?: UserRole }
   ) {
     return this.usersService.createCanvasser(body);
   }
@@ -60,6 +63,7 @@ export class AdminController {
   }
 
   @Post('turfs/:id/reassign')
+  @Roles(UserRole.admin, UserRole.supervisor)
   reassignTurf(
     @Param('id', ParseUUIDPipe) turfId: string,
     @Body() body: { canvasserId: string; reason?: string },
@@ -69,6 +73,7 @@ export class AdminController {
   }
 
   @Post('turfs/:id/reopen')
+  @Roles(UserRole.admin, UserRole.supervisor)
   reopenTurf(
     @Param('id', ParseUUIDPipe) turfId: string,
     @Body() body: { reason?: string },
