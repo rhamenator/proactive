@@ -9,7 +9,7 @@ import { useAuth } from '../lib/auth-context';
 const navItems = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/turfs', label: 'Turfs' },
-  { href: '/canvassers', label: 'Canvassers' },
+  { href: '/canvassers', label: 'Field Users' },
   { href: '/exports', label: 'Exports' }
 ];
 

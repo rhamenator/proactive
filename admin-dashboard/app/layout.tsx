@@ -17,7 +17,7 @@ const displayFont = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   title: 'PROACTIVE FCS Admin',
-  description: 'Admin dashboard for turf imports, canvasser management, and VAN exports.'
+  description: 'Admin dashboard for turf imports, field-user management, and VAN exports.'
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

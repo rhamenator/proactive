@@ -1,6 +1,6 @@
 import type {
-  CanvasserRecord,
   DashboardSummary,
+  FieldUserRecord,
   LoginResponse,
   SafeUser,
   TurfAddressImportResult,
@@ -123,15 +123,16 @@ export function createApiClient(token?: string | null) {
       return requestJson<DashboardSummary['activeCanvassers']>('/admin/active-canvassers', {}, token);
     },
     listCanvassers() {
-      return requestJson<CanvasserRecord[]>('/admin/canvassers', {}, token);
+      return requestJson<FieldUserRecord[]>('/admin/canvassers', {}, token);
     },
     createCanvasser(payload: {
       firstName: string;
       lastName: string;
       email: string;
       password: string;
+      role?: FieldUserRecord['role'];
     }) {
-      return requestJson<CanvasserRecord>('/admin/canvassers', {
+      return requestJson<FieldUserRecord>('/admin/canvassers', {
         method: 'POST',
         body: JSON.stringify(payload)
       }, token);
@@ -143,10 +144,11 @@ export function createApiClient(token?: string | null) {
         lastName: string;
         email: string;
         password: string;
+        role: FieldUserRecord['role'];
         isActive: boolean;
       }>
     ) {
-      return requestJson<CanvasserRecord>(`/admin/canvassers/${id}`, {
+      return requestJson<FieldUserRecord>(`/admin/canvassers/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(payload)
       }, token);

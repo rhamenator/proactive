@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'canvasser';
+export type Role = 'admin' | 'supervisor' | 'canvasser';
 
 export interface SafeUser {
   id: string;
@@ -66,7 +66,11 @@ export interface DashboardSummary {
   }>;
 }
 
-export type CanvasserRecord = SafeUser;
+export interface FieldUserRecord extends SafeUser {
+  role: Role;
+}
+
+export type CanvasserRecord = FieldUserRecord;
 
 export interface TurfAddressImportResult {
   turfsCreated: number;
