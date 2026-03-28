@@ -76,3 +76,4 @@ npm run test
 - The mobile app is configured for canvasser accounts only.
 - The admin dashboard is configured for admin accounts only.
 - For Android emulators, set `EXPO_PUBLIC_API_URL=http://10.0.2.2:3001`.
+- The mobile release pipeline is configured for Expo EAS in `mobile-app/eas.json`; see `mobile-app/README.md` for preview, production, and OTA release steps.
