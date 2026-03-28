@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'canvasser';
+export type Role = 'admin' | 'supervisor' | 'canvasser';
 
 export type VisitResult =
   | 'knocked'

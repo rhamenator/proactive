@@ -59,6 +59,12 @@ type CapturedGps = {
 };
 
 const GPS_ACCURACY_THRESHOLD_METERS = 30;
+const FIELD_ROLE: Role = 'canvasser';
+const UNSUPPORTED_ROLE_MESSAGE = 'This mobile app is for canvasser accounts only.';
+
+function isFieldRole(role: Role) {
+  return role === FIELD_ROLE;
+}
 
 function createQueuedVisit(address: Address, payload: VisitSubmission): QueuedVisit {
   return {
@@ -162,7 +168,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
 
         setToken(sessionData.token);
-        setUser(sessionData.user);
         setQueue(sessionData.queue);
         setAddressState(sessionData.addressState);
 
@@ -170,6 +175,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           try {
             const [me, snapshot] = await Promise.all([api.me(sessionData.token), api.myTurf(sessionData.token)]);
             if (!mounted) {
+              return;
+            }
+
+            if (!isFieldRole(me.role)) {
+              setErrorMessage(UNSUPPORTED_ROLE_MESSAGE);
+              await clearSession();
+              setToken(null);
+              setUser(null);
+              setQueue([]);
+              setAddressState({});
               return;
             }
 
@@ -181,6 +196,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setToken(null);
             setUser(null);
           }
+        } else {
+          setUser(null);
         }
       } finally {
         if (mounted) {
@@ -269,8 +286,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!authToken) {
       throw new Error('Login response did not include a token.');
     }
-    if (response.user.role !== 'canvasser') {
-      throw new Error('This mobile app is for canvasser accounts only.');
+    if (!isFieldRole(response.user.role)) {
+      throw new Error(UNSUPPORTED_ROLE_MESSAGE);
     }
 
     setToken(authToken);
