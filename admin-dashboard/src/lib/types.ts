@@ -64,7 +64,7 @@ export interface DashboardSummary {
   }>;
 }
 
-export interface CanvasserRecord extends SafeUser {}
+export type CanvasserRecord = SafeUser;
 
 export interface TurfAddressImportResult {
   turfsCreated: number;

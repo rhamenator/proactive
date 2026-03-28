@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 
 import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input } from '../../src/components/ui';
@@ -21,7 +21,7 @@ export default function CanvassersPage() {
     password: ''
   });
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -31,11 +31,11 @@ export default function CanvassersPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [api]);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card } from '../../src/components/ui';
@@ -14,7 +14,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -24,11 +24,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [api]);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   return (
     <ProtectedFrame title="Operations Dashboard" eyebrow="Admin Overview">

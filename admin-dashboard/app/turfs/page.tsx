@@ -1,9 +1,9 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ProtectedFrame } from '../../src/components/protected-frame';
-import { Badge, Button, Card, Input, Select, TextArea } from '../../src/components/ui';
+import { Badge, Button, Card, Input, TextArea } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuthedApi } from '../../src/lib/auth-context';
 import type { CanvasserRecord, TurfListItem } from '../../src/lib/types';
@@ -37,7 +37,7 @@ export default function TurfsPage() {
 
   const [assignmentSelection, setAssignmentSelection] = useState<Record<string, string>>({});
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -49,11 +49,11 @@ export default function TurfsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [api]);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   async function handleCreateTurf(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -200,11 +200,15 @@ export default function TurfsPage() {
                 <div className="grid two">
                   {mappingFields.map(([field, label]) => (
                     <div className="field-group" key={field}>
-                      <label htmlFor={`map-${field}`}>{label}</label>
-                      <Select
+                      <label id={`map-${field}-label`} htmlFor={`map-${field}`}>
+                        {label}
+                      </label>
+                      <select
+                        title="CSV column mapping"
+                        className="select"
                         id={`map-${field}`}
+                        aria-labelledby={`map-${field}-label`}
                         aria-label={label}
-                        title={label}
                         value={mapping[field] ?? ''}
                         onChange={(event) =>
                           setMapping((current) => ({
@@ -215,7 +219,7 @@ export default function TurfsPage() {
                       >
                         <option value="">Not mapped</option>
                         {headerOptions}
-                      </Select>
+                      </select>
                     </div>
                   ))}
                 </div>
@@ -268,13 +272,15 @@ export default function TurfsPage() {
                     <td>{turf._count?.visits ?? 0}</td>
                     <td>
                       <div className="inline-actions">
-                        <label className="sr-only" htmlFor={`assign-canvasser-${turf.id}`}>
+                        <label className="sr-only" id={`assign-canvasser-${turf.id}-label`} htmlFor={`assign-canvasser-${turf.id}`}>
                           Assign canvasser for {turf.name}
                         </label>
-                        <Select
+                        <select
+                          title="Assign canvasser"
+                          className="select"
                           id={`assign-canvasser-${turf.id}`}
+                          aria-labelledby={`assign-canvasser-${turf.id}-label`}
                           aria-label={`Assign canvasser for ${turf.name}`}
-                          title={`Assign canvasser for ${turf.name}`}
                           value={assignmentSelection[turf.id] ?? ''}
                           onChange={(event) =>
                             setAssignmentSelection((current) => ({
@@ -289,7 +295,7 @@ export default function TurfsPage() {
                               {canvasser.firstName} {canvasser.lastName}
                             </option>
                           ))}
-                        </Select>
+                        </select>
                         <Button variant="secondary" onClick={() => void handleAssign(turf.id)}>
                           Assign
                         </Button>

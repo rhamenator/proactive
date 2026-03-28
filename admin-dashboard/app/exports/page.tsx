@@ -22,7 +22,7 @@ export default function ExportsPage() {
       .listTurfs()
       .then(setTurfs)
       .catch((value) => setError(getErrorMessage(value)));
-  }, []);
+  }, [api]);
 
   async function handleExport() {
     setDownloading(true);
