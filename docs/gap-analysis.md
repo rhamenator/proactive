@@ -6,248 +6,151 @@ Reference spec: [v1-final-spec.md](/home/rich/dev/proactive/docs/v1-final-spec.m
 
 ## Summary
 
-The software is now materially beyond prototype status. Core auth, turf lifecycle, offline visit sync foundations, GPS classification, audit logging, exports, and role-aware user management all exist and build together.
+The system now covers the main operational v1 workflow:
 
-The remaining gaps are no longer “does the system exist”; they are concentrated in:
+- admin and supervisor dashboard access
+- canvasser-only mobile workflow
+- configurable visit outcomes
+- admin MFA enrollment, verification, and disable workflow
+- GPS review and override workflow
+- sync-conflict review and resolution workflow
+- offline queueing and idempotent visit sync
+- turf lifecycle management
+- organization-scoped admin, turf, export, and review queries
+- VAN-compatible export, internal master export, and export history
+- CI, build verification, regression tests, and GitHub release-build automation
 
-- incomplete supervisor workflow support
-- missing configurable outcome model
-- missing review/override/admin operations UI
-- missing organization/campaign/scoping model
-- security controls that are represented in schema but not enforced end-to-end
-- specification inconsistencies introduced by later role-model decisions
+The remaining gaps are no longer core missing workflows. They are concentrated in release credentials, deeper-than-org access scoping, and a few operational enhancement paths.
 
-## What Is Already In Place
+## What Is In Place
 
-- backend JWT auth with refresh tokens, activation, password reset, lockout, and audit logging
-- turf assignment, pause/resume/complete/reopen/reassign rules
-- visit ingestion with idempotency keys, local UUIDs, sync metadata, GPS status classification, and geofence result storage
-- admin dashboard for turf import, assignment, exports, and field-user management
-- mobile canvasser workflow with offline queueing and sync retry
-- regression tests for core backend role, turf, visit, and guard logic
+- backend auth with refresh tokens, activation, password reset, lockout, and request throttling
+- admin MFA challenge, setup, verification, and disable endpoints
+- configurable outcome definitions in the database
+- GPS review queue and override actions
+- sync-conflict queue and resolution actions
+- organization scoping in backend admin/turf/export review flows
+- org/campaign scaffolding in the schema
+- export batch tracking and two export profiles
+- admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, and field-user management
+- mobile canvasser workflow driven by server-defined outcomes
+- repo-wide `verify` command and GitHub Actions CI
+- GitHub release-build workflow for trusted build artifacts
 
-## Highest-Impact Software Gaps
+## Remaining Material Gaps
 
-### 1. Supervisor support is only partially implemented
-
-Current state:
-
-- backend now recognizes `supervisor` and allows supervisor access to some summary and turf routes in [admin.controller.ts](/home/rich/dev/proactive/backend/src/admin/admin.controller.ts) and [turfs.controller.ts](/home/rich/dev/proactive/backend/src/turfs/turfs.controller.ts)
-- the admin dashboard still rejects non-admin login in [auth-context.tsx](/home/rich/dev/proactive/admin-dashboard/src/lib/auth-context.tsx)
-- the mobile app still rejects non-canvasser login in [AppContext.tsx](/home/rich/dev/proactive/mobile-app/src/context/AppContext.tsx)
-- there is no scoped supervisor UI or team/turf scope model anywhere in the schema or backend
-
-Why it matters:
-
-- the role exists, but there is no complete user experience for it
-- current supervisor permissions are effectively global on the routes that were opened
-
-Needed next:
-
-- decide whether supervisor is truly in v1 or still future-ready
-- if yes, add a real supervisor web experience and scope enforcement
-- if no, remove or feature-flag supervisor authorization routes
-
-### 2. Outcome definitions are still hard-coded instead of configurable
+### 1. Signed mobile binaries still depend on external release credentials
 
 Current state:
 
-- visit outcomes still come from the `VisitResult` enum in [schema.prisma](/home/rich/dev/proactive/backend/prisma/schema.prisma)
-- backend DTOs and services still accept the enum directly in [create-visit.dto.ts](/home/rich/dev/proactive/backend/src/visits/dto/create-visit.dto.ts) and [visits.service.ts](/home/rich/dev/proactive/backend/src/visits/visits.service.ts)
-- the mobile UI also hard-codes the list in [AddressDetailScreen.tsx](/home/rich/dev/proactive/mobile-app/src/screens/AddressDetailScreen.tsx)
+- the repo can produce trusted backend/admin artifacts through GitHub Actions
+- the mobile release workflow is prepared in-repo
+- signed mobile binaries still require real Expo, Apple, and Google credentials plus final app identifiers
 
 Why it matters:
 
-- the spec calls for database-driven outcome definitions with flags like `requires_note`, `is_final_disposition`, and `display_order`
-- current reporting and validation logic cannot evolve without code changes
+- this is the main remaining release blocker
+- without the external secrets, GitHub can only produce release-prep mobile artifacts rather than final signed distributables
 
-Needed next:
+What remains:
 
-- add outcome-definition tables and seed data
-- replace enum-driven visit submission with outcome IDs plus snapshot fields
-- load active outcomes into the mobile cache
+- final `EXPO_OWNER`
+- final `EAS_PROJECT_ID`
+- final iOS bundle identifier
+- final Android application ID
+- Apple signing and App Store Connect credentials
+- Google Play credentials if Play distribution is used
 
-### 3. GPS review, override, and conflict-resolution workflows are not implemented
+### 2. Scope enforcement stops at the organization boundary
 
 Current state:
 
-- the schema supports geofence override metadata and sync conflict flags in [schema.prisma](/home/rich/dev/proactive/backend/prisma/schema.prisma)
-- visit ingestion records GPS status and geofence details in [visits.service.ts](/home/rich/dev/proactive/backend/src/visits/visits.service.ts)
-- there are no backend endpoints for admin GPS override or conflict resolution
-- there is no admin dashboard screen for flagged GPS records, conflicts, or review queues
+- admin and supervisor operational queries are now organization-scoped
+- `organization_id` and `campaign_id` are present in the schema
+- there is still no deeper team, geography, or campaign-specific permission matrix
 
 Why it matters:
 
-- the data exists, but the required operational workflow does not
-- flagged GPS and conflict cases can accumulate with no first-class resolution path
+- the immediate multi-org leakage risk is addressed
+- future finer-grained scoping would still require policy decisions and additional enforcement work
 
-Needed next:
+What remains:
 
-- add backend review/override endpoints
-- add admin review UI for flagged GPS and sync conflicts
-- audit override reasons and resolution actions explicitly
+- decide whether campaign, team, or turf-region scoping is required in v1.x
+- if yes, model those assignments and enforce them in backend authorization
 
-### 4. Organization, campaign, and scoped-authorization support are absent
+### 3. Visit correction workflow is still limited
 
 Current state:
 
-- the spec requires `organization_id` and future-ready `campaign_id` on major records
-- there is no organization or campaign model in [schema.prisma](/home/rich/dev/proactive/backend/prisma/schema.prisma)
-- supervisor and admin scope is not constrained by org, campaign, or team
+- visit records remain append-only, which is correct for auditability
+- GPS overrides and sync-conflict resolutions exist
+- there is still no general audited correction flow for outcome/note mistakes after submission
 
 Why it matters:
 
-- current permissions are flat
-- future multi-team or multi-campaign separation would require schema and API changes, not just UI changes
+- field operations teams eventually need a safe way to correct obvious data-entry mistakes
+- right now the system supports review/override workflows, but not broad post-submit correction
 
-Needed next:
+What remains:
 
-- add at least a default-organization model and foreign keys on major operational records
-- define whether campaign support is schema-only or user-visible in v1
-- encode supervisor scope boundaries in the data model
+- define the correction policy
+- implement audited corrective actions or a correction layer if the client wants that in production
 
-### 5. Security is improved, but still below the written spec
+### 4. MFA recovery and emergency-access policy is still basic
 
 Current state:
 
-- refresh tokens, activation, reset, and lockout exist in [auth.service.ts](/home/rich/dev/proactive/backend/src/auth/auth.service.ts)
-- `mfaEnabled` exists on users, but there is no MFA challenge, enrollment flow, or enforcement path
-- the JWT default in [backend/.env.example](/home/rich/dev/proactive/backend/.env.example) and [security.module.ts](/home/rich/dev/proactive/backend/src/security/security.module.ts) is still `12h`, not the spec’s `30 minutes`
-- there is no rate limiter on login/reset endpoints
-- no fresh-session enforcement exists for sensitive admin actions
+- admin MFA is implemented and enforced during login
+- there is no recovery-code flow, break-glass admin path, or self-service device reset process beyond admin-mediated credential reset and MFA disable
 
 Why it matters:
 
-- the security story is materially better than before, but not yet aligned with the locked v1 defaults
+- the primary security requirement is now satisfied
+- operational support around lost devices or authenticator resets is still thinner than a mature enterprise rollout
 
-Needed next:
+What remains:
 
-- implement admin MFA or relax the spec
-- reduce access-token lifetime to the intended default
-- add request throttling for auth-sensitive routes
-- define and enforce re-auth/fresh-session requirements for critical admin actions
+- decide whether recovery codes or a documented help-desk reset flow are sufficient for the first production release
+- implement recovery codes only if the client requires them before go-live
 
-### 6. Import/export workflows are operational but not production-complete
+## What No Longer Counts As A Gap
 
-Current state:
+- supervisor dashboard access exists
+- configurable outcomes exist
+- GPS review/override exists
+- sync-conflict review exists
+- admin MFA exists and is enforced
+- organization-scoped operational access exists
+- org/campaign scaffolding exists
+- export profiles and export history now exist
+- the root build/test/Prisma verification path is automated
+- trusted GitHub release-build automation exists
 
-- CSV import and VAN CSV export work
-- export is a single VAN-oriented path in [exports.service.ts](/home/rich/dev/proactive/backend/src/exports/exports.service.ts)
-- there are no import batch records, export batch records, duplicate-review queues, or profile-managed exports
-- the admin export screen in [page.tsx](/home/rich/dev/proactive/admin-dashboard/app/exports/page.tsx) only supports one export action and no export history
+## Release Readiness Assessment
 
-Why it matters:
+The product is at a much stronger release point than before. The main application workflows and the previously identified release-blocking product gaps are addressed.
 
-- the system can move data, but it does not yet provide the auditability and repeatability the spec expects for batch processing
+Safe for:
 
-Needed next:
+- internal testing
+- pilot deployment
+- controlled operational use with informed admins
+- formal backend/admin artifact release through GitHub builds
 
-- add tracked import/export batch entities
-- add internal master export alongside VAN export
-- add import modes and duplicate review
-- attach export profile identity and batch history to every export
+Still blocked for:
 
-### 7. Visit correction/edit/delete policy is mostly unimplemented
+- signed mobile app distribution without real external signing credentials
 
-Current state:
+Remaining non-blocking enhancements:
 
-- visit logs are append-only, which is correct for history
-- there are no explicit APIs or UI flows for:
-  - admin correction with reason
-  - supervisor limited correction
-  - canvasser self-correction within a time window
-  - soft-delete review
-
-Why it matters:
-
-- the spec and role docs assume controlled correction workflows
-- the current software only supports create, not operational correction
-
-Needed next:
-
-- define the v1 correction window and allowed edits
-- implement append-only corrective actions or an override layer
-- expose audited correction workflows in admin/supervisor UI
-
-## Significant Specification Gaps Or Inconsistencies
-
-### 1. The role model is internally inconsistent
-
-Current state:
-
-- [v1-final-spec.md](/home/rich/dev/proactive/docs/v1-final-spec.md) still says:
-  - `Roles in v1 UI: admin and canvasser only`
-  - `supervisor role: future-ready only, not enabled in v1 authorization flows`
-- the later client permissions document and the current codebase both treat `supervisor` as a real role foundation
-
-Why it matters:
-
-- this creates uncertainty about whether the current code is ahead of the spec or violating it
-
-Decision needed:
-
-- either update the v1 Final Spec to make supervisor an active v1 role
-- or explicitly downgrade the code to future-ready only and feature-flag/remove current supervisor authorization
-
-### 2. Supervisor scope is still not decision-complete
-
-Unresolved:
-
-- whether supervisors are scoped by team, turf, geography, campaign, or organization
-- whether supervisors can reopen or reassign globally or only inside their scope
-- whether supervisors can export or only review operational progress
-
-Why it matters:
-
-- the missing scope model is the main reason supervisor support cannot be completed safely
-
-### 3. MFA requirements are stronger in the spec than in the implementation plan
-
-Unresolved:
-
-- whether MFA is truly required for admin in v1
-- what provider or method is used
-- how activation and password reset messages are delivered in non-local environments
-
-Why it matters:
-
-- the spec promises a higher assurance level than the system currently enforces
-
-### 4. The export profile is still too abstract
-
-Unresolved:
-
-- the exact first production VAN upload profile
-- whether the current export columns are final or only provisional
-- whether export should be latest-per-household, one-row-per-event, or profile-selectable in the first release
-
-Why it matters:
-
-- export logic is one of the highest-risk places for operational mismatches with real downstream workflows
+- deeper team/campaign/geography scope rules
+- audited visit correction workflow
+- richer MFA recovery options
 
 ## Recommended Next Sequence
 
-### Phase 1
-
-- resolve the supervisor product decision and either complete or constrain the role
-- update the v1 Final Spec to match that decision
-
-### Phase 2
-
-- implement configurable outcome definitions
-- wire those outcomes through backend, admin, and mobile
-
-### Phase 3
-
-- build GPS/conflict review and override workflows
-- add correction/reopen/admin review flows for visits
-
-### Phase 4
-
-- add import/export batch tracking and production export profiles
-- add duplicate review and import modes
-
-### Phase 5
-
-- add organization/campaign scaffolding and scoped authorization
-- close the remaining MFA/rate-limit/fresh-session security gaps
+1. Provide production release secrets and app identifiers for EAS/App Store/Play.
+2. Run the GitHub release-build workflow to generate trusted artifacts.
+3. Decide whether deeper-than-org scope rules belong in the next release.
+4. Decide whether audited visit correction is a required post-pilot enhancement.

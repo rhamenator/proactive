@@ -34,9 +34,13 @@ Primary domains:
 Primary app routes:
 
 - [login](/home/rich/dev/proactive/admin-dashboard/app/login/page.tsx)
+- [account](/home/rich/dev/proactive/admin-dashboard/app/account/page.tsx)
 - [dashboard](/home/rich/dev/proactive/admin-dashboard/app/dashboard/page.tsx)
 - [canvassers](/home/rich/dev/proactive/admin-dashboard/app/canvassers/page.tsx)
 - [turfs](/home/rich/dev/proactive/admin-dashboard/app/turfs/page.tsx)
+- [gps-review](/home/rich/dev/proactive/admin-dashboard/app/gps-review/page.tsx)
+- [sync-conflicts](/home/rich/dev/proactive/admin-dashboard/app/sync-conflicts/page.tsx)
+- [outcomes](/home/rich/dev/proactive/admin-dashboard/app/outcomes/page.tsx)
 - [exports](/home/rich/dev/proactive/admin-dashboard/app/exports/page.tsx)
 
 ## Mobile Stack
@@ -85,6 +89,9 @@ Geofence detail is stored separately for audit/review workflows.
 
 ## Current Constraints
 
-- dashboard is admin-only
+- dashboard supports `admin` and `supervisor`
 - mobile app is canvasser-only
-- supervisor support is not complete end-to-end
+- admin MFA is enforced during login, with account-level setup and disable flows
+- supervisor/admin operational access is organization-scoped
+- deeper campaign/team/geography scoping is not yet implemented
+- signed mobile binaries still depend on external Expo/App Store/Play credentials

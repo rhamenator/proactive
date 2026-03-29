@@ -91,6 +91,7 @@ export class UsersService {
     email: string;
     password: string;
     role?: UserRole;
+    organizationId?: string | null;
   }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -106,6 +107,7 @@ export class UsersService {
         email: normalizedEmail,
         passwordHash,
         role: this.normalizeFieldUserRole(input.role),
+        organizationId: input.organizationId ?? null,
         status: 'active',
         activatedAt: new Date()
       }
@@ -123,10 +125,14 @@ export class UsersService {
       password: string;
       isActive: boolean;
       role: UserRole;
+      organizationId: string | null;
     }>
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) {
+      throw new NotFoundException('User not found');
+    }
+    if (input.organizationId !== undefined && existing.organizationId !== input.organizationId) {
       throw new NotFoundException('User not found');
     }
 
@@ -159,6 +165,7 @@ export class UsersService {
     email: string;
     passwordHash: string;
     role?: UserRole;
+    organizationId?: string | null;
   }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -173,6 +180,7 @@ export class UsersService {
         email: normalizedEmail,
         passwordHash: input.passwordHash,
         role: this.normalizeFieldUserRole(input.role),
+        organizationId: input.organizationId ?? null,
         isActive: false,
         status: 'invited',
         invitedAt: new Date()

@@ -4,10 +4,16 @@
 
 Check:
 
-- you are using an admin account
+- you are using an admin or supervisor account
 - your password is correct
 - the backend API is running
 - the dashboard is pointing at the correct API URL
+
+If password login succeeds but the dashboard does not open:
+
+- confirm whether an MFA setup or verification step is waiting on the login page
+- verify that your authenticator app has the current PROACTIVE account entry
+- if you recently reset MFA, sign out and repeat the login flow
 
 ## I Cannot Log In To The Mobile App
 
@@ -35,6 +41,12 @@ Check:
 
 If the queue remains stuck, keep the device open, reconnect to the network, and retry sync.
 
+If the record still does not clear after retry:
+
+- check whether the submission appears in the admin `Sync Conflicts` queue
+- review the stored conflict reason before clearing it
+- resolve the item only after operations staff confirm the correct record should remain
+
 ## Location Or GPS Problems
 
 Check:
@@ -52,6 +64,15 @@ Check:
 - the file has address line, city, and state values
 - the selected mapping matches the CSV column names
 - the file is actually CSV and not spreadsheet-only format
+
+## I Cannot Find A Recent Export
+
+Check:
+
+- whether the export was downloaded as VAN-compatible or Internal Master
+- whether a turf filter was applied
+- whether the export appears in the `Recent export batches` section
+- whether the exporting account was an admin account
 
 ## When To Escalate
 

@@ -17,9 +17,11 @@ const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', roles: ['admin', 'supervisor'] },
   { href: '/turfs', label: 'Turfs', roles: ['admin', 'supervisor'] },
   { href: '/gps-review', label: 'GPS Review', roles: ['admin', 'supervisor'] },
+  { href: '/sync-conflicts', label: 'Sync Conflicts', roles: ['admin', 'supervisor'] },
   { href: '/outcomes', label: 'Outcomes', roles: ['admin', 'supervisor'] },
   { href: '/canvassers', label: 'Field Users', roles: ['admin', 'supervisor'] },
-  { href: '/exports', label: 'Exports', roles: ['admin'] }
+  { href: '/exports', label: 'Exports', roles: ['admin'] },
+  { href: '/account', label: 'Account', roles: ['admin', 'supervisor'] }
 ];
 
 export function ProtectedFrame({

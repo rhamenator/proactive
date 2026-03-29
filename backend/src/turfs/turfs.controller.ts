@@ -18,6 +18,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
+import { UsersService } from '../users/users.service';
 import { AssignTurfDto } from './dto/assign-turf.dto';
 import { CreateTurfDto } from './dto/create-turf.dto';
 import { ImportCsvDto } from './dto/import-csv.dto';
@@ -27,13 +28,25 @@ import { TurfsService } from './turfs.service';
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class TurfsController {
-  constructor(private readonly turfsService: TurfsService) {}
+  constructor(
+    private readonly turfsService: TurfsService,
+    private readonly usersService: UsersService
+  ) {}
+
+  private async resolveOrganizationId(user: JwtUserPayload) {
+    if (user.organizationId !== undefined) {
+      return user.organizationId ?? null;
+    }
+
+    const currentUser = await this.usersService.findById(user.sub);
+    return currentUser.organizationId ?? null;
+  }
 
   @Get('turfs')
   @UseGuards(RolesGuard)
   @Roles(UserRole.admin, UserRole.supervisor)
-  listTurfs() {
-    return this.turfsService.listTurfs();
+  async listTurfs(@CurrentUser() user: JwtUserPayload) {
+    return this.turfsService.listTurfs(await this.resolveOrganizationId(user));
   }
 
   @Post('turfs')
@@ -46,12 +59,12 @@ export class TurfsController {
   @Post('turfs/:id/assign')
   @UseGuards(RolesGuard)
   @Roles(UserRole.admin, UserRole.supervisor)
-  assignTurf(
+  async assignTurf(
     @Param('id', ParseUUIDPipe) turfId: string,
     @Body() body: AssignTurfDto,
     @CurrentUser() user: JwtUserPayload
   ) {
-    return this.turfsService.assignTurf(turfId, body.canvasserId, user.sub);
+    return this.turfsService.assignTurf(turfId, body.canvasserId, user.sub, undefined, await this.resolveOrganizationId(user));
   }
 
   @Post('turfs/import-csv')
@@ -87,8 +100,8 @@ export class TurfsController {
   @Get('turfs/:id/addresses')
   @UseGuards(RolesGuard)
   @Roles(UserRole.admin, UserRole.supervisor)
-  getAddresses(@Param('id', ParseUUIDPipe) turfId: string) {
-    return this.turfsService.getTurfAddresses(turfId);
+  async getAddresses(@Param('id', ParseUUIDPipe) turfId: string, @CurrentUser() user: JwtUserPayload) {
+    return this.turfsService.getTurfAddresses(turfId, await this.resolveOrganizationId(user));
   }
 
   @Get('my-turf')

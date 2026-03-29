@@ -7,9 +7,11 @@
 
 ## Current Workflow Gaps
 
-- no conflict-resolution UI for flagged sync items
-- no org/campaign scoping model yet
-- no MFA enforcement flow yet
+- no audited visit-correction workflow yet
+- no dedicated resolved-conflicts history screen yet
+- org-level scope is enforced, but deeper campaign/team/geography scope rules are not yet implemented
+- admin MFA is enforced, but recovery codes and richer break-glass support are not yet implemented
+- signed mobile binaries still require external Expo/Apple/Google release credentials
 
 ## Documentation Cross-Reference
 

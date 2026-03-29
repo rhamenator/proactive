@@ -1,11 +1,12 @@
-import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'node:crypto';
-import { UserRole } from '@prisma/client';
+import { MfaChallengePurpose, UserRole } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { buildOtpAuthUri, generateBase32Secret, verifyTotp } from './mfa.util';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +26,8 @@ export class AuthService {
   private readonly passwordResetTtlMinutes = Number(process.env.PASSWORD_RESET_TTL_MINUTES ?? 30);
   private readonly loginLockoutThreshold = Number(process.env.LOGIN_LOCKOUT_THRESHOLD ?? 5);
   private readonly loginLockoutMinutes = Number(process.env.LOGIN_LOCKOUT_MINUTES ?? 15);
+  private readonly mfaChallengeTtlMinutes = Number(process.env.MFA_CHALLENGE_TTL_MINUTES ?? 10);
+  private readonly mfaIssuer = process.env.MFA_ISSUER ?? 'PROACTIVE FCS';
 
   private buildSafeUser(user: {
     id: string;
@@ -43,11 +46,12 @@ export class AuthService {
     return this.usersService.sanitize(user);
   }
 
-  private buildJwtPayload(user: { id: string; email: string; role: UserRole }) {
+  private buildJwtPayload(user: { id: string; email: string; role: UserRole; organizationId?: string | null }) {
     return {
       sub: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      organizationId: user.organizationId ?? null
     };
   }
 
@@ -100,12 +104,63 @@ export class AuthService {
     this.authRateLimitState.delete(this.getRateLimitKey(action, identifier));
   }
 
+  private requiresMfa(user: { role: UserRole; mfaEnabled: boolean }) {
+    return user.role === UserRole.admin;
+  }
+
+  private async createMfaChallenge(userId: string, purpose: MfaChallengePurpose) {
+    await this.prisma.mfaChallengeToken.updateMany({
+      where: {
+        userId,
+        purpose,
+        usedAt: null
+      },
+      data: {
+        usedAt: new Date()
+      }
+    });
+
+    const challengeToken = this.createOpaqueToken();
+    await this.prisma.mfaChallengeToken.create({
+      data: {
+        userId,
+        purpose,
+        tokenHash: this.hashOpaqueToken(challengeToken),
+        expiresAt: this.minutesFromNow(this.mfaChallengeTtlMinutes)
+      }
+    });
+
+    return challengeToken;
+  }
+
+  private async findMfaChallenge(token: string, purpose: MfaChallengePurpose) {
+    return this.prisma.mfaChallengeToken.findFirst({
+      where: {
+        tokenHash: this.hashOpaqueToken(token),
+        purpose,
+        usedAt: null,
+        expiresAt: { gt: new Date() }
+      },
+      include: {
+        user: true
+      }
+    });
+  }
+
+  private async consumeMfaChallenge(id: string) {
+    await this.prisma.mfaChallengeToken.update({
+      where: { id },
+      data: { usedAt: new Date() }
+    });
+  }
+
   private async issueSession(user: {
     id: string;
     firstName: string;
     lastName: string;
     email: string;
     role: UserRole;
+    organizationId?: string | null;
     isActive: boolean;
     status: string;
     mfaEnabled: boolean;
@@ -217,6 +272,30 @@ export class AuthService {
 
   async login(email: string, password: string) {
     const user = await this.validateUser(email, password);
+
+    if (this.requiresMfa(user)) {
+      const setupRequired = !user.mfaEnabled;
+      const challengeToken = await this.createMfaChallenge(
+        user.id,
+        setupRequired ? MfaChallengePurpose.setup : MfaChallengePurpose.verify
+      );
+
+      await this.auditService.log({
+        actorUserId: user.id,
+        actionType: setupRequired ? 'mfa_setup_challenge_issued' : 'mfa_verify_challenge_issued',
+        entityType: 'user_auth',
+        entityId: user.id
+      });
+
+      return {
+        mfaRequired: true,
+        setupRequired,
+        challengeToken,
+        role: user.role,
+        user: this.buildSafeUser(user)
+      };
+    }
+
     const session = await this.issueSession(user);
 
     await this.auditService.log({
@@ -227,6 +306,146 @@ export class AuthService {
     });
 
     return session;
+  }
+
+  async initializeMfaSetup(challengeToken: string) {
+    const challenge = await this.findMfaChallenge(challengeToken, MfaChallengePurpose.setup);
+
+    if (!challenge) {
+      throw new UnauthorizedException('Invalid or expired MFA setup challenge');
+    }
+
+    const secret = challenge.user.mfaTempSecret ?? generateBase32Secret();
+    if (!challenge.user.mfaTempSecret) {
+      await this.prisma.user.update({
+        where: { id: challenge.userId },
+        data: {
+          mfaTempSecret: secret
+        }
+      });
+    }
+
+    return {
+      secret,
+      otpauthUri: buildOtpAuthUri({
+        issuer: this.mfaIssuer,
+        accountName: challenge.user.email,
+        secret
+      })
+    };
+  }
+
+  async completeMfaSetup(challengeToken: string, code: string) {
+    const challenge = await this.findMfaChallenge(challengeToken, MfaChallengePurpose.setup);
+
+    if (!challenge || !challenge.user.mfaTempSecret) {
+      throw new UnauthorizedException('Invalid or expired MFA setup challenge');
+    }
+
+    if (!verifyTotp(challenge.user.mfaTempSecret, code)) {
+      throw new UnauthorizedException('Invalid MFA code');
+    }
+
+    await this.prisma.user.update({
+      where: { id: challenge.userId },
+      data: {
+        mfaSecret: challenge.user.mfaTempSecret,
+        mfaTempSecret: null,
+        mfaEnabled: true
+      }
+    });
+    await this.consumeMfaChallenge(challenge.id);
+
+    const user = await this.usersService.findById(challenge.userId);
+    const session = await this.issueSession(user);
+
+    await this.auditService.log({
+      actorUserId: challenge.userId,
+      actionType: 'mfa_enabled',
+      entityType: 'user_auth',
+      entityId: challenge.userId
+    });
+
+    return session;
+  }
+
+  async verifyMfaChallenge(challengeToken: string, code: string) {
+    const challenge = await this.findMfaChallenge(challengeToken, MfaChallengePurpose.verify);
+
+    if (!challenge || !challenge.user.mfaSecret) {
+      throw new UnauthorizedException('Invalid or expired MFA verification challenge');
+    }
+
+    if (!verifyTotp(challenge.user.mfaSecret, code)) {
+      throw new UnauthorizedException('Invalid MFA code');
+    }
+
+    await this.consumeMfaChallenge(challenge.id);
+    const session = await this.issueSession(challenge.user);
+
+    await this.auditService.log({
+      actorUserId: challenge.userId,
+      actionType: 'mfa_verified',
+      entityType: 'user_auth',
+      entityId: challenge.userId
+    });
+
+    return session;
+  }
+
+  async mfaStatus(userId: string) {
+    const user = await this.usersService.findById(userId);
+    return {
+      enabled: user.mfaEnabled,
+      required: this.requiresMfa(user)
+    };
+  }
+
+  async disableMfa(userId: string, password: string, code: string) {
+    const user = await this.usersService.findById(userId);
+
+    if (!user.mfaEnabled || !user.mfaSecret) {
+      throw new BadRequestException('MFA is not enabled for this account');
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordMatches) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!verifyTotp(user.mfaSecret, code)) {
+      throw new UnauthorizedException('Invalid MFA code');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          mfaEnabled: false,
+          mfaSecret: null,
+          mfaTempSecret: null
+        }
+      });
+
+      await tx.mfaChallengeToken.updateMany({
+        where: {
+          userId,
+          usedAt: null
+        },
+        data: {
+          usedAt: new Date()
+        }
+      });
+    });
+
+    await this.auditService.log({
+      actorUserId: userId,
+      actionType: 'mfa_disabled',
+      entityType: 'user_auth',
+      entityId: userId
+    });
+
+    return { success: true, setupRequiredOnNextLogin: this.requiresMfa(user) };
   }
 
   async refresh(refreshToken: string) {
@@ -423,6 +642,7 @@ export class AuthService {
     lastName: string;
     email: string;
     role?: UserRole;
+    organizationId?: string | null;
   }) {
     const placeholderPasswordHash = await bcrypt.hash(this.createOpaqueToken(), 10);
     const user = await this.usersService.createInvitedCanvasser({

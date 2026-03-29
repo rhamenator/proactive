@@ -215,6 +215,19 @@ describe('UsersService', () => {
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
+  it('rejects updates for users outside the caller organization scope', async () => {
+    prisma.user.findUnique.mockResolvedValue(buildUser({ id: 'user-2', organizationId: null }));
+
+    await expect(
+      service.updateCanvasser('user-2', {
+        firstName: 'Jamie',
+        organizationId: 'org-1'
+      })
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
   it('creates invited canvassers with normalized email and invited status', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
     prisma.user.create.mockImplementation(async ({ data }) => buildUser(data));

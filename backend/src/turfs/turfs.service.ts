@@ -68,13 +68,31 @@ export class TurfsService {
     };
   }
 
-  private async ensureAssignableCanvasser(canvasserId: string) {
+  private organizationScope(organizationId: string | null) {
+    return {
+      organizationId
+    } as const;
+  }
+
+  private async findScopedTurf(db: PrismaWriter, turfId: string, organizationId: string | null) {
+    return db.turf.findFirst({
+      where: {
+        id: turfId,
+        ...this.organizationScope(organizationId)
+      }
+    });
+  }
+
+  private async ensureAssignableCanvasser(canvasserId: string, organizationId: string | null) {
     const canvasser = await this.usersService.findById(canvasserId);
     if (canvasser.role !== UserRole.canvasser) {
       throw new BadRequestException('Selected user is not a canvasser');
     }
     if (!canvasser.isActive || canvasser.status !== 'active') {
       throw new BadRequestException('Selected canvasser is not active');
+    }
+    if (canvasser.organizationId !== organizationId) {
+      throw new NotFoundException('User not found');
     }
     return canvasser;
   }
@@ -124,8 +142,9 @@ export class TurfsService {
     return turf;
   }
 
-  async listTurfs() {
+  async listTurfs(organizationId: string | null) {
     const turfs = await this.prisma.turf.findMany({
+      where: this.organizationScope(organizationId),
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {
@@ -140,7 +159,7 @@ export class TurfsService {
     });
 
     const sessions = await this.prisma.turfSession.findMany({
-      where: { endTime: null }
+      where: { ...this.organizationScope(organizationId), endTime: null }
     });
     const activeSessionCounts = new Map<string, number>();
     for (const session of sessions) {
@@ -167,11 +186,17 @@ export class TurfsService {
     });
   }
 
-  async assignTurf(turfId: string, canvasserId: string, actorUserId: string, reasonText?: string) {
-    await this.ensureAssignableCanvasser(canvasserId);
+  async assignTurf(
+    turfId: string,
+    canvasserId: string,
+    actorUserId: string,
+    reasonText?: string,
+    organizationId: string | null = null
+  ) {
+    await this.ensureAssignableCanvasser(canvasserId, organizationId);
 
     return this.prisma.$transaction(async (tx) => {
-      const turf = await tx.turf.findUnique({ where: { id: turfId } });
+      const turf = await this.findScopedTurf(tx, turfId, organizationId);
       if (!turf) {
         throw new NotFoundException('Turf not found');
       }
@@ -259,9 +284,14 @@ export class TurfsService {
     });
   }
 
-  async reopenTurf(turfId: string, actorUserId: string, reasonText?: string) {
+  async reopenTurf(
+    turfId: string,
+    actorUserId: string,
+    reasonText?: string,
+    organizationId: string | null = null
+  ) {
     return this.prisma.$transaction(async (tx) => {
-      const turf = await tx.turf.findUnique({ where: { id: turfId } });
+      const turf = await this.findScopedTurf(tx, turfId, organizationId);
       if (!turf) {
         throw new NotFoundException('Turf not found');
       }
@@ -397,9 +427,12 @@ export class TurfsService {
     return result;
   }
 
-  async getTurfAddresses(turfId: string) {
-    const turf = await this.prisma.turf.findUnique({
-      where: { id: turfId },
+  async getTurfAddresses(turfId: string, organizationId: string | null) {
+    const turf = await this.prisma.turf.findFirst({
+      where: {
+        id: turfId,
+        ...this.organizationScope(organizationId)
+      },
       include: {
         addresses: {
           orderBy: { addressLine1: 'asc' },

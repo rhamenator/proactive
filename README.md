@@ -98,6 +98,59 @@ npm run test
 npm run test:coverage
 ```
 
+## Trusted Release Builds
+
+GitHub Actions now provides a release-oriented build path in `.github/workflows/release-builds.yml`.
+
+What it produces:
+
+- `proactive-backend-<version>.tar.gz`
+  - compiled NestJS output from `backend/dist`
+  - Prisma schema and migrations
+  - backend package metadata and `.env.example`
+- `proactive-admin-dashboard-<version>.tar.gz`
+  - Next.js standalone server output
+  - static assets needed to run `node server.js`
+- `proactive-mobile-release-prep-<version>.tar.gz`
+  - resolved Expo config snapshot
+  - EAS config and environment templates
+  - this is a release-prep artifact, not a signed mobile binary
+- `BUILD-MANIFEST.txt` and `SHA256SUMS.txt`
+
+The workflow also emits GitHub artifact attestations for the packaged artifacts so maintainers have provenance from GitHub Actions for release use.
+
+### How maintainers trigger it
+
+Manual artifact build:
+
+1. Open `Actions` in GitHub.
+2. Select `Release Builds`.
+3. Choose `Run workflow`.
+4. Pick the ref to build and optionally change `artifact_label`.
+5. Download the uploaded artifacts from that workflow run.
+
+Tagged release assets:
+
+1. Create and push a release tag such as `v1.0.0`.
+2. Publish a GitHub Release for that tag.
+3. The same workflow runs on `release.published` and attaches the artifacts to the GitHub Release.
+
+### External blockers that still apply
+
+- Backend deployment still needs real production environment variables and a reachable PostgreSQL database.
+- Admin deployment still needs real runtime environment variables for API access and auth.
+- Mobile signed binaries are not produced by default in GitHub Actions today.
+  - Still required for real mobile builds or store delivery:
+    - `EXPO_TOKEN`
+    - `EXPO_OWNER`
+    - `EAS_PROJECT_ID`
+    - real `IOS_BUNDLE_IDENTIFIER`
+    - real `ANDROID_APPLICATION_ID`
+    - Apple signing / App Store Connect credentials
+    - Google Play signing / service-account credentials if Play delivery is used
+
+See [docs/wiki/release-builds.md](/home/rich/dev/proactive/docs/wiki/release-builds.md) for the full maintainer runbook.
+
 ## Documentation
 
 - Internal wiki: [docs/wiki/README.md](/home/rich/dev/proactive/docs/wiki/README.md)

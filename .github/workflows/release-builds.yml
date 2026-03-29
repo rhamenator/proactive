@@ -1,0 +1,219 @@
+name: Release Builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_label:
+        description: Optional suffix for artifact names
+        required: false
+        default: manual
+      include_mobile_preflight:
+        description: Generate the mobile release-prep artifact
+        type: boolean
+        required: false
+        default: true
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+
+concurrency:
+  group: release-builds-${{ github.event.release.tag_name || github.ref_name || github.run_id }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  build-release-artifacts:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Verify build and tests
+        run: npm run verify
+        env:
+          CI: true
+
+      - name: Resolve artifact version
+        id: artifact_meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            RAW_VERSION="${{ github.event.release.tag_name }}"
+          elif [ -n "${{ inputs.artifact_label }}" ]; then
+            RAW_VERSION="${{ inputs.artifact_label }}"
+          else
+            RAW_VERSION="${GITHUB_SHA::7}"
+          fi
+          VERSION="$(printf '%s' "$RAW_VERSION" | tr ' /' '--' | tr -cd '[:alnum:]._-' )"
+          if [ -z "$VERSION" ]; then
+            VERSION="${GITHUB_SHA::7}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare backend artifact contents
+        shell: bash
+        run: |
+          rm -rf release-artifacts
+          mkdir -p release-artifacts/backend
+          cp -R backend/dist release-artifacts/backend/dist
+          cp -R backend/prisma release-artifacts/backend/prisma
+          cp backend/package.json release-artifacts/backend/package.json
+          cp backend/.env.example release-artifacts/backend/.env.example
+          cp backend/README.md release-artifacts/backend/README.md
+          cp package-lock.json release-artifacts/backend/package-lock.json
+          cat <<'EOF' > release-artifacts/backend/BUILD-INFO.txt
+          Backend release artifact
+          - Built on GitHub Actions
+          - Contains compiled NestJS output plus Prisma schema and migrations
+          - Requires production environment variables and a deployed PostgreSQL database
+          - Run `npm ci --omit=dev --workspace @proactive/backend` from the repo root or equivalent deployment packaging step before starting
+          EOF
+
+      - name: Prepare admin artifact contents
+        shell: bash
+        run: |
+          mkdir -p release-artifacts/admin-dashboard/.next
+          cp -R admin-dashboard/.next/standalone/. release-artifacts/admin-dashboard/
+          cp -R admin-dashboard/.next/static release-artifacts/admin-dashboard/.next/static
+          if [ -d admin-dashboard/public ]; then
+            cp -R admin-dashboard/public release-artifacts/admin-dashboard/public
+          fi
+          cp admin-dashboard/.env.example release-artifacts/admin-dashboard/.env.example
+          cp admin-dashboard/package.json release-artifacts/admin-dashboard/package.json
+          cat <<'EOF' > release-artifacts/admin-dashboard/BUILD-INFO.txt
+          Admin dashboard release artifact
+          - Built from Next.js standalone output
+          - Start with `node server.js`
+          - Provide runtime environment variables before launch
+          EOF
+
+      - name: Prepare mobile release-prep contents
+        if: github.event_name == 'release' || inputs.include_mobile_preflight
+        shell: bash
+        env:
+          APP_ENV: production
+          EXPO_PUBLIC_API_URL: https://api.example.invalid
+          EXPO_PUBLIC_APP_NAME: PROACTIVE FCS
+          EXPO_PUBLIC_GEOFENCE_RADIUS_METERS: "100"
+          EXPO_OWNER: placeholder-owner
+          EAS_PROJECT_ID: 00000000-0000-0000-0000-000000000000
+          IOS_BUNDLE_IDENTIFIER: com.proactive.fcs
+          ANDROID_APPLICATION_ID: com.proactive.fcs
+        run: |
+          mkdir -p release-artifacts/mobile
+          (
+            cd mobile-app
+            npx expo config --json
+          ) > release-artifacts/mobile/expo-config.production.json
+          cp mobile-app/eas.json release-artifacts/mobile/eas.json
+          cp mobile-app/app.config.ts release-artifacts/mobile/app.config.ts
+          cp mobile-app/.env.example release-artifacts/mobile/.env.example
+          cp mobile-app/.env.preview.example release-artifacts/mobile/.env.preview.example
+          cp mobile-app/.env.production.example release-artifacts/mobile/.env.production.example
+          cp mobile-app/README.md release-artifacts/mobile/README.md
+          cat <<'EOF' > release-artifacts/mobile/BUILD-INFO.txt
+          Mobile release-prep artifact
+          - Validates that Expo config resolves on GitHub Actions
+          - Does not produce signed iOS or Android binaries
+          - Real EAS builds still require EXPO/EAS credentials and platform signing credentials
+          EOF
+
+      - name: Archive release artifacts
+        shell: bash
+        env:
+          VERSION: ${{ steps.artifact_meta.outputs.version }}
+        run: |
+          mkdir -p packaged-artifacts
+          tar -czf "packaged-artifacts/proactive-backend-${VERSION}.tar.gz" -C release-artifacts/backend .
+          tar -czf "packaged-artifacts/proactive-admin-dashboard-${VERSION}.tar.gz" -C release-artifacts/admin-dashboard .
+          if [ -d release-artifacts/mobile ]; then
+            tar -czf "packaged-artifacts/proactive-mobile-release-prep-${VERSION}.tar.gz" -C release-artifacts/mobile .
+          fi
+          sha256sum packaged-artifacts/* > packaged-artifacts/SHA256SUMS.txt
+          cat <<EOF > packaged-artifacts/BUILD-MANIFEST.txt
+          version=${VERSION}
+          commit=${GITHUB_SHA}
+          ref=${GITHUB_REF}
+          workflow=${GITHUB_WORKFLOW}
+          run_id=${GITHUB_RUN_ID}
+          node=${{ env.NODE_VERSION }}
+          generated_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          EOF
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: proactive-backend-${{ steps.artifact_meta.outputs.version }}
+          path: packaged-artifacts/proactive-backend-${{ steps.artifact_meta.outputs.version }}.tar.gz
+          if-no-files-found: error
+
+      - name: Upload admin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: proactive-admin-dashboard-${{ steps.artifact_meta.outputs.version }}
+          path: packaged-artifacts/proactive-admin-dashboard-${{ steps.artifact_meta.outputs.version }}.tar.gz
+          if-no-files-found: error
+
+      - name: Upload mobile release-prep artifact
+        if: github.event_name == 'release' || inputs.include_mobile_preflight
+        uses: actions/upload-artifact@v4
+        with:
+          name: proactive-mobile-release-prep-${{ steps.artifact_meta.outputs.version }}
+          path: packaged-artifacts/proactive-mobile-release-prep-${{ steps.artifact_meta.outputs.version }}.tar.gz
+          if-no-files-found: error
+
+      - name: Upload build manifest and checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: proactive-release-metadata-${{ steps.artifact_meta.outputs.version }}
+          path: |
+            packaged-artifacts/BUILD-MANIFEST.txt
+            packaged-artifacts/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Attest backend artifact
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: packaged-artifacts/proactive-backend-${{ steps.artifact_meta.outputs.version }}.tar.gz
+
+      - name: Attest admin artifact
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: packaged-artifacts/proactive-admin-dashboard-${{ steps.artifact_meta.outputs.version }}.tar.gz
+
+      - name: Attest mobile release-prep artifact
+        if: github.event_name == 'release' || inputs.include_mobile_preflight
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: packaged-artifacts/proactive-mobile-release-prep-${{ steps.artifact_meta.outputs.version }}.tar.gz
+
+      - name: Attach assets to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            packaged-artifacts/*.tar.gz
+            packaged-artifacts/BUILD-MANIFEST.txt
+            packaged-artifacts/SHA256SUMS.txt

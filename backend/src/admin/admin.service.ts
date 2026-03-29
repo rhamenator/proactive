@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, SyncStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const safeUserSelect = {
@@ -17,27 +17,70 @@ const safeUserSelect = {
   createdAt: true
 } as const;
 
+const reviewAddressSelect = {
+  id: true,
+  addressLine1: true,
+  city: true,
+  state: true,
+  zip: true
+} as const;
+
+const reviewTurfSelect = {
+  id: true,
+  name: true
+} as const;
+
+const syncConflictReviewInclude = {
+  address: {
+    select: reviewAddressSelect
+  },
+  canvasser: {
+    select: safeUserSelect
+  },
+  turf: {
+    select: reviewTurfSelect
+  }
+} as const;
+
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async dashboardSummary() {
+  private organizationScope(organizationId: string | null) {
+    return {
+      organizationId
+    } as const;
+  }
+
+  private syncConflictWhere(organizationId: string | null): Prisma.VisitLogWhereInput {
+    return {
+      ...this.organizationScope(organizationId),
+      OR: [
+        { syncStatus: SyncStatus.conflict },
+        { syncConflictFlag: true }
+      ]
+    };
+  }
+
+  async dashboardSummary(organizationId: string | null) {
+    const organizationScope = this.organizationScope(organizationId);
     const [users, turfs, addresses, assignments, activeSessions, visits] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.turf.count(),
-      this.prisma.address.count(),
-      this.prisma.turfAssignment.count(),
-      this.prisma.turfSession.count({ where: { endTime: null } }),
-      this.prisma.visitLog.count()
+      this.prisma.user.count({ where: organizationScope }),
+      this.prisma.turf.count({ where: organizationScope }),
+      this.prisma.address.count({ where: organizationScope }),
+      this.prisma.turfAssignment.count({ where: organizationScope }),
+      this.prisma.turfSession.count({ where: { ...organizationScope, endTime: null } }),
+      this.prisma.visitLog.count({ where: organizationScope })
     ]);
 
     const completedAddresses = await this.prisma.visitLog.findMany({
+      where: organizationScope,
       distinct: ['addressId'],
       select: { addressId: true }
     });
 
     const activeCanvassers = await this.prisma.turfSession.findMany({
-      where: { endTime: null },
+      where: { ...organizationScope, endTime: null },
       include: {
         canvasser: {
           select: safeUserSelect
@@ -53,6 +96,7 @@ export class AdminService {
     });
 
     const perTurf = await this.prisma.turf.findMany({
+      where: organizationScope,
       include: {
         addresses: true,
         assignments: true,
@@ -67,9 +111,9 @@ export class AdminService {
     return {
       totals: {
         users,
-        admins: await this.prisma.user.count({ where: { role: UserRole.admin } }),
-        supervisors: await this.prisma.user.count({ where: { role: UserRole.supervisor } }),
-        canvassers: await this.prisma.user.count({ where: { role: UserRole.canvasser } }),
+        admins: await this.prisma.user.count({ where: { ...organizationScope, role: UserRole.admin } }),
+        supervisors: await this.prisma.user.count({ where: { ...organizationScope, role: UserRole.supervisor } }),
+        canvassers: await this.prisma.user.count({ where: { ...organizationScope, role: UserRole.canvasser } }),
         turfs,
         addresses,
         assignments,
@@ -93,9 +137,9 @@ export class AdminService {
     };
   }
 
-  async activeCanvassers() {
+  async activeCanvassers(organizationId: string | null) {
     return this.prisma.turfSession.findMany({
-      where: { endTime: null },
+      where: { ...this.organizationScope(organizationId), endTime: null },
       orderBy: { startTime: 'desc' },
       include: {
         canvasser: {
@@ -111,9 +155,10 @@ export class AdminService {
     });
   }
 
-  async listCanvassers() {
+  async listCanvassers(organizationId: string | null) {
     return this.prisma.user.findMany({
       where: {
+        ...this.organizationScope(organizationId),
         role: {
           in: [UserRole.supervisor, UserRole.canvasser]
         }
@@ -123,8 +168,9 @@ export class AdminService {
     });
   }
 
-  async listOutcomeDefinitions() {
+  async listOutcomeDefinitions(organizationId: string | null) {
     return this.prisma.outcomeDefinition.findMany({
+      where: this.organizationScope(organizationId),
       orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
     });
   }
@@ -137,7 +183,7 @@ export class AdminService {
     isFinalDisposition?: boolean;
     displayOrder?: number;
     isActive?: boolean;
-  }) {
+  }, organizationId: string | null) {
     const normalizedCode = input.code.trim();
     const data = {
       code: normalizedCode,
@@ -145,10 +191,22 @@ export class AdminService {
       requiresNote: input.requiresNote ?? false,
       isFinalDisposition: input.isFinalDisposition ?? true,
       displayOrder: input.displayOrder ?? 0,
-      isActive: input.isActive ?? true
+      isActive: input.isActive ?? true,
+      organizationId
     };
 
     if (input.id) {
+      const existing = await this.prisma.outcomeDefinition.findFirst({
+        where: {
+          id: input.id,
+          ...this.organizationScope(organizationId)
+        }
+      });
+
+      if (!existing) {
+        throw new NotFoundException('Outcome definition not found');
+      }
+
       return this.prisma.outcomeDefinition.update({
         where: { id: input.id },
         data
@@ -160,9 +218,10 @@ export class AdminService {
     });
   }
 
-  async gpsReviewQueue() {
+  async gpsReviewQueue(organizationId: string | null) {
     return this.prisma.visitGeofenceResult.findMany({
       where: {
+        visitLog: this.organizationScope(organizationId),
         OR: [
           { gpsStatus: { not: 'verified' } },
           { overrideFlag: true }
@@ -188,14 +247,26 @@ export class AdminService {
     });
   }
 
+  async syncConflictQueue(organizationId: string | null) {
+    return this.prisma.visitLog.findMany({
+      where: this.syncConflictWhere(organizationId),
+      orderBy: { visitTime: 'desc' },
+      include: syncConflictReviewInclude
+    });
+  }
+
   async overrideGpsResult(input: {
     visitLogId: string;
     actorUserId: string;
+    organizationId: string | null;
     reason: string;
   }) {
     const reason = input.reason.trim();
-    const existing = await this.prisma.visitGeofenceResult.findUnique({
-      where: { visitLogId: input.visitLogId }
+    const existing = await this.prisma.visitGeofenceResult.findFirst({
+      where: {
+        visitLogId: input.visitLogId,
+        visitLog: this.organizationScope(input.organizationId)
+      }
     });
 
     if (!existing) {
@@ -239,5 +310,74 @@ export class AdminService {
     ]);
 
     return geofenceResult;
+  }
+
+  async resolveSyncConflict(input: {
+    visitLogId: string;
+    actorUserId: string;
+    organizationId: string | null;
+    reason: string;
+  }) {
+    const reason = input.reason.trim();
+    if (!reason) {
+      throw new BadRequestException('Resolution reason is required');
+    }
+    const existing = await this.prisma.visitLog.findFirst({
+      where: {
+        id: input.visitLogId,
+        ...this.syncConflictWhere(input.organizationId)
+      }
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Sync conflict item not found');
+    }
+
+    const [visitLog] = await this.prisma.$transaction([
+      this.prisma.visitLog.update({
+        where: { id: input.visitLogId },
+        data: {
+          syncStatus: SyncStatus.synced,
+          syncConflictFlag: false,
+          syncConflictReason: null
+        },
+        include: syncConflictReviewInclude
+      }),
+      this.prisma.syncEvent.create({
+        data: {
+          entityType: 'visit_log',
+          entityId: input.visitLogId,
+          localRecordUuid: existing.localRecordUuid,
+          idempotencyKey: existing.idempotencyKey,
+          eventType: 'conflict_resolved',
+          syncStatus: SyncStatus.synced,
+          attemptCount: 1,
+          attemptedAt: new Date(),
+          completedAt: new Date()
+        }
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          actorUserId: input.actorUserId,
+          organizationId: input.organizationId,
+          actionType: 'sync_conflict_resolved',
+          entityType: 'visit_log',
+          entityId: input.visitLogId,
+          reasonText: reason,
+          oldValuesJson: {
+            syncStatus: existing.syncStatus,
+            syncConflictFlag: existing.syncConflictFlag,
+            syncConflictReason: existing.syncConflictReason
+          },
+          newValuesJson: {
+            syncStatus: SyncStatus.synced,
+            syncConflictFlag: false,
+            syncConflictReason: null
+          }
+        }
+      })
+    ]);
+
+    return visitLog;
   }
 }

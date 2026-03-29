@@ -7,7 +7,12 @@ describe('AuthController', () => {
     logout: jest.fn(),
     requestPasswordReset: jest.fn(),
     completePasswordReset: jest.fn(),
-    activateAccount: jest.fn()
+    activateAccount: jest.fn(),
+    initializeMfaSetup: jest.fn(),
+    completeMfaSetup: jest.fn(),
+    verifyMfaChallenge: jest.fn(),
+    mfaStatus: jest.fn(),
+    disableMfa: jest.fn()
   };
   const usersService = {
     findById: jest.fn(),
@@ -41,6 +46,23 @@ describe('AuthController', () => {
     expect(authService.requestPasswordReset).toHaveBeenCalledWith('user@example.com');
     expect(authService.completePasswordReset).toHaveBeenCalledWith('reset-token', 'Password123!');
     expect(authService.activateAccount).toHaveBeenCalledWith('activation-token', 'Password123!');
+  });
+
+  it('delegates MFA setup, verification, status, and disable flows to the auth service', () => {
+    controller.mfaSetupInit({ challengeToken: 'setup-challenge-token' });
+    controller.mfaSetupComplete({ challengeToken: 'setup-challenge-token', code: '123456' });
+    controller.mfaVerify({ challengeToken: 'verify-challenge-token', code: '654321' });
+    controller.mfaStatus({ sub: 'user-1', email: 'admin@example.com', role: 'admin' as never });
+    controller.mfaDisable(
+      { sub: 'user-1', email: 'admin@example.com', role: 'admin' as never },
+      { password: 'Password123!', code: '123456' }
+    );
+
+    expect(authService.initializeMfaSetup).toHaveBeenCalledWith('setup-challenge-token');
+    expect(authService.completeMfaSetup).toHaveBeenCalledWith('setup-challenge-token', '123456');
+    expect(authService.verifyMfaChallenge).toHaveBeenCalledWith('verify-challenge-token', '654321');
+    expect(authService.mfaStatus).toHaveBeenCalledWith('user-1');
+    expect(authService.disableMfa).toHaveBeenCalledWith('user-1', 'Password123!', '123456');
   });
 
   it('returns the current user from the users service', async () => {

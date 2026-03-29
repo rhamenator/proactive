@@ -6,6 +6,10 @@ describe('ExportsService', () => {
     visitLog: {
       findMany: jest.fn(),
       updateMany: jest.fn()
+    },
+    exportBatch: {
+      create: jest.fn(),
+      findMany: jest.fn()
     }
   };
   const auditService = {
@@ -50,11 +54,13 @@ describe('ExportsService', () => {
     const result = await service.vanResultsCsv({
       turfId: 'turf-1',
       markExported: true,
-      actorUserId: 'admin-1'
+      actorUserId: 'admin-1',
+      organizationId: 'org-1'
     });
 
     expect(prisma.visitLog.findMany).toHaveBeenCalledWith({
       where: {
+        organizationId: 'org-1',
         turfId: 'turf-1',
         vanExported: false
       },
@@ -62,7 +68,8 @@ describe('ExportsService', () => {
       include: {
         address: true,
         canvasser: true,
-        geofenceResult: true
+        geofenceResult: true,
+        turf: true
       }
     });
     expect(prisma.visitLog.updateMany).toHaveBeenCalledWith({
@@ -72,6 +79,16 @@ describe('ExportsService', () => {
     expect(result.count).toBe(1);
     expect(result.csv).toContain('VAN-123');
     expect(result.csv).toContain('Pat Field');
+    expect(result.filename).toContain('van-results-');
+    expect(prisma.exportBatch.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        profileCode: 'van_compatible',
+        turfId: 'turf-1',
+        initiatedByUserId: 'admin-1',
+        markExported: true,
+        rowCount: 1
+      })
+    });
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         actionType: 'csv_export_generated',
@@ -84,28 +101,128 @@ describe('ExportsService', () => {
     prisma.visitLog.findMany.mockResolvedValue([]);
 
     const result = await service.vanResultsCsv({
-      markExported: false
+      markExported: false,
+      organizationId: 'org-1'
     });
 
     expect(prisma.visitLog.findMany).toHaveBeenCalledWith({
-      where: {},
+      where: { organizationId: 'org-1' },
       orderBy: { visitTime: 'asc' },
       include: {
         address: true,
         canvasser: true,
-        geofenceResult: true
+        geofenceResult: true,
+        turf: true
       }
     });
     expect(prisma.visitLog.updateMany).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      csv: '',
-      count: 0
-    });
+    expect(result.count).toBe(0);
+    expect(result.filename).toEqual(expect.stringContaining('van-results-'));
+    expect(result.csv).toBe('\uFEFF');
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         actionType: 'csv_export_generated',
         entityId: 'all'
       })
     );
+  });
+
+  it('generates an internal master export and stores export history', async () => {
+    prisma.visitLog.findMany.mockResolvedValue([
+      {
+        id: 'visit-1',
+        turfId: 'turf-1',
+        addressId: 'address-1',
+        canvasserId: 'user-1',
+        visitTime: new Date('2026-03-28T10:00:00.000Z'),
+        clientCreatedAt: new Date('2026-03-28T09:59:00.000Z'),
+        serverReceivedAt: new Date('2026-03-28T10:00:05.000Z'),
+        result: VisitResult.knocked,
+        outcomeCode: 'knocked',
+        outcomeLabel: 'Knocked',
+        contactMade: true,
+        notes: 'Met voter',
+        gpsStatus: GpsStatus.verified,
+        geofenceValidated: true,
+        geofenceDistanceMeters: 4,
+        latitude: 42.9634,
+        longitude: -85.6681,
+        accuracyMeters: 5,
+        localRecordUuid: 'local-1',
+        idempotencyKey: 'idem-1',
+        source: 'mobile_app',
+        syncStatus: SyncStatus.synced,
+        syncConflictFlag: false,
+        syncConflictReason: null,
+        vanExported: false,
+        address: {
+          vanId: 'VAN-123',
+          addressLine1: '100 Main St',
+          city: 'Grand Rapids',
+          state: 'MI',
+          zip: '49503'
+        },
+        turf: {
+          id: 'turf-1',
+          name: 'North'
+        },
+        canvasser: {
+          firstName: 'Pat',
+          lastName: 'Field'
+        },
+        geofenceResult: {
+          distanceFromTargetFeet: 12.3,
+          overrideFlag: false,
+          overrideReason: null
+        }
+      }
+    ]);
+    prisma.exportBatch.findMany.mockResolvedValue([{ id: 'batch-1', profileCode: 'internal_master' }]);
+
+    const result = await service.internalMasterCsv({
+      turfId: 'turf-1',
+      actorUserId: 'admin-1',
+      organizationId: 'org-1'
+    });
+    const history = await service.exportHistory('org-1');
+
+    expect(prisma.visitLog.updateMany).not.toHaveBeenCalled();
+    expect(result.csv).toContain('outcome_code');
+    expect(result.csv).toContain('Knocked');
+    expect(result.filename).toContain('internal-master-');
+    expect(prisma.exportBatch.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        profileCode: 'internal_master',
+        turfId: 'turf-1',
+        initiatedByUserId: 'admin-1',
+        markExported: false,
+        rowCount: 1
+      })
+    });
+    expect(prisma.exportBatch.findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { turf: { organizationId: 'org-1' } },
+          {
+            turfId: null,
+            initiatedByUser: { organizationId: 'org-1' }
+          }
+        ]
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 25,
+      include: {
+        initiatedByUser: {
+          select: expect.any(Object)
+        },
+        turf: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+    expect(history).toEqual([{ id: 'batch-1', profileCode: 'internal_master' }]);
   });
 });

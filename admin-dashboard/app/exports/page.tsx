@@ -6,12 +6,13 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Select } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
-import type { TurfListItem } from '../../src/lib/types';
+import type { ExportBatchRecord, TurfListItem } from '../../src/lib/types';
 
 export default function ExportsPage() {
   const { user } = useAuth();
   const api = useAuthedApi();
   const [turfs, setTurfs] = useState<TurfListItem[]>([]);
+  const [history, setHistory] = useState<ExportBatchRecord[]>([]);
   const [selectedTurfId, setSelectedTurfId] = useState('');
   const [markExported, setMarkExported] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +26,10 @@ export default function ExportsPage() {
     void api
       .listTurfs()
       .then(setTurfs)
+      .catch((value) => setError(getErrorMessage(value)));
+    void api
+      .listExportHistory()
+      .then(setHistory)
       .catch((value) => setError(getErrorMessage(value)));
   }, [api, user?.role]);
 
@@ -42,16 +47,21 @@ export default function ExportsPage() {
     );
   }
 
-  async function handleExport() {
+  async function handleExport(profile: 'van' | 'internal') {
     setDownloading(true);
     setError(null);
     setMessage(null);
 
     try {
-      const result = await api.exportVanResults({
-        turfId: selectedTurfId || undefined,
-        markExported
-      });
+      const result =
+        profile === 'van'
+          ? await api.exportVanResults({
+              turfId: selectedTurfId || undefined,
+              markExported
+            })
+          : await api.exportInternalMaster({
+              turfId: selectedTurfId || undefined
+            });
       const url = URL.createObjectURL(result.blob);
       const link = document.createElement('a');
       link.href = url;
@@ -59,6 +69,8 @@ export default function ExportsPage() {
       link.click();
       URL.revokeObjectURL(url);
       setMessage(`CSV downloaded as ${result.filename}.`);
+      const latestHistory = await api.listExportHistory();
+      setHistory(latestHistory);
     } catch (value) {
       setError(getErrorMessage(value));
     } finally {
@@ -75,10 +87,10 @@ export default function ExportsPage() {
         <Card className="hero-panel">
           <div>
             <p className="section-kicker">Download Results</p>
-            <h1>Generate a VAN-ready visit export.</h1>
+            <h1>Generate export files for operations and downstream upload.</h1>
             <p className="hero-copy">
-              Pull all unexported visit logs or narrow the file to a single turf before handing the CSV back
-              into downstream processing.
+              Pull either the internal master export for operational review or the VAN-compatible export for
+              downstream handoff, optionally narrowed to a single turf.
             </p>
           </div>
           <div className="hero-aside">
@@ -104,10 +116,49 @@ export default function ExportsPage() {
             <Button variant={markExported ? 'secondary' : 'ghost'} onClick={() => setMarkExported((current) => !current)}>
               {markExported ? 'Mark rows exported: ON' : 'Mark rows exported: OFF'}
             </Button>
-            <Button onClick={() => void handleExport()} disabled={downloading}>
+            <Button variant="secondary" onClick={() => void handleExport('internal')} disabled={downloading}>
+              {downloading ? 'Preparing CSV...' : 'Download Internal Master CSV'}
+            </Button>
+            <Button onClick={() => void handleExport('van')} disabled={downloading}>
               {downloading ? 'Preparing CSV...' : 'Download VAN Results CSV'}
             </Button>
           </div>
+        </Card>
+
+        <Card className="stack">
+          <div>
+            <p className="section-kicker">Export History</p>
+            <h2 className="heading-reset">Recent export batches</h2>
+            <p className="muted">Each export records the profile, file name, row count, turf scope, and initiating user.</p>
+          </div>
+
+          {history.length === 0 ? (
+            <p className="muted">No export batches have been recorded yet.</p>
+          ) : (
+            <div className="stack">
+              {history.map((batch) => (
+                <Card key={batch.id} className="stack">
+                  <div className="inline-actions">
+                    <strong>{batch.filename}</strong>
+                    <Badge tone={batch.profileCode === 'internal_master' ? 'default' : 'gold'}>
+                      {batch.profileCode === 'internal_master' ? 'Internal Master' : 'VAN Compatible'}
+                    </Badge>
+                  </div>
+                  <p className="muted">
+                    {batch.rowCount} rows
+                    {batch.turf?.name ? ` • ${batch.turf.name}` : ' • All turfs'}
+                    {batch.markExported ? ' • marked exported' : ' • export flags unchanged'}
+                  </p>
+                  <p className="muted">
+                    {new Date(batch.createdAt).toLocaleString()}
+                    {batch.initiatedByUser
+                      ? ` • ${batch.initiatedByUser.firstName} ${batch.initiatedByUser.lastName}`.trim()
+                      : ''}
+                  </p>
+                </Card>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </ProtectedFrame>

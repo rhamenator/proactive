@@ -53,11 +53,79 @@ export interface GpsReviewItem {
   };
 }
 
+export interface SyncConflictItem {
+  id: string;
+  syncStatus: 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict';
+  syncConflictFlag: boolean;
+  syncConflictReason?: string | null;
+  localRecordUuid?: string | null;
+  idempotencyKey?: string | null;
+  source: 'mobile_app' | 'web_app' | 'csv_import' | 'admin_entry';
+  outcomeCode?: string | null;
+  outcomeLabel?: string | null;
+  result?: string | null;
+  notes?: string | null;
+  visitTime: string;
+  address: {
+    id: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+  };
+  canvasser: SafeUser;
+  turf: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ExportBatchRecord {
+  id: string;
+  profileCode: string;
+  filename: string;
+  turfId?: string | null;
+  markExported: boolean;
+  rowCount: number;
+  createdAt: string;
+  turf?: {
+    id: string;
+    name: string;
+  } | null;
+  initiatedByUser?: SafeUser | null;
+}
+
 export interface LoginResponse {
+  mfaRequired?: false;
   token?: string;
-  accessToken: string;
+  accessToken?: string;
   role?: Role;
   user: SafeUser;
+}
+
+export interface MfaChallengeResponse {
+  mfaRequired: true;
+  setupRequired: boolean;
+  challengeToken: string;
+  role?: Role;
+  user: SafeUser;
+}
+
+export type AuthLoginResponse = LoginResponse | MfaChallengeResponse;
+
+export interface MfaSetupInitResponse {
+  secret: string;
+  otpauthUri: string;
+}
+
+export interface MfaStatusResponse {
+  enabled: boolean;
+  required: boolean;
+}
+
+export interface DisableMfaResponse {
+  success: boolean;
+  setupRequiredOnNextLogin: boolean;
 }
 
 export interface TurfListItem {

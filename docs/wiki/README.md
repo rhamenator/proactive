@@ -7,6 +7,7 @@ Internal reference for engineers, operators, and implementation reviewers.
 - [System Overview](/home/rich/dev/proactive/docs/wiki/system-overview.md)
 - [Architecture](/home/rich/dev/proactive/docs/wiki/architecture.md)
 - [Operations Runbook](/home/rich/dev/proactive/docs/wiki/operations-runbook.md)
+- [Release Builds](/home/rich/dev/proactive/docs/wiki/release-builds.md)
 - [Testing And Quality](/home/rich/dev/proactive/docs/wiki/testing-and-quality.md)
 - [Known Product Limits](/home/rich/dev/proactive/docs/wiki/known-product-limits.md)
 

@@ -6,6 +6,7 @@ describe('TurfsService', () => {
   const prisma = {
     $transaction: jest.fn(),
     turf: {
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn()
@@ -45,14 +46,16 @@ describe('TurfsService', () => {
       status: 'active'
     });
 
-    await expect(service.assignTurf('turf-1', 'supervisor-1', 'admin-1')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.assignTurf('turf-1', 'supervisor-1', 'admin-1', undefined, null)).rejects.toBeInstanceOf(
+      BadRequestException
+    );
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('prevents reopening a turf while an open session exists', async () => {
     const tx = {
       turf: {
-        findUnique: jest.fn().mockResolvedValue({
+        findFirst: jest.fn().mockResolvedValue({
           id: 'turf-1',
           status: TurfStatus.completed
         }),
@@ -64,9 +67,11 @@ describe('TurfsService', () => {
     };
     prisma.$transaction.mockImplementation(async (callback) => callback(tx));
 
-    await expect(service.reopenTurf('turf-1', 'admin-1', 'Resume work')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.reopenTurf('turf-1', 'admin-1', 'Resume work', null)).rejects.toBeInstanceOf(
+      BadRequestException
+    );
 
-    expect(tx.turf.findUnique).toHaveBeenCalledWith({ where: { id: 'turf-1' } });
+    expect(tx.turf.findFirst).toHaveBeenCalledWith({ where: { id: 'turf-1', organizationId: null } });
     expect(tx.turfSession.count).toHaveBeenCalledWith({
       where: {
         turfId: 'turf-1',
@@ -246,8 +251,22 @@ describe('TurfsService', () => {
       { id: 'session-2', turfId: 'turf-1' }
     ]);
 
-    const result = await service.listTurfs();
+    const result = await service.listTurfs('org-1');
 
+    expect(prisma.turf.findMany).toHaveBeenCalledWith({
+      where: { organizationId: 'org-1' },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            addresses: true,
+            assignments: true,
+            sessions: true,
+            visits: true
+          }
+        }
+      }
+    });
     expect(result).toEqual([
       expect.objectContaining({
         id: 'turf-1',
@@ -308,7 +327,9 @@ describe('TurfsService', () => {
       status: 'inactive'
     });
 
-    await expect(service.assignTurf('turf-1', 'canvasser-2', 'admin-1')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.assignTurf('turf-1', 'canvasser-2', 'admin-1', undefined, null)).rejects.toBeInstanceOf(
+      BadRequestException
+    );
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -317,13 +338,16 @@ describe('TurfsService', () => {
       id: 'canvasser-1',
       role: UserRole.canvasser,
       isActive: true,
-      status: 'active'
+      status: 'active',
+      organizationId: 'org-1'
     });
     const tx = {
       turf: {
-        findUnique: jest.fn().mockResolvedValue({
+        findFirst: jest.fn().mockResolvedValue({
           id: 'turf-1',
-          isShared: false
+          isShared: false,
+          organizationId: 'org-1',
+          campaignId: null
         }),
         update: jest.fn().mockResolvedValue({ id: 'turf-1', status: TurfStatus.assigned })
       },
@@ -344,12 +368,14 @@ describe('TurfsService', () => {
     prisma.$transaction.mockImplementation(async (callback) => callback(tx));
     auditService.log.mockResolvedValue(undefined);
 
-    const result = await service.assignTurf('turf-1', 'canvasser-1', 'admin-1', 'balanced workload');
+    const result = await service.assignTurf('turf-1', 'canvasser-1', 'admin-1', 'balanced workload', 'org-1');
 
     expect(tx.turfAssignment.create).toHaveBeenCalledWith({
       data: {
         turfId: 'turf-1',
         canvasserId: 'canvasser-1',
+        organizationId: 'org-1',
+        campaignId: null,
         assignedByUserId: 'admin-1',
         reassignmentReason: 'balanced workload',
         status: AssignmentStatus.assigned
@@ -409,7 +435,7 @@ describe('TurfsService', () => {
   });
 
   it('returns address completion status from the latest visit on a turf', async () => {
-    prisma.turf.findUnique.mockResolvedValue({
+    prisma.turf.findFirst.mockResolvedValue({
       id: 'turf-1',
       name: 'Ward 1',
       status: TurfStatus.assigned,
@@ -436,7 +462,25 @@ describe('TurfsService', () => {
       ]
     });
 
-    const result = await service.getTurfAddresses('turf-1');
+    const result = await service.getTurfAddresses('turf-1', 'org-1');
+
+    expect(prisma.turf.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'turf-1',
+        organizationId: 'org-1'
+      },
+      include: {
+        addresses: {
+          orderBy: { addressLine1: 'asc' },
+          include: {
+            visitLogs: {
+              orderBy: { visitTime: 'desc' },
+              take: 1
+            }
+          }
+        }
+      }
+    });
 
     expect(result.lifecycleStatus).toBe('open');
     expect(result.addresses).toEqual([

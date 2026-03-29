@@ -5,13 +5,16 @@ import { useRouter } from 'next/navigation';
 
 import { createApiClient } from './api';
 import { clearStoredSession, readStoredSession, writeStoredSession } from './storage';
-import type { SafeUser } from './types';
+import type { LoginResponse, MfaChallengeResponse, MfaSetupInitResponse, SafeUser } from './types';
 
 type AuthContextValue = {
   ready: boolean;
   token: string | null;
   user: SafeUser | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<MfaChallengeResponse | null>;
+  initializeMfaSetup: (challengeToken: string) => Promise<MfaSetupInitResponse>;
+  completeMfaSetup: (challengeToken: string, code: string) => Promise<void>;
+  verifyMfa: (challengeToken: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -66,21 +69,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  async function login(email: string, password: string) {
-    const api = createApiClient();
-    const response = await api.login(email, password);
+  function ensureDashboardRole(userValue: SafeUser) {
+    if (userValue.role !== 'admin' && userValue.role !== 'supervisor') {
+      throw new Error('This dashboard is restricted to admin and supervisor accounts.');
+    }
+  }
+
+  function finalizeLogin(response: LoginResponse) {
     const accessToken = response.accessToken || response.token;
     if (!accessToken) {
       throw new Error('Login response did not include a token.');
     }
-    if (response.user.role !== 'admin' && response.user.role !== 'supervisor') {
-      throw new Error('This dashboard is restricted to admin and supervisor accounts.');
-    }
+    ensureDashboardRole(response.user);
 
     setToken(accessToken);
     setUser(response.user);
     writeStoredSession(accessToken, response.user);
     router.push('/dashboard');
+  }
+
+  async function login(email: string, password: string) {
+    const api = createApiClient();
+    const response = await api.login(email, password);
+    ensureDashboardRole(response.user);
+
+    if ('mfaRequired' in response && response.mfaRequired) {
+      return response;
+    }
+
+    finalizeLogin(response as LoginResponse);
+    return null;
+  }
+
+  async function initializeMfaSetup(challengeToken: string) {
+    const api = createApiClient();
+    return api.mfaSetupInit(challengeToken);
+  }
+
+  async function completeMfaSetup(challengeToken: string, code: string) {
+    const api = createApiClient();
+    const response = await api.mfaSetupComplete(challengeToken, code);
+    finalizeLogin(response);
+  }
+
+  async function verifyMfa(challengeToken: string, code: string) {
+    const api = createApiClient();
+    const response = await api.mfaVerify(challengeToken, code);
+    finalizeLogin(response);
   }
 
   async function logout() {
@@ -101,7 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ready, token, user, login, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ ready, token, user, login, initializeMfaSetup, completeMfaSetup, verifyMfa, logout, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -63,6 +63,15 @@ npm start
 
 This app is configured for Expo Application Services (EAS) builds and store submission.
 
+GitHub Actions currently supports mobile release preparation, not signed mobile binary output. The trusted release workflow packages:
+
+- resolved Expo config from GitHub Actions
+- `eas.json`
+- environment templates
+- release notes inputs for maintainers
+
+That artifact is useful for auditing and handoff, but it is not an installable build.
+
 ### Required configuration
 
 1. Copy one of the environment templates and fill in the real values:
@@ -86,6 +95,31 @@ cp .env.production.example .env.production
 npx eas login
 npx eas project:init
 ```
+
+### What GitHub can and cannot do today
+
+GitHub release automation in this repo can safely do the following without private store credentials:
+
+- verify that Expo config resolves in CI
+- archive release-prep inputs for maintainers
+- keep backend/admin release artifacts tied to the same GitHub run and provenance
+
+It does not currently do the following automatically:
+
+- create signed IPA or AAB/APK artifacts
+- submit builds to App Store Connect
+- submit builds to Google Play
+- manage Apple or Google signing credentials
+
+Those steps remain blocked on real secrets and platform accounts:
+
+- `EXPO_TOKEN`
+- `EXPO_OWNER`
+- `EAS_PROJECT_ID`
+- `IOS_BUNDLE_IDENTIFIER`
+- `ANDROID_APPLICATION_ID`
+- Apple signing credentials
+- Google Play credentials if applicable
 
 ### Internal distribution
 

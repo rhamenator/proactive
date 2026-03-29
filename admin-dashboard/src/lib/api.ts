@@ -1,10 +1,16 @@
 import type {
+  AuthLoginResponse,
   DashboardSummary,
+  DisableMfaResponse,
+  ExportBatchRecord,
   FieldUserRecord,
   GpsReviewItem,
   LoginResponse,
+  MfaSetupInitResponse,
+  MfaStatusResponse,
   OutcomeDefinitionRecord,
   SafeUser,
+  SyncConflictItem,
   TurfAddressImportResult,
   TurfListItem
 } from './types';
@@ -110,10 +116,37 @@ async function requestBlob(path: string, token?: string | null) {
 export function createApiClient(token?: string | null) {
   return {
     login(email: string, password: string) {
-      return requestJson<LoginResponse>('/auth/login', {
+      return requestJson<AuthLoginResponse>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password })
       });
+    },
+    mfaSetupInit(challengeToken: string) {
+      return requestJson<MfaSetupInitResponse>('/auth/mfa/setup/init', {
+        method: 'POST',
+        body: JSON.stringify({ challengeToken })
+      });
+    },
+    mfaSetupComplete(challengeToken: string, code: string) {
+      return requestJson<LoginResponse>('/auth/mfa/setup/complete', {
+        method: 'POST',
+        body: JSON.stringify({ challengeToken, code })
+      });
+    },
+    mfaVerify(challengeToken: string, code: string) {
+      return requestJson<LoginResponse>('/auth/mfa/verify', {
+        method: 'POST',
+        body: JSON.stringify({ challengeToken, code })
+      });
+    },
+    mfaStatus() {
+      return requestJson<MfaStatusResponse>('/auth/mfa/status', {}, token);
+    },
+    disableMfa(password: string, code: string) {
+      return requestJson<DisableMfaResponse>('/auth/mfa/disable', {
+        method: 'POST',
+        body: JSON.stringify({ password, code })
+      }, token);
     },
     me() {
       return requestJson<SafeUser>('/me', {}, token);
@@ -162,8 +195,20 @@ export function createApiClient(token?: string | null) {
     gpsReviewQueue() {
       return requestJson<GpsReviewItem[]>('/admin/gps-review', {}, token);
     },
+    syncConflictQueue() {
+      return requestJson<SyncConflictItem[]>('/admin/sync-conflicts', {}, token);
+    },
+    listExportHistory() {
+      return requestJson<ExportBatchRecord[]>('/exports/history', {}, token);
+    },
     overrideGpsResult(visitLogId: string, reason: string) {
       return requestJson(`/admin/gps-review/${visitLogId}/override`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      }, token);
+    },
+    resolveSyncConflict(visitLogId: string, reason: string) {
+      return requestJson<SyncConflictItem>(`/admin/sync-conflicts/${visitLogId}/resolve`, {
         method: 'POST',
         body: JSON.stringify({ reason })
       }, token);
@@ -245,6 +290,13 @@ export function createApiClient(token?: string | null) {
         params.set('markExported', 'true');
       }
       return requestBlob(`/exports/van-results${params.toString() ? `?${params.toString()}` : ''}`, token);
+    },
+    exportInternalMaster(payload?: { turfId?: string }) {
+      const params = new URLSearchParams();
+      if (payload?.turfId) {
+        params.set('turfId', payload.turfId);
+      }
+      return requestBlob(`/exports/internal-master${params.toString() ? `?${params.toString()}` : ''}`, token);
     }
   };
 }

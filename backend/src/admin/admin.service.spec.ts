@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import { SyncStatus, UserRole } from '@prisma/client';
 import { AdminService } from './admin.service';
 
 describe('AdminService', () => {
@@ -25,19 +25,25 @@ describe('AdminService', () => {
     visitLog: {
       count: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn()
     },
     outcomeDefinition: {
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn()
     },
     visitGeofenceResult: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn()
     },
     auditLog: {
+      create: jest.fn()
+    },
+    syncEvent: {
       create: jest.fn()
     }
   };
@@ -45,7 +51,7 @@ describe('AdminService', () => {
   const service = new AdminService(prisma as never);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   it('builds a role-aware dashboard summary with per-turf progress', async () => {
@@ -82,7 +88,7 @@ describe('AdminService', () => {
       }
     ]);
 
-    const result = await service.dashboardSummary();
+    const result = await service.dashboardSummary('org-1');
 
     expect(result.totals).toEqual(
       expect.objectContaining({
@@ -104,10 +110,11 @@ describe('AdminService', () => {
   it('lists only field users with supervisor and canvasser roles', async () => {
     prisma.user.findMany.mockResolvedValue([{ id: 'user-1', role: UserRole.supervisor }]);
 
-    const result = await service.listCanvassers();
+    const result = await service.listCanvassers('org-1');
 
     expect(prisma.user.findMany).toHaveBeenCalledWith({
       where: {
+        organizationId: 'org-1',
         role: {
           in: [UserRole.supervisor, UserRole.canvasser]
         }
@@ -121,9 +128,10 @@ describe('AdminService', () => {
   it('lists configurable outcomes in display order', async () => {
     prisma.outcomeDefinition.findMany.mockResolvedValue([{ id: 'outcome-1', code: 'knocked' }]);
 
-    const result = await service.listOutcomeDefinitions();
+    const result = await service.listOutcomeDefinitions('org-1');
 
     expect(prisma.outcomeDefinition.findMany).toHaveBeenCalledWith({
+      where: { organizationId: 'org-1' },
       orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
     });
     expect(result).toEqual([{ id: 'outcome-1', code: 'knocked' }]);
@@ -131,6 +139,7 @@ describe('AdminService', () => {
 
   it('creates and updates outcome definitions with normalized values', async () => {
     prisma.outcomeDefinition.create.mockResolvedValue({ id: 'outcome-2', code: 'refused' });
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({ id: 'outcome-2', organizationId: 'org-1' });
     prisma.outcomeDefinition.update.mockResolvedValue({ id: 'outcome-2', code: 'refused' });
 
     const created = await service.upsertOutcomeDefinition({
@@ -138,13 +147,13 @@ describe('AdminService', () => {
       label: ' Refused ',
       requiresNote: true,
       displayOrder: 40
-    });
+    }, 'org-1');
     const updated = await service.upsertOutcomeDefinition({
       id: 'outcome-2',
       code: 'refused',
       label: 'Refused At Door',
       isActive: false
-    });
+    }, 'org-1');
 
     expect(prisma.outcomeDefinition.create).toHaveBeenCalledWith({
       data: {
@@ -153,7 +162,14 @@ describe('AdminService', () => {
         requiresNote: true,
         isFinalDisposition: true,
         displayOrder: 40,
-        isActive: true
+        isActive: true,
+        organizationId: 'org-1'
+      }
+    });
+    expect(prisma.outcomeDefinition.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'outcome-2',
+        organizationId: 'org-1'
       }
     });
     expect(prisma.outcomeDefinition.update).toHaveBeenCalledWith({
@@ -164,7 +180,8 @@ describe('AdminService', () => {
         requiresNote: false,
         isFinalDisposition: true,
         displayOrder: 0,
-        isActive: false
+        isActive: false,
+        organizationId: 'org-1'
       }
     });
     expect(created).toEqual({ id: 'outcome-2', code: 'refused' });
@@ -174,10 +191,11 @@ describe('AdminService', () => {
   it('returns the GPS review queue with canvasser and turf context', async () => {
     prisma.visitGeofenceResult.findMany.mockResolvedValue([{ id: 'geo-1' }]);
 
-    const result = await service.gpsReviewQueue();
+    const result = await service.gpsReviewQueue('org-1');
 
     expect(prisma.visitGeofenceResult.findMany).toHaveBeenCalledWith({
       where: {
+        visitLog: { organizationId: 'org-1' },
         OR: [{ gpsStatus: { not: 'verified' } }, { overrideFlag: true }]
       },
       orderBy: { createdAt: 'desc' },
@@ -194,8 +212,39 @@ describe('AdminService', () => {
     expect(result).toEqual([{ id: 'geo-1' }]);
   });
 
+  it('returns visit logs that are still in sync conflict review', async () => {
+    prisma.visitLog.findMany.mockResolvedValue([{ id: 'visit-1', syncStatus: SyncStatus.conflict }]);
+
+    const result = await service.syncConflictQueue('org-1');
+
+    expect(prisma.visitLog.findMany).toHaveBeenCalledWith({
+      where: {
+        organizationId: 'org-1',
+        OR: [
+          { syncStatus: 'conflict' },
+          { syncConflictFlag: true }
+        ]
+      },
+      orderBy: { visitTime: 'desc' },
+      include: {
+        address: {
+          select: {
+            id: true,
+            addressLine1: true,
+            city: true,
+            state: true,
+            zip: true
+          }
+        },
+        canvasser: { select: expect.any(Object) },
+        turf: { select: { id: true, name: true } }
+      }
+    });
+    expect(result).toEqual([{ id: 'visit-1', syncStatus: SyncStatus.conflict }]);
+  });
+
   it('applies GPS overrides and writes an audit trail', async () => {
-    prisma.visitGeofenceResult.findUnique.mockResolvedValue({
+    prisma.visitGeofenceResult.findFirst.mockResolvedValue({
       visitLogId: 'visit-1',
       overrideFlag: false,
       failureReason: 'outside_radius',
@@ -209,6 +258,7 @@ describe('AdminService', () => {
     const result = await service.overrideGpsResult({
       visitLogId: 'visit-1',
       actorUserId: 'admin-1',
+      organizationId: 'org-1',
       reason: 'Manual verification'
     });
 
@@ -233,5 +283,90 @@ describe('AdminService', () => {
       })
     });
     expect(result).toEqual({ id: 'geo-1', overrideFlag: true });
+  });
+
+  it('resolves sync conflicts and records an audit reason', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue({
+      id: 'visit-1',
+      syncStatus: SyncStatus.conflict,
+      syncConflictFlag: true,
+      syncConflictReason: 'duplicate_submission',
+      localRecordUuid: 'local-1',
+      idempotencyKey: 'idem-1'
+    });
+    prisma.visitLog.update.mockResolvedValue({ id: 'visit-1', syncStatus: SyncStatus.synced, syncConflictFlag: false });
+    prisma.syncEvent.create.mockResolvedValue({ id: 'sync-2' });
+    prisma.auditLog.create.mockResolvedValue({ id: 'audit-2' });
+    prisma.$transaction.mockImplementation(async (operations) => Promise.all(operations));
+
+    const result = await service.resolveSyncConflict({
+      visitLogId: 'visit-1',
+      actorUserId: 'supervisor-1',
+      organizationId: 'org-1',
+      reason: 'Confirmed the server record is the correct final submission.'
+    });
+
+    expect(prisma.visitLog.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'visit-1',
+        organizationId: 'org-1',
+        OR: [
+          { syncStatus: SyncStatus.conflict },
+          { syncConflictFlag: true }
+        ]
+      }
+    });
+    expect(prisma.visitLog.update).toHaveBeenCalledWith({
+      where: { id: 'visit-1' },
+      data: {
+        syncStatus: SyncStatus.synced,
+        syncConflictFlag: false,
+        syncConflictReason: null
+      },
+      include: {
+        address: {
+          select: {
+            id: true,
+            addressLine1: true,
+            city: true,
+            state: true,
+            zip: true
+          }
+        },
+        canvasser: { select: expect.any(Object) },
+        turf: { select: { id: true, name: true } }
+      }
+    });
+    expect(prisma.syncEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entityType: 'visit_log',
+        entityId: 'visit-1',
+        localRecordUuid: 'local-1',
+        idempotencyKey: 'idem-1',
+        eventType: 'conflict_resolved',
+        syncStatus: SyncStatus.synced
+      })
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorUserId: 'supervisor-1',
+        organizationId: 'org-1',
+        actionType: 'sync_conflict_resolved',
+        entityId: 'visit-1',
+        reasonText: 'Confirmed the server record is the correct final submission.'
+      })
+    });
+    expect(result).toEqual({ id: 'visit-1', syncStatus: SyncStatus.synced, syncConflictFlag: false });
+  });
+
+  it('requires a non-empty reason before resolving a sync conflict', async () => {
+    await expect(service.resolveSyncConflict({
+      visitLogId: 'visit-1',
+      actorUserId: 'supervisor-1',
+      organizationId: 'org-1',
+      reason: '   '
+    })).rejects.toThrow('Resolution reason is required');
+
+    expect(prisma.visitLog.findFirst).not.toHaveBeenCalled();
   });
 });

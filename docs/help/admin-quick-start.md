@@ -10,6 +10,7 @@ Admins use the web dashboard to:
 - assign or reassign turfs
 - review dashboard progress
 - review flagged GPS submissions and apply overrides
+- review sync conflicts and clear resolved queue items
 - manage outcome definitions
 - export results
 
@@ -18,8 +19,17 @@ Admins use the web dashboard to:
 1. Open the admin dashboard in a browser.
 2. Enter your admin email and password.
 3. Select `Sign In`.
+4. If MFA enrollment is required, copy the displayed secret or OTPAuth URI into your authenticator app.
+5. Enter the 6-digit authenticator code to finish the session.
 
 If login fails, see [Troubleshooting](/home/rich/dev/proactive/docs/help/troubleshooting.md).
+
+## Manage MFA
+
+1. Open `Account`.
+2. Review the current MFA status for the signed-in account.
+3. If you need to reset MFA, disable it with your password and a current authenticator code.
+4. Sign out and sign back in to re-enroll the authenticator for admin accounts.
 
 ## Create Or Import A Turf
 
@@ -73,6 +83,13 @@ Use `Dashboard` to review:
 3. Confirm the visit notes, address, turf, and canvasser context.
 4. Apply an override only when operations staff have validated the submission.
 
+## Review Sync Conflicts
+
+1. Open `Sync Conflicts`.
+2. Review the conflict reason, submission metadata, and field context.
+3. Enter the operational reason for clearing the item.
+4. Resolve the conflict only after staff confirm the record should remain as the system-of-record version.
+
 ## Manage Outcome Definitions
 
 1. Open `Outcomes`.
@@ -83,9 +100,10 @@ Use `Dashboard` to review:
 ## Export Results
 
 1. Open `Exports`.
-2. Choose the export action.
-3. Download the generated CSV.
-4. Confirm the file contents before downstream upload or handoff.
+2. Choose `Internal Master` for operational review or `VAN Results` for downstream upload.
+3. Optionally filter to a single turf.
+4. Download the generated CSV.
+5. Confirm the file contents and review the recorded export batch entry.
 
 ## Recommended Admin First-Day Checklist
 

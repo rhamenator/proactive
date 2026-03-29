@@ -13,26 +13,36 @@ describe('TurfsController', () => {
     resumeSession: jest.fn(),
     completeSession: jest.fn()
   };
-  const controller = new TurfsController(turfsService as never);
+  const usersService = {
+    findById: jest.fn()
+  };
+  const controller = new TurfsController(turfsService as never, usersService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('delegates list, create, assign, and address lookup actions', () => {
-    controller.listTurfs();
-    controller.createTurf({ name: 'North' }, { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never });
-    controller.assignTurf(
+  it('delegates list, create, assign, and address lookup actions', async () => {
+    const adminUser = {
+      sub: 'admin-1',
+      email: 'admin@example.com',
+      role: 'admin' as never,
+      organizationId: 'org-1'
+    };
+
+    await controller.listTurfs(adminUser);
+    controller.createTurf({ name: 'North' }, adminUser);
+    await controller.assignTurf(
       'turf-1',
       { canvasserId: 'canvasser-1' },
-      { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never }
+      adminUser
     );
-    controller.getAddresses('turf-1');
+    await controller.getAddresses('turf-1', adminUser);
 
-    expect(turfsService.listTurfs).toHaveBeenCalled();
+    expect(turfsService.listTurfs).toHaveBeenCalledWith('org-1');
     expect(turfsService.createTurf).toHaveBeenCalledWith({ name: 'North' }, 'admin-1');
-    expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'canvasser-1', 'admin-1');
-    expect(turfsService.getTurfAddresses).toHaveBeenCalledWith('turf-1');
+    expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'canvasser-1', 'admin-1', undefined, 'org-1');
+    expect(turfsService.getTurfAddresses).toHaveBeenCalledWith('turf-1', 'org-1');
   });
 
   it('delegates CSV import after parsing mapping JSON', async () => {
