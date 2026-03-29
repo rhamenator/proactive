@@ -159,6 +159,12 @@ describe('AuthService', () => {
       })
     );
     expect(prisma.authRefreshToken.create).toHaveBeenCalled();
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: user.id },
+      data: {
+        lastLoginAt: expect.any(Date)
+      }
+    });
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         actionType: 'login_succeeded',
@@ -198,6 +204,7 @@ describe('AuthService', () => {
         challengeToken: expect.any(String)
       })
     );
+    expect(prisma.user.update).not.toHaveBeenCalled();
     expect(prisma.authRefreshToken.create).not.toHaveBeenCalled();
   });
 
@@ -343,6 +350,12 @@ describe('AuthService', () => {
         mfaEnabled: true
       }
     });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: user.id },
+      data: {
+        lastLoginAt: expect.any(Date)
+      }
+    });
     verifySpy.mockRestore();
   });
 
@@ -365,6 +378,12 @@ describe('AuthService', () => {
     expect(prisma.mfaChallengeToken.update).toHaveBeenCalledWith({
       where: { id: 'challenge-2' },
       data: { usedAt: expect.any(Date) }
+    });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: user.id },
+      data: {
+        lastLoginAt: expect.any(Date)
+      }
     });
     verifySpy.mockRestore();
   });

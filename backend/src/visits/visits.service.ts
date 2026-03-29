@@ -17,9 +17,9 @@ export class VisitsService {
     return allowed.has(normalized) ? (normalized as VisitResult) : VisitResult.other;
   }
 
-  async listActiveOutcomes() {
+  async listActiveOutcomes(organizationId: string | null) {
     return this.prisma.outcomeDefinition.findMany({
-      where: { isActive: true },
+      where: { isActive: true, organizationId },
       orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
     });
   }

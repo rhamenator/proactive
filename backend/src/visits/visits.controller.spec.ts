@@ -5,16 +5,24 @@ describe('VisitsController', () => {
     logVisit: jest.fn(),
     listActiveOutcomes: jest.fn()
   };
-  const controller = new VisitsController(visitsService as never);
+  const usersService = {
+    findById: jest.fn()
+  };
+  const controller = new VisitsController(visitsService as never, usersService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('lists active outcomes for mobile clients', () => {
-    controller.listActiveOutcomes();
+  it('lists active outcomes for mobile clients within the current organization', async () => {
+    await controller.listActiveOutcomes({
+      sub: 'canvasser-1',
+      email: 'field@example.com',
+      role: 'canvasser' as never,
+      organizationId: 'org-1'
+    });
 
-    expect(visitsService.listActiveOutcomes).toHaveBeenCalled();
+    expect(visitsService.listActiveOutcomes).toHaveBeenCalledWith('org-1');
   });
 
   it('injects the current user id into visit logging', () => {

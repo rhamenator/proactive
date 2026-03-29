@@ -97,13 +97,13 @@ describe('VisitsService', () => {
     expect(result).toBe(existingVisit);
   });
 
-  it('lists active outcomes in display order', async () => {
+  it('lists active outcomes in display order for the current organization', async () => {
     prisma.outcomeDefinition.findMany.mockResolvedValue([{ id: 'outcome-1', code: 'knocked' }]);
 
-    const result = await service.listActiveOutcomes();
+    const result = await service.listActiveOutcomes('org-1');
 
     expect(prisma.outcomeDefinition.findMany).toHaveBeenCalledWith({
-      where: { isActive: true },
+      where: { isActive: true, organizationId: 'org-1' },
       orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
     });
     expect(result).toEqual([{ id: 'outcome-1', code: 'knocked' }]);

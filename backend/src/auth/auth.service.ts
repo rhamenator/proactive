@@ -154,6 +154,15 @@ export class AuthService {
     });
   }
 
+  private async markInteractiveLoginComplete(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        lastLoginAt: new Date()
+      }
+    });
+  }
+
   private async issueSession(user: {
     id: string;
     firstName: string;
@@ -253,15 +262,7 @@ export class AuthService {
           failedLoginAttempts: 0,
           lockedUntil: null,
           status: 'active',
-          activatedAt: user.activatedAt ?? new Date(),
-          lastLoginAt: new Date()
-        }
-      });
-    } else {
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          lastLoginAt: new Date()
+          activatedAt: user.activatedAt ?? new Date()
         }
       });
     }
@@ -297,6 +298,7 @@ export class AuthService {
     }
 
     const session = await this.issueSession(user);
+    await this.markInteractiveLoginComplete(user.id);
 
     await this.auditService.log({
       actorUserId: user.id,
@@ -358,6 +360,7 @@ export class AuthService {
 
     const user = await this.usersService.findById(challenge.userId);
     const session = await this.issueSession(user);
+    await this.markInteractiveLoginComplete(challenge.userId);
 
     await this.auditService.log({
       actorUserId: challenge.userId,
@@ -382,6 +385,7 @@ export class AuthService {
 
     await this.consumeMfaChallenge(challenge.id);
     const session = await this.issueSession(challenge.user);
+    await this.markInteractiveLoginComplete(challenge.userId);
 
     await this.auditService.log({
       actorUserId: challenge.userId,

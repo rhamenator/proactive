@@ -262,6 +262,9 @@ export class AdminService {
     reason: string;
   }) {
     const reason = input.reason.trim();
+    if (!reason) {
+      throw new BadRequestException('Override reason is required');
+    }
     const existing = await this.prisma.visitGeofenceResult.findFirst({
       where: {
         visitLogId: input.visitLogId,

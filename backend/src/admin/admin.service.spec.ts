@@ -1,4 +1,5 @@
 import { SyncStatus, UserRole } from '@prisma/client';
+import { BadRequestException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 describe('AdminService', () => {
@@ -283,6 +284,17 @@ describe('AdminService', () => {
       })
     });
     expect(result).toEqual({ id: 'geo-1', overrideFlag: true });
+  });
+
+  it('rejects blank GPS override reasons', async () => {
+    await expect(service.overrideGpsResult({
+      visitLogId: 'visit-1',
+      actorUserId: 'admin-1',
+      organizationId: 'org-1',
+      reason: '   '
+    })).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.visitGeofenceResult.findFirst).not.toHaveBeenCalled();
   });
 
   it('resolves sync conflicts and records an audit reason', async () => {
