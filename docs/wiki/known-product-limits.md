@@ -10,7 +10,10 @@
 - no audited visit-correction workflow yet
 - no dedicated resolved-conflicts history screen yet
 - org-level scope is enforced, but deeper campaign/team/geography scope rules are not yet implemented
-- admin MFA is enforced, but recovery codes and richer break-glass support are not yet implemented
+- no impersonation workflow or impersonation banner yet
+- no requested-address submission/review workflow yet
+- reporting is operational but not yet the full filtered analytics/reporting suite described by the client
+- MFA backup codes are implemented, but richer break-glass support is not yet implemented
 - signed mobile binaries still require external Expo/Apple/Google release credentials
 
 ## Documentation Cross-Reference

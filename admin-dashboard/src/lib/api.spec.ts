@@ -71,13 +71,14 @@ describe('admin api client', () => {
           JSON.stringify({
             accessToken: 'token-2',
             role: 'admin',
-            user: { id: 'user-1', firstName: 'Alex', lastName: 'Admin', email: 'alex@example.com', role: 'admin' }
+            user: { id: 'user-1', firstName: 'Alex', lastName: 'Admin', email: 'alex@example.com', role: 'admin' },
+            backupCodes: ['ABCD-EF12', '3456-7890']
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ enabled: true, required: true }), {
+        new Response(JSON.stringify({ enabled: true, required: true, backupCodeCount: 10 }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         })
@@ -140,7 +141,8 @@ describe('admin api client', () => {
     );
     expect(setup.secret).toBe('SECRET123');
     expect(verified.accessToken).toBe('token-2');
-    expect(status).toEqual({ enabled: true, required: true });
+    expect(verified.backupCodes).toEqual(['ABCD-EF12', '3456-7890']);
+    expect(status).toEqual({ enabled: true, required: true, backupCodeCount: 10 });
     expect(disabled).toEqual({ success: true, setupRequiredOnNextLogin: true });
   });
 

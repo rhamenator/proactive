@@ -17,21 +17,23 @@ export default function LoginPage() {
   const [challenge, setChallenge] = useState<MfaChallengeResponse | null>(null);
   const [setupSecret, setSetupSecret] = useState<string | null>(null);
   const [otpauthUri, setOtpAuthUri] = useState<string | null>(null);
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const apiUrl = useMemo(() => getBaseUrl(), []);
 
   useEffect(() => {
-    if (ready && token) {
+    if (ready && token && !challenge && backupCodes.length === 0) {
       router.replace('/dashboard');
     }
-  }, [ready, router, token]);
+  }, [backupCodes.length, challenge, ready, router, token]);
 
   function resetMfaState() {
     setChallenge(null);
     setMfaCode('');
     setSetupSecret(null);
     setOtpAuthUri(null);
+    setBackupCodes([]);
   }
 
   async function handleCredentialsSubmit(event: FormEvent<HTMLFormElement>) {
@@ -68,7 +70,8 @@ export default function LoginPage() {
 
     try {
       if (challenge.setupRequired) {
-        await completeMfaSetup(challenge.challengeToken, mfaCode.trim());
+        const generatedBackupCodes = await completeMfaSetup(challenge.challengeToken, mfaCode.trim());
+        setBackupCodes(generatedBackupCodes);
       } else {
         await verifyMfa(challenge.challengeToken, mfaCode.trim());
       }
@@ -104,9 +107,11 @@ export default function LoginPage() {
 
         <Card className="login-card">
           <div>
-            <p className="section-kicker">Admin Login</p>
+            <p className="section-kicker">Operations Login</p>
             <h2 className="heading-reset-tight">
-              {challenge
+              {backupCodes.length
+                ? 'Save your backup codes'
+                : challenge
                 ? challenge.setupRequired
                   ? 'Set up multi-factor authentication'
                   : 'Enter your authentication code'
@@ -138,12 +143,32 @@ export default function LoginPage() {
                 {submitting ? 'Signing In...' : 'Open Dashboard'}
               </Button>
             </form>
+          ) : backupCodes.length ? (
+            <div className="stack">
+              <div className="notice notice-success">
+                MFA is enabled. Save these one-time backup codes now. Each code can be used once if your authenticator is unavailable.
+              </div>
+
+              <div className="card card-subtle">
+                <div className="stack">
+                  {backupCodes.map((backupCode) => (
+                    <code key={backupCode}>{backupCode}</code>
+                  ))}
+                </div>
+              </div>
+
+              <div className="notice notice-neutral">
+                These codes will not be shown again automatically. Store them somewhere secure before continuing.
+              </div>
+
+              <Button onClick={() => router.push('/dashboard')}>Continue to Dashboard</Button>
+            </div>
           ) : (
             <form className="stack" onSubmit={handleMfaSubmit}>
               <div className="notice notice-neutral">
                 {challenge.setupRequired
-                  ? 'Admins must enroll in multi-factor authentication before the first dashboard session is issued.'
-                  : 'Enter the 6-digit code from your authenticator app to finish signing in.'}
+                  ? 'Admins and supervisors must enroll in multi-factor authentication before the first dashboard session is issued.'
+                  : 'Enter the code from your authenticator app, or a saved backup code, to finish signing in.'}
               </div>
 
               {challenge.setupRequired && setupSecret ? (
@@ -163,7 +188,6 @@ export default function LoginPage() {
                 <label htmlFor="mfa-code">Authentication code</label>
                 <Input
                   id="mfa-code"
-                  inputMode="numeric"
                   autoComplete="one-time-code"
                   value={mfaCode}
                   onChange={(event) => setMfaCode(event.target.value)}

@@ -13,7 +13,7 @@ type AuthContextValue = {
   user: SafeUser | null;
   login: (email: string, password: string) => Promise<MfaChallengeResponse | null>;
   initializeMfaSetup: (challengeToken: string) => Promise<MfaSetupInitResponse>;
-  completeMfaSetup: (challengeToken: string, code: string) => Promise<void>;
+  completeMfaSetup: (challengeToken: string, code: string) => Promise<string[]>;
   verifyMfa: (challengeToken: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  function finalizeLogin(response: LoginResponse) {
+  function finalizeLogin(response: LoginResponse, shouldRedirect = true) {
     const accessToken = response.accessToken || response.token;
     if (!accessToken) {
       throw new Error('Login response did not include a token.');
@@ -85,7 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(accessToken);
     setUser(response.user);
     writeStoredSession(accessToken, response.user);
-    router.push('/dashboard');
+    if (shouldRedirect) {
+      router.push('/dashboard');
+    }
   }
 
   async function login(email: string, password: string) {
@@ -109,7 +111,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function completeMfaSetup(challengeToken: string, code: string) {
     const api = createApiClient();
     const response = await api.mfaSetupComplete(challengeToken, code);
-    finalizeLogin(response);
+    finalizeLogin(response, false);
+    return response.backupCodes ?? [];
   }
 
   async function verifyMfa(challengeToken: string, code: string) {

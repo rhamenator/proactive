@@ -18,10 +18,10 @@ function buildUser(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'user-1',
     firstName: 'Morgan',
-    lastName: 'Supervisor',
+    lastName: 'Canvasser',
     email: 'morgan@example.com',
     passwordHash: 'stored-password-hash',
-    role: UserRole.supervisor,
+    role: UserRole.canvasser,
     isActive: true,
     status: 'active',
     mfaEnabled: false,
@@ -62,6 +62,13 @@ describe('AuthService', () => {
       update: jest.fn(),
       updateMany: jest.fn()
     },
+    mfaBackupCode: {
+      count: jest.fn(),
+      createMany: jest.fn(),
+      deleteMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn()
+    },
     passwordResetToken: {
       updateMany: jest.fn(),
       create: jest.fn(),
@@ -93,6 +100,11 @@ describe('AuthService', () => {
     prisma.mfaChallengeToken.create.mockResolvedValue({ id: 'challenge-1' });
     prisma.mfaChallengeToken.update.mockResolvedValue({ id: 'challenge-1' });
     prisma.mfaChallengeToken.updateMany.mockResolvedValue({ count: 1 });
+    prisma.mfaBackupCode.count.mockResolvedValue(10);
+    prisma.mfaBackupCode.createMany.mockResolvedValue({ count: 10 });
+    prisma.mfaBackupCode.deleteMany.mockResolvedValue({ count: 0 });
+    prisma.mfaBackupCode.findFirst.mockResolvedValue(null);
+    prisma.mfaBackupCode.update.mockResolvedValue({ id: 'backup-1' });
     prisma.user.update.mockResolvedValue({ id: 'user-1' });
     prisma.$transaction.mockImplementation(async (callback) =>
       callback({
@@ -100,7 +112,11 @@ describe('AuthService', () => {
         passwordResetToken: { update: jest.fn().mockResolvedValue({ id: 'reset-1' }) },
         authRefreshToken: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
         activationToken: { update: jest.fn().mockResolvedValue({ id: 'activation-1' }) },
-        mfaChallengeToken: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) }
+        mfaChallengeToken: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        mfaBackupCode: {
+          createMany: jest.fn().mockResolvedValue({ count: 10 }),
+          deleteMany: jest.fn().mockResolvedValue({ count: 0 })
+        }
       })
     );
     jwtService.signAsync.mockResolvedValue('signed-access-token');
@@ -141,7 +157,7 @@ describe('AuthService', () => {
     });
   });
 
-  it('logs in successfully and rotates refresh state for a non-admin active user', async () => {
+  it('logs in successfully and rotates refresh state for a canvasser active user', async () => {
     const user = buildUser();
     usersService.findByEmail.mockResolvedValue(user);
     usersService.findById.mockResolvedValue(user);
@@ -205,6 +221,25 @@ describe('AuthService', () => {
       })
     );
     expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.authRefreshToken.create).not.toHaveBeenCalled();
+  });
+
+  it('returns an MFA setup challenge for supervisor users without MFA enabled', async () => {
+    const user = buildUser({ role: UserRole.supervisor });
+    usersService.findByEmail.mockResolvedValue(user);
+    usersService.findById.mockResolvedValue(user);
+    mockedBcrypt.compare.mockResolvedValue(true as never);
+
+    const result = await service.login(user.email, 'Password123!');
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        mfaRequired: true,
+        setupRequired: true,
+        challengeToken: expect.any(String),
+        role: UserRole.supervisor
+      })
+    );
     expect(prisma.authRefreshToken.create).not.toHaveBeenCalled();
   });
 
@@ -342,6 +377,7 @@ describe('AuthService', () => {
     const result = await service.completeMfaSetup('challenge-token', '123456');
 
     expect(result.accessToken).toBe('signed-access-token');
+    expect(result.backupCodes).toHaveLength(10);
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: user.id },
       data: {
@@ -356,6 +392,42 @@ describe('AuthService', () => {
         lastLoginAt: expect.any(Date)
       }
     });
+    verifySpy.mockRestore();
+  });
+
+  it('accepts a valid backup code during MFA verification', async () => {
+    const user = buildUser({
+      role: UserRole.supervisor,
+      mfaEnabled: true,
+      mfaSecret: 'JBSWY3DPEHPK3PXP'
+    });
+    prisma.mfaChallengeToken.findFirst.mockResolvedValue({
+      id: 'challenge-2',
+      userId: user.id,
+      user
+    });
+    prisma.mfaBackupCode.findFirst.mockResolvedValue({
+      id: 'backup-1',
+      userId: user.id,
+      codeHash: 'hash',
+      usedAt: null,
+      createdAt: new Date('2026-03-28T00:00:00.000Z')
+    });
+    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(false);
+
+    const result = await service.verifyMfaChallenge('challenge-token', 'ABCD-EF12');
+
+    expect(result.accessToken).toBe('signed-access-token');
+    expect(prisma.mfaBackupCode.update).toHaveBeenCalledWith({
+      where: { id: 'backup-1' },
+      data: { usedAt: expect.any(Date) }
+    });
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: 'mfa_backup_code_used',
+        entityId: user.id
+      })
+    );
     verifySpy.mockRestore();
   });
 
@@ -411,5 +483,18 @@ describe('AuthService', () => {
       })
     );
     verifySpy.mockRestore();
+  });
+
+  it('returns backup code counts in MFA status for required roles', async () => {
+    const user = buildUser({ role: UserRole.supervisor, mfaEnabled: true });
+    usersService.findById.mockResolvedValue(user);
+
+    const result = await service.mfaStatus(user.id);
+
+    expect(result).toEqual({
+      enabled: true,
+      required: true,
+      backupCodeCount: 10
+    });
   });
 });

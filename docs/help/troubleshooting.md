@@ -13,6 +13,7 @@ If password login succeeds but the dashboard does not open:
 
 - confirm whether an MFA setup or verification step is waiting on the login page
 - verify that your authenticator app has the current PROACTIVE account entry
+- if your authenticator is unavailable, try one of the saved backup codes from enrollment
 - if you recently reset MFA, sign out and repeat the login flow
 
 ## I Cannot Log In To The Mobile App

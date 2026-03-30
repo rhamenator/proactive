@@ -34,7 +34,8 @@ export default function AccountPage() {
       const result = await api.disableMfa(password, code);
       setStatus({
         enabled: false,
-        required: result.setupRequiredOnNextLogin
+        required: result.setupRequiredOnNextLogin,
+        backupCodeCount: 0
       });
       setPassword('');
       setCode('');
@@ -73,6 +74,7 @@ export default function AccountPage() {
                     : 'Optional and disabled'
                 : 'Loading...'}
             </p>
+            <p className="muted">Unused backup codes: {status ? status.backupCodeCount : 'Loading...'}</p>
           </div>
         </Card>
 
@@ -82,8 +84,8 @@ export default function AccountPage() {
             <h2 className="heading-reset-tight">Manage MFA</h2>
             <p className="muted">
               {status?.required
-                ? 'Admin accounts must complete MFA enrollment before the next full login session.'
-                : 'Supervisor MFA remains optional.'}
+                ? 'Admin and supervisor accounts must complete MFA enrollment before the next full login session.'
+                : 'MFA is optional for this role.'}
             </p>
           </div>
 
@@ -102,7 +104,6 @@ export default function AccountPage() {
                 <label htmlFor="disable-code">Current authenticator code</label>
                 <Input
                   id="disable-code"
-                  inputMode="numeric"
                   autoComplete="one-time-code"
                   value={code}
                   onChange={(event) => setCode(event.target.value)}

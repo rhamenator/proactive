@@ -47,6 +47,27 @@ export function DashboardScreen({ navigation }: Props) {
   }
 
   async function handleEnd() {
+    const remainingAddresses = Math.max(progress.total - progress.completed, 0);
+    if (remainingAddresses > 0) {
+      Alert.alert(
+        'Complete turf with unattempted addresses?',
+        `${remainingAddresses} address${remainingAddresses === 1 ? '' : 'es'} still have no logged attempt. You can still complete the turf, but make sure this is intentional.`,
+        [
+          { text: 'Keep Working', style: 'cancel' },
+          {
+            text: 'Complete Turf',
+            style: 'destructive',
+            onPress: () => {
+              void completeTurf().catch((error) => {
+                Alert.alert('Unable to complete turf', error instanceof Error ? error.message : 'Please try again.');
+              });
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     try {
       await completeTurf();
     } catch (error) {

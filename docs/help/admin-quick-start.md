@@ -20,7 +20,8 @@ Admins use the web dashboard to:
 2. Enter your admin email and password.
 3. Select `Sign In`.
 4. If MFA enrollment is required, copy the displayed secret or OTPAuth URI into your authenticator app.
-5. Enter the 6-digit authenticator code to finish the session.
+5. Save the one-time backup codes shown after MFA setup.
+6. Enter the authenticator code, or a saved backup code on later logins, to finish the session.
 
 If login fails, see [Troubleshooting](/home/rich/dev/proactive/docs/help/troubleshooting.md).
 
@@ -28,8 +29,9 @@ If login fails, see [Troubleshooting](/home/rich/dev/proactive/docs/help/trouble
 
 1. Open `Account`.
 2. Review the current MFA status for the signed-in account.
-3. If you need to reset MFA, disable it with your password and a current authenticator code.
-4. Sign out and sign back in to re-enroll the authenticator for admin accounts.
+3. Confirm the unused backup-code count after enrollment.
+4. If you need to reset MFA, disable it with your password and a current authenticator code or saved backup code.
+5. Sign out and sign back in to re-enroll the authenticator for admin or supervisor accounts.
 
 ## Create Or Import A Turf
 

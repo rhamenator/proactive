@@ -101,6 +101,7 @@ export interface LoginResponse {
   accessToken?: string;
   role?: Role;
   user: SafeUser;
+  backupCodes?: string[];
 }
 
 export interface MfaChallengeResponse {
@@ -121,6 +122,7 @@ export interface MfaSetupInitResponse {
 export interface MfaStatusResponse {
   enabled: boolean;
   required: boolean;
+  backupCodeCount: number;
 }
 
 export interface DisableMfaResponse {

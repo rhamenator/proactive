@@ -13,6 +13,7 @@ export class AuthService {
   private readonly authRateLimitWindowMs = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
   private readonly authRateLimitMaxAttempts = Number(process.env.AUTH_RATE_LIMIT_MAX_ATTEMPTS ?? 10);
   private readonly authRateLimitState = new Map<string, { count: number; resetAt: number }>();
+  private readonly backupCodeCount = Number(process.env.MFA_BACKUP_CODE_COUNT ?? 10);
 
   constructor(
     private readonly usersService: UsersService,
@@ -105,7 +106,51 @@ export class AuthService {
   }
 
   private requiresMfa(user: { role: UserRole; mfaEnabled: boolean }) {
-    return user.role === UserRole.admin;
+    return user.role === UserRole.admin || user.role === UserRole.supervisor;
+  }
+
+  private generateBackupCodeValue() {
+    return `${randomBytes(2).toString('hex')}-${randomBytes(2).toString('hex')}`.toUpperCase();
+  }
+
+  private async replaceBackupCodes(userId: string) {
+    const backupCodes = Array.from({ length: this.backupCodeCount }, () => this.generateBackupCodeValue());
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.mfaBackupCode.deleteMany({
+        where: { userId }
+      });
+
+      await tx.mfaBackupCode.createMany({
+        data: backupCodes.map((code) => ({
+          userId,
+          codeHash: this.hashOpaqueToken(code)
+        }))
+      });
+    });
+
+    return backupCodes;
+  }
+
+  private async consumeBackupCode(userId: string, code: string) {
+    const storedCode = await this.prisma.mfaBackupCode.findFirst({
+      where: {
+        userId,
+        codeHash: this.hashOpaqueToken(code.trim().toUpperCase()),
+        usedAt: null
+      }
+    });
+
+    if (!storedCode) {
+      return false;
+    }
+
+    await this.prisma.mfaBackupCode.update({
+      where: { id: storedCode.id },
+      data: { usedAt: new Date() }
+    });
+
+    return true;
   }
 
   private async createMfaChallenge(userId: string, purpose: MfaChallengePurpose) {
@@ -357,6 +402,7 @@ export class AuthService {
       }
     });
     await this.consumeMfaChallenge(challenge.id);
+    const backupCodes = await this.replaceBackupCodes(challenge.userId);
 
     const user = await this.usersService.findById(challenge.userId);
     const session = await this.issueSession(user);
@@ -366,10 +412,16 @@ export class AuthService {
       actorUserId: challenge.userId,
       actionType: 'mfa_enabled',
       entityType: 'user_auth',
-      entityId: challenge.userId
+      entityId: challenge.userId,
+      newValuesJson: {
+        backupCodeCount: backupCodes.length
+      }
     });
 
-    return session;
+    return {
+      ...session,
+      backupCodes
+    };
   }
 
   async verifyMfaChallenge(challengeToken: string, code: string) {
@@ -379,8 +431,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired MFA verification challenge');
     }
 
-    if (!verifyTotp(challenge.user.mfaSecret, code)) {
-      throw new UnauthorizedException('Invalid MFA code');
+    const normalizedCode = code.trim();
+    const validTotp = verifyTotp(challenge.user.mfaSecret, normalizedCode);
+    const usedBackupCode = validTotp ? false : await this.consumeBackupCode(challenge.userId, normalizedCode);
+    if (!validTotp && !usedBackupCode) {
+      throw new UnauthorizedException('Invalid MFA or backup code');
     }
 
     await this.consumeMfaChallenge(challenge.id);
@@ -389,7 +444,7 @@ export class AuthService {
 
     await this.auditService.log({
       actorUserId: challenge.userId,
-      actionType: 'mfa_verified',
+      actionType: usedBackupCode ? 'mfa_backup_code_used' : 'mfa_verified',
       entityType: 'user_auth',
       entityId: challenge.userId
     });
@@ -399,9 +454,18 @@ export class AuthService {
 
   async mfaStatus(userId: string) {
     const user = await this.usersService.findById(userId);
+    const backupCodeCount = user.mfaEnabled
+      ? await this.prisma.mfaBackupCode.count({
+          where: {
+            userId,
+            usedAt: null
+          }
+        })
+      : 0;
     return {
       enabled: user.mfaEnabled,
-      required: this.requiresMfa(user)
+      required: this.requiresMfa(user),
+      backupCodeCount
     };
   }
 
@@ -417,8 +481,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!verifyTotp(user.mfaSecret, code)) {
-      throw new UnauthorizedException('Invalid MFA code');
+    const normalizedCode = code.trim();
+    const validTotp = verifyTotp(user.mfaSecret, normalizedCode);
+    const usedBackupCode = validTotp ? false : await this.consumeBackupCode(userId, normalizedCode);
+    if (!validTotp && !usedBackupCode) {
+      throw new UnauthorizedException('Invalid MFA or backup code');
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -440,13 +507,18 @@ export class AuthService {
           usedAt: new Date()
         }
       });
+
+      await tx.mfaBackupCode.deleteMany({
+        where: { userId }
+      });
     });
 
     await this.auditService.log({
       actorUserId: userId,
       actionType: 'mfa_disabled',
       entityType: 'user_auth',
-      entityId: userId
+      entityId: userId,
+      reasonCode: usedBackupCode ? 'BACKUP_CODE' : 'TOTP'
     });
 
     return { success: true, setupRequiredOnNextLogin: this.requiresMfa(user) };
