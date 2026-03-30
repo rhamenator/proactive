@@ -1,3 +1,4 @@
+import { GoneException } from '@nestjs/common';
 import { GpsStatus, SyncStatus, VisitResult } from '@prisma/client';
 import { ExportsService } from './exports.service';
 
@@ -10,7 +11,8 @@ describe('ExportsService', () => {
     },
     exportBatch: {
       create: jest.fn(),
-      findMany: jest.fn()
+      findMany: jest.fn(),
+      findFirst: jest.fn()
     }
   };
   const auditService = {
@@ -36,6 +38,12 @@ describe('ExportsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     auditService.log.mockResolvedValue(undefined);
+    prisma.exportBatch.findFirst.mockResolvedValue({
+      id: 'batch-1',
+      csvContent: 'van_id,address_line1\nVAN-123,100 Main St\n',
+      filename: 'export-batch.csv',
+      sha256Checksum: 'checksum-1'
+    });
   });
 
   it('generates VAN CSV output and marks visits exported when requested', async () => {
@@ -271,5 +279,16 @@ describe('ExportsService', () => {
       }
     });
     expect(history).toEqual([{ id: 'batch-1', profileCode: 'internal_master' }]);
+  });
+
+  it('fails historical download when the stored artifact has been purged', async () => {
+    prisma.exportBatch.findFirst.mockResolvedValue({
+      id: 'batch-1',
+      csvContent: null,
+      filename: 'export-batch.csv',
+      sha256Checksum: 'checksum-1'
+    });
+
+    await expect(service.downloadExportBatch('batch-1', scope)).rejects.toBeInstanceOf(GoneException);
   });
 });

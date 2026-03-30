@@ -151,6 +151,7 @@ export interface ExportBatchRecord {
   createdAt: string;
   csvContent?: string | null;
   sha256Checksum?: string | null;
+  artifactPurgedAt?: string | null;
   _count?: {
     exportedVisits: number;
   };
@@ -451,7 +452,9 @@ export interface RetentionSummary {
   dueNow: {
     addressRequests: number;
     importBatches: number;
+    importBatchRows: number;
     exportBatches: number;
+    exportBatchVisits: number;
     refreshTokens: number;
     activationTokens: number;
     passwordResetTokens: number;
@@ -626,6 +629,7 @@ export interface ImportBatchRecord {
   invalidCount: number;
   duplicateSkippedCount: number;
   createdAt: string;
+  artifactPurgedAt?: string | null;
   initiatedByUser?: {
     id: string;
     firstName: string;

@@ -1,4 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PrismaService } from '../prisma/prisma.service';
@@ -83,12 +84,14 @@ export class RetentionService implements OnModuleInit, OnModuleDestroy {
       this.prisma.importBatch.count({
         where: {
           ...this.buildScope(scope),
+          artifactPurgedAt: null,
           purgeAt: { lte: now }
         }
       }),
       this.prisma.exportBatch.count({
         where: {
           ...this.buildScope(scope),
+          artifactPurgedAt: null,
           purgeAt: { lte: now }
         }
       }),
@@ -168,7 +171,9 @@ export class RetentionService implements OnModuleInit, OnModuleDestroy {
     try {
       const [
         addressRequests,
+        importBatchRows,
         importBatches,
+        exportBatchVisits,
         exportBatches,
         refreshTokens,
         activationTokens,
@@ -182,16 +187,50 @@ export class RetentionService implements OnModuleInit, OnModuleDestroy {
             purgeAt: { lte: now }
           }
         }),
-        this.prisma.importBatch.deleteMany({
+        this.prisma.importBatchRow.updateMany({
           where: {
-            ...this.buildScope(input?.scope),
-            purgeAt: { lte: now }
+            importBatch: {
+              ...this.buildScope(input?.scope),
+              artifactPurgedAt: null,
+              purgeAt: { lte: now }
+            }
+          },
+          data: {
+            rawRowJson: Prisma.JsonNull
           }
         }),
-        this.prisma.exportBatch.deleteMany({
+        this.prisma.importBatch.updateMany({
           where: {
             ...this.buildScope(input?.scope),
+            artifactPurgedAt: null,
             purgeAt: { lte: now }
+          },
+          data: {
+            csvContent: null,
+            artifactPurgedAt: now
+          }
+        }),
+        this.prisma.exportBatchVisit.updateMany({
+          where: {
+            exportBatch: {
+              ...this.buildScope(input?.scope),
+              artifactPurgedAt: null,
+              purgeAt: { lte: now }
+            }
+          },
+          data: {
+            rowSnapshotJson: Prisma.JsonNull
+          }
+        }),
+        this.prisma.exportBatch.updateMany({
+          where: {
+            ...this.buildScope(input?.scope),
+            artifactPurgedAt: null,
+            purgeAt: { lte: now }
+          },
+          data: {
+            csvContent: null,
+            artifactPurgedAt: now
           }
         }),
         this.prisma.authRefreshToken.deleteMany({
@@ -229,7 +268,9 @@ export class RetentionService implements OnModuleInit, OnModuleDestroy {
       const summary = {
         addressRequests: addressRequests.count,
         importBatches: importBatches.count,
+        importBatchRows: importBatchRows.count,
         exportBatches: exportBatches.count,
+        exportBatchVisits: exportBatchVisits.count,
         refreshTokens: refreshTokens.count,
         activationTokens: activationTokens.count,
         passwordResetTokens: passwordResetTokens.count,

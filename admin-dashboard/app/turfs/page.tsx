@@ -547,9 +547,19 @@ export default function TurfsPage() {
                             {batch.regionCode ? ` • ${batch.regionCode}` : ''}
                           </p>
                         ) : null}
+                        {batch.artifactPurgedAt ? (
+                          <p className="muted margin-bottom-reset">
+                            Source artifact purged {new Date(batch.artifactPurgedAt).toLocaleString()} by retention policy.
+                          </p>
+                        ) : null}
                       </div>
-                      <Button type="button" variant="secondary" onClick={() => void handleDownloadImport(batch.id)}>
-                        Download Source
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => void handleDownloadImport(batch.id)}
+                        disabled={Boolean(batch.artifactPurgedAt)}
+                      >
+                        {batch.artifactPurgedAt ? 'Source Purged' : 'Download Source'}
                       </Button>
                     </div>
                   ))}

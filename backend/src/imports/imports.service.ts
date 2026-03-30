@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, GoneException, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { TurfStatus } from '@prisma/client';
 import { parse } from 'csv-parse/sync';
@@ -625,8 +625,11 @@ export class ImportsService {
       }
     });
 
-    if (!batch || !batch.csvContent) {
+    if (!batch) {
       throw new BadRequestException('Import batch not found');
+    }
+    if (!batch.csvContent) {
+      throw new GoneException('The stored import source artifact has been purged by retention policy');
     }
 
     return {

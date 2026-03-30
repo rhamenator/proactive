@@ -3,8 +3,10 @@ import { RetentionService } from './retention.service';
 describe('RetentionService', () => {
   const prisma = {
     addressRequest: { count: jest.fn(), deleteMany: jest.fn() },
-    importBatch: { count: jest.fn(), deleteMany: jest.fn() },
-    exportBatch: { count: jest.fn(), deleteMany: jest.fn() },
+    importBatch: { count: jest.fn(), updateMany: jest.fn() },
+    importBatchRow: { updateMany: jest.fn() },
+    exportBatch: { count: jest.fn(), updateMany: jest.fn() },
+    exportBatchVisit: { updateMany: jest.fn() },
     authRefreshToken: { count: jest.fn(), deleteMany: jest.fn() },
     activationToken: { count: jest.fn(), deleteMany: jest.fn() },
     passwordResetToken: { count: jest.fn(), deleteMany: jest.fn() },
@@ -37,8 +39,10 @@ describe('RetentionService', () => {
     prisma.mfaBackupCode.count.mockResolvedValue(8);
     prisma.auditLog.findFirst.mockResolvedValue({ createdAt: new Date('2026-03-30T08:00:00.000Z') });
     prisma.addressRequest.deleteMany.mockResolvedValue({ count: 1 });
-    prisma.importBatch.deleteMany.mockResolvedValue({ count: 2 });
-    prisma.exportBatch.deleteMany.mockResolvedValue({ count: 3 });
+    prisma.importBatchRow.updateMany.mockResolvedValue({ count: 12 });
+    prisma.importBatch.updateMany.mockResolvedValue({ count: 2 });
+    prisma.exportBatchVisit.updateMany.mockResolvedValue({ count: 9 });
+    prisma.exportBatch.updateMany.mockResolvedValue({ count: 3 });
     prisma.authRefreshToken.deleteMany.mockResolvedValue({ count: 4 });
     prisma.activationToken.deleteMany.mockResolvedValue({ count: 5 });
     prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 6 });
@@ -80,7 +84,9 @@ describe('RetentionService', () => {
       summary: {
         addressRequests: 1,
         importBatches: 2,
+        importBatchRows: 12,
         exportBatches: 3,
+        exportBatchVisits: 9,
         refreshTokens: 4,
         activationTokens: 5,
         passwordResetTokens: 6,

@@ -271,15 +271,23 @@ export default function ExportsPage() {
                     {batch.organizationId ? `Organization: ${batch.organizationId}` : 'Organization: default scope'}
                     {batch.campaignId ? ` • Campaign: ${batch.campaignId}` : ''}
                     {batch.sha256Checksum ? ` • Checksum: ${batch.sha256Checksum.slice(0, 12)}...` : ''}
-                    {batch.csvContent ? ' • Artifact stored' : ' • Metadata only'}
+                    {batch.artifactPurgedAt
+                      ? ` • Artifact purged ${new Date(batch.artifactPurgedAt).toLocaleString()}`
+                      : batch.csvContent
+                        ? ' • Artifact stored'
+                        : ' • Metadata only'}
                   </p>
                   <div className="inline-actions">
                     <Button
                       variant="secondary"
                       onClick={() => void handleDownloadHistory(batch.id)}
-                      disabled={historyDownloadId === batch.id}
+                      disabled={historyDownloadId === batch.id || Boolean(batch.artifactPurgedAt)}
                     >
-                      {historyDownloadId === batch.id ? 'Downloading...' : 'Download Historical CSV'}
+                      {historyDownloadId === batch.id
+                        ? 'Downloading...'
+                        : batch.artifactPurgedAt
+                          ? 'Artifact Purged'
+                          : 'Download Historical CSV'}
                     </Button>
                   </div>
                 </Card>

@@ -32,7 +32,7 @@ The system now covers the main operational v1 workflow:
 - scoped operational policy records plus admin dashboard policy management for import defaults, field visit/GPS thresholds, auth/recovery timing, sensitive MFA freshness, retention defaults, and outcome fallback behavior
 - policy-driven supervisor scope management across campaign, team, and region modes, plus admin team management for campaign/region assignments
 - global system settings for deployment-wide auth rate-limiting and retention automation timing, with MFA-protected save/reset workflow
-- retention summary and cleanup workflow for purgeable artifacts and expired auth/security records, with configurable system-wide automation
+- retention summary and cleanup workflow for purgeable artifacts and expired auth/security records, with configurable system-wide automation and metadata-preserving artifact redaction for import/export history
 - CI, build verification, regression tests, and GitHub release-build automation
 
 The remaining gaps are now mostly in the remaining edges of import-policy breadth, deeper optional lifecycle automation, and release inputs rather than missing operational screens. Canonical household modeling, retention metadata, on-device SQLite persistence, import/export audit history, deferred duplicate import review, and team/region scope policy are now in place.
@@ -60,7 +60,7 @@ The remaining gaps are now mostly in the remaining edges of import-policy breadt
 - configurable supervisor scope policy that can enforce campaign, team, or region-based access, backed by first-class teams and region codes across users, turfs, assignments, sessions, visits, address requests, imports, exports, and reports
 - deployment-wide system settings for auth rate-limit thresholds and retention automation schedule, with admin dashboard management and reset-to-env-default behavior
 - explicit admin archive/delete workflows for field users and turfs, protected by fresh MFA and backed by audit logging
-- admin retention summary and manual cleanup workflow for due address requests, import/export batches, and expired credential records
+- admin retention summary and manual cleanup workflow for due address requests, import/export artifacts, and expired credential records
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, teams, and field-user management
 - mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
 - repo-wide `verify` command and GitHub Actions CI
@@ -132,7 +132,7 @@ Current state:
 - canonical households now exist as reusable records, while the existing `addresses` table acts as the turf-membership layer and preserves current API contracts
 - soft-delete / retention metadata are now modeled on the primary operational tables
 - admins can now archive or soft-delete field users and turfs through MFA-protected workflows that honor retention defaults and archive-reason policy
-- exports now store the generated CSV and per-row membership, which closes the most important auditability gap
+- import and export history now preserve batch metadata and row-level traceability even after retention cleanup, while stored CSV payloads and row snapshots are redacted when their retention window expires
 
 Why it matters:
 
@@ -141,7 +141,7 @@ Why it matters:
 
 What remains:
 
-- decide whether retention automation should expand beyond safe artifact/credential cleanup into broader lifecycle automation for additional entity types in v1.x
+- decide whether retention automation should expand beyond the current artifact-redaction and credential-cleanup model into broader lifecycle automation for additional entity types in v1.x
 
 ### 5. Signed mobile binaries still depend on external release credentials
 
@@ -203,11 +203,11 @@ Still blocked for full source-packet alignment:
 Remaining non-blocking enhancements:
 
 - richer break-glass or help-desk recovery options beyond backup codes
-- broader lifecycle automation if the client wants purge/archive behavior extended beyond the currently safe cleanup targets
+- broader lifecycle automation if the client wants purge/archive behavior extended beyond the current safe cleanup and artifact-redaction targets
 
 ## Recommended Next Sequence
 
 1. Decide whether v1.x needs richer CSV/VAN parity beyond the current configurable-profile baseline, batch/row audit trail, replace-membership mode, duplicate review queue, and expanded field mapping support.
-2. Decide whether lifecycle automation should expand beyond the current safe cleanup targets of address requests, import/export artifacts, and expired credential records.
+2. Decide whether lifecycle automation should expand beyond the current safe cleanup targets of address requests, import/export artifact redaction, and expired credential records.
 3. Set the initial organization/campaign/team scope defaults in the new Policies and Teams screens before broader review.
 4. Provide production release secrets and final app identifiers for EAS/App Store/Play.

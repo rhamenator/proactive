@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, GoneException } from '@nestjs/common';
 import { ImportsService } from './imports.service';
 
 describe('ImportsService', () => {
@@ -512,5 +512,18 @@ describe('ImportsService', () => {
     });
     expect(history).toEqual([{ id: 'batch-1' }]);
     expect(batch.filename).toBe('import-batch.csv');
+  });
+
+  it('fails import download when the stored source artifact has been purged', async () => {
+    prisma.importBatch.findFirst.mockResolvedValue({
+      id: 'batch-1',
+      csvContent: null,
+      filename: 'import-batch.csv',
+      sha256Checksum: 'checksum-1'
+    });
+
+    await expect(
+      service.downloadImportBatch('batch-1', { organizationId: 'org-1', campaignId: null })
+    ).rejects.toBeInstanceOf(GoneException);
   });
 });

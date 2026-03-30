@@ -631,7 +631,9 @@ describe('admin api client', () => {
             dueNow: {
               addressRequests: 1,
               importBatches: 2,
+              importBatchRows: 12,
               exportBatches: 3,
+              exportBatchVisits: 9,
               refreshTokens: 4,
               activationTokens: 5,
               passwordResetTokens: 6,
@@ -651,7 +653,9 @@ describe('admin api client', () => {
             summary: {
               addressRequests: 1,
               importBatches: 2,
+              importBatchRows: 12,
               exportBatches: 3,
+              exportBatchVisits: 9,
               refreshTokens: 4,
               activationTokens: 5,
               passwordResetTokens: 6,

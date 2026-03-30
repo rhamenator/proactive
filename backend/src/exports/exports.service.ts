@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { GoneException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify/sync';
@@ -202,8 +202,11 @@ export class ExportsService {
       }
     });
 
-    if (!batch || !batch.csvContent) {
+    if (!batch) {
       throw new NotFoundException('Export batch not found');
+    }
+    if (!batch.csvContent) {
+      throw new GoneException('The stored export artifact has been purged by retention policy');
     }
 
     return {

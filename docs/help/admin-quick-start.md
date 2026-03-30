@@ -139,6 +139,9 @@ Use `Dashboard` to review:
 4. Download the generated CSV.
 5. Confirm the file contents and review the recorded export batch entry.
 
+Historical note:
+- once retention cleanup purges a stored import/export artifact, the batch metadata remains visible for audit purposes but the original CSV download is no longer available.
+
 ## Recommended Admin First-Day Checklist
 
 1. Confirm you can sign in.

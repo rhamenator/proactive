@@ -33,6 +33,7 @@ The application suite has been built and brought to a review-ready state across 
   - Supervisor scope configuration across campaign, team, and region modes
   - System-wide settings management for deployment-level auth throttling and retention automation timing, with step-up MFA required for save/reset actions
   - Retention summary and manual cleanup workflow for purgeable artifacts and expired credential records
+  - Metadata-preserving retention cleanup for import/export history, so stored CSV payloads and row snapshots can age out without deleting the batch records themselves
   - Outcomes management
   - GPS review
   - Sync-conflict review
@@ -102,7 +103,7 @@ Please confirm whether you want any of the following added before release:
 
 - Any additional CSV/VAN rules beyond the current review-ready baseline with configurable profiles, replace-membership imports, expanded VAN field mapping, deferred duplicate review, and duplicate handling
 - Any geography model deeper than the current campaign/team/region scope design
-- Whether you want lifecycle automation expanded beyond the current safe cleanup targets of address requests, import/export artifacts, and expired credential records
+- Whether you want lifecycle automation expanded beyond the current safe cleanup targets of address requests, import/export artifact redaction, and expired credential records
 - Any changes to impersonation policy, correction windows, or review permissions
 
 ### 3. Provide Production Release Inputs
