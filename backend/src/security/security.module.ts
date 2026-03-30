@@ -3,10 +3,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { PoliciesModule } from '../policies/policies.module';
 
 @Global()
 @Module({
   imports: [
+    PoliciesModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET ?? 'dev-secret',
       signOptions: {

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SyncStatus, UserRole } from '@prisma/client';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
+import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const safeUserSelect = {
@@ -47,7 +48,10 @@ const syncConflictReviewInclude = {
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly policiesService: PoliciesService
+  ) {}
 
   private scopeWhere(scope: AccessScope) {
     return {
@@ -191,10 +195,54 @@ export class AdminService {
   }
 
   async listOutcomeDefinitions(scope: AccessScope) {
-    return this.prisma.outcomeDefinition.findMany({
+    const policy = await this.policiesService.getEffectivePolicy(scope);
+    const outcomes = await this.prisma.outcomeDefinition.findMany({
       where: this.scopeWhere(scope),
       orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
     });
+
+    if (!scope.campaignId || !policy.allowOrgOutcomeFallback) {
+      return outcomes;
+    }
+
+    const orgDefaults = await this.prisma.outcomeDefinition.findMany({
+      where: {
+        organizationId: scope.organizationId,
+        campaignId: null
+      },
+      orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
+    });
+
+    const merged = new Map<string, (typeof outcomes)[number]>();
+    for (const outcome of [...outcomes, ...orgDefaults]) {
+      if (!merged.has(outcome.code)) {
+        merged.set(outcome.code, outcome);
+      }
+    }
+
+    return Array.from(merged.values()).sort(
+      (left, right) => left.displayOrder - right.displayOrder || left.label.localeCompare(right.label)
+    );
+  }
+
+  async getOperationalPolicy(scope: AccessScope, requestedCampaignId?: string | null) {
+    return this.policiesService.getManageablePolicy(scope, requestedCampaignId);
+  }
+
+  async upsertOperationalPolicy(
+    scope: AccessScope,
+    input: {
+      campaignId?: string | null;
+      defaultImportMode?: 'create_only' | 'upsert';
+      defaultDuplicateStrategy?: 'skip' | 'error' | 'merge';
+      sensitiveMfaWindowMinutes?: number;
+      retentionArchiveDays?: number | null;
+      retentionPurgeDays?: number | null;
+      requireArchiveReason?: boolean;
+      allowOrgOutcomeFallback?: boolean;
+    }
+  ) {
+    return this.policiesService.upsertPolicy(scope, input);
   }
 
   async upsertOutcomeDefinition(input: {

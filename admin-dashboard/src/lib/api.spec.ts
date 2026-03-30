@@ -384,6 +384,87 @@ describe('admin api client', () => {
     expect(resolved.syncStatus).toBe('synced');
   });
 
+  it('supports scoped operational policy requests', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            organizationId: 'org-1',
+            campaignId: 'camp-1',
+            sourceScope: 'organization',
+            explicitRecord: false,
+            inheritedFromOrganization: true,
+            defaultImportMode: 'create_only',
+            defaultDuplicateStrategy: 'skip',
+            sensitiveMfaWindowMinutes: 5,
+            retentionArchiveDays: 30,
+            retentionPurgeDays: 90,
+            requireArchiveReason: false,
+            allowOrgOutcomeFallback: true
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            organizationId: 'org-1',
+            campaignId: 'camp-1',
+            sourceScope: 'campaign',
+            explicitRecord: true,
+            inheritedFromOrganization: false,
+            defaultImportMode: 'upsert',
+            defaultDuplicateStrategy: 'merge',
+            sensitiveMfaWindowMinutes: 15,
+            retentionArchiveDays: 45,
+            retentionPurgeDays: 120,
+            requireArchiveReason: true,
+            allowOrgOutcomeFallback: false
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      );
+
+    const client = createApiClient('token-123');
+    const policy = await client.getOperationalPolicy('camp-1');
+    const updated = await client.updateOperationalPolicy({
+      campaignId: 'camp-1',
+      defaultImportMode: 'upsert',
+      defaultDuplicateStrategy: 'merge',
+      sensitiveMfaWindowMinutes: 15,
+      retentionArchiveDays: 45,
+      retentionPurgeDays: 120,
+      requireArchiveReason: true,
+      allowOrgOutcomeFallback: false
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/admin/policies?campaignId=camp-1', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3001/admin/policies', {
+      method: 'PUT',
+      body: JSON.stringify({
+        campaignId: 'camp-1',
+        defaultImportMode: 'upsert',
+        defaultDuplicateStrategy: 'merge',
+        sensitiveMfaWindowMinutes: 15,
+        retentionArchiveDays: 45,
+        retentionPurgeDays: 120,
+        requireArchiveReason: true,
+        allowOrgOutcomeFallback: false
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(policy.sourceScope).toBe('organization');
+    expect(updated.sourceScope).toBe('campaign');
+  });
+
   it('supports campaign-aware reports and export downloads', async () => {
     fetchMock
       .mockResolvedValueOnce(

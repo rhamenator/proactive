@@ -47,10 +47,22 @@ describe('AdminService', () => {
     },
     syncEvent: {
       create: jest.fn()
+    },
+    operationalPolicy: {
+      findUnique: jest.fn(),
+      upsert: jest.fn()
+    },
+    campaign: {
+      findFirst: jest.fn()
     }
   };
+  const policiesService = {
+    getEffectivePolicy: jest.fn(),
+    getManageablePolicy: jest.fn(),
+    upsertPolicy: jest.fn()
+  };
 
-  const service = new AdminService(prisma as never);
+  const service = new AdminService(prisma as never, policiesService as never);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -128,6 +140,7 @@ describe('AdminService', () => {
   });
 
   it('lists configurable outcomes in display order', async () => {
+    policiesService.getEffectivePolicy.mockResolvedValue({ allowOrgOutcomeFallback: false });
     prisma.outcomeDefinition.findMany.mockResolvedValue([{ id: 'outcome-1', code: 'knocked' }]);
 
     const result = await service.listOutcomeDefinitions(scope);
@@ -137,6 +150,21 @@ describe('AdminService', () => {
       orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
     });
     expect(result).toEqual([{ id: 'outcome-1', code: 'knocked' }]);
+  });
+
+  it('merges organization defaults into campaign-scoped outcome listings when fallback is enabled', async () => {
+    const campaignScope = { organizationId: 'org-1', campaignId: 'campaign-1' };
+    policiesService.getEffectivePolicy.mockResolvedValue({ allowOrgOutcomeFallback: true });
+    prisma.outcomeDefinition.findMany
+      .mockResolvedValueOnce([{ id: 'campaign-outcome', code: 'knocked', label: 'Campaign Knocked', displayOrder: 1 }])
+      .mockResolvedValueOnce([{ id: 'org-outcome', code: 'refused', label: 'Refused', displayOrder: 2 }]);
+
+    const result = await service.listOutcomeDefinitions(campaignScope);
+
+    expect(result).toEqual([
+      { id: 'campaign-outcome', code: 'knocked', label: 'Campaign Knocked', displayOrder: 1 },
+      { id: 'org-outcome', code: 'refused', label: 'Refused', displayOrder: 2 }
+    ]);
   });
 
   it('creates and updates outcome definitions with normalized values', async () => {

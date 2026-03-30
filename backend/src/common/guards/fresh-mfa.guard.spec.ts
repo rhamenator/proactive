@@ -7,7 +7,10 @@ describe('FreshMfaGuard', () => {
   const reflector = {
     getAllAndOverride: jest.fn()
   };
-  const guard = new FreshMfaGuard(reflector as unknown as Reflector);
+  const policiesService = {
+    getEffectivePolicy: jest.fn().mockResolvedValue({ sensitiveMfaWindowMinutes: 5 })
+  };
+  const guard = new FreshMfaGuard(reflector as unknown as Reflector, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -25,26 +28,26 @@ describe('FreshMfaGuard', () => {
     };
   }
 
-  it('allows non-sensitive routes without checking freshness', () => {
+  it('allows non-sensitive routes without checking freshness', async () => {
     reflector.getAllAndOverride.mockReturnValue(undefined);
 
-    expect(guard.canActivate(createContext() as never)).toBe(true);
+    await expect(guard.canActivate(createContext() as never)).resolves.toBe(true);
   });
 
-  it('rejects sensitive routes without a fresh MFA timestamp', () => {
+  it('rejects sensitive routes without a fresh MFA timestamp', async () => {
     reflector.getAllAndOverride.mockReturnValue(true);
 
-    expect(() =>
+    await expect(
       guard.canActivate(
         createContext({ sub: 'admin-1', role: UserRole.admin }) as never
       )
-    ).toThrow(ForbiddenException);
+    ).rejects.toThrow(ForbiddenException);
   });
 
-  it('allows sensitive routes with a recent MFA verification', () => {
+  it('allows sensitive routes with a recent MFA verification', async () => {
     reflector.getAllAndOverride.mockReturnValue(true);
 
-    expect(
+    await expect(
       guard.canActivate(
         createContext({
           sub: 'admin-1',
@@ -52,6 +55,6 @@ describe('FreshMfaGuard', () => {
           mfaVerifiedAt: new Date().toISOString()
         }) as never
       )
-    ).toBe(true);
+    ).resolves.toBe(true);
   });
 });

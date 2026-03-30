@@ -9,11 +9,13 @@ describe('AdminController', () => {
     listCanvassers: jest.fn(),
     listCampaigns: jest.fn(),
     listOutcomeDefinitions: jest.fn(),
+    getOperationalPolicy: jest.fn(),
     gpsReviewQueue: jest.fn(),
     syncConflictQueue: jest.fn(),
     overrideGpsResult: jest.fn(),
     resolveSyncConflict: jest.fn(),
-    upsertOutcomeDefinition: jest.fn()
+    upsertOutcomeDefinition: jest.fn(),
+    upsertOperationalPolicy: jest.fn()
   };
   const usersService = {
     findById: jest.fn(),
@@ -52,6 +54,7 @@ describe('AdminController', () => {
     await controller.listCanvassers(user);
     await controller.listCampaigns(user);
     await controller.listOutcomeDefinitions(user);
+    await controller.getOperationalPolicy(user);
     await controller.gpsReviewQueue(user);
     await controller.syncConflictQueue(user);
 
@@ -60,6 +63,7 @@ describe('AdminController', () => {
     expect(adminService.listCanvassers).toHaveBeenCalledWith(scope);
     expect(adminService.listCampaigns).toHaveBeenCalledWith(scope);
     expect(adminService.listOutcomeDefinitions).toHaveBeenCalledWith(scope);
+    expect(adminService.getOperationalPolicy).toHaveBeenCalledWith(scope, null);
     expect(adminService.gpsReviewQueue).toHaveBeenCalledWith(scope);
     expect(adminService.syncConflictQueue).toHaveBeenCalledWith(scope);
   });
@@ -195,6 +199,23 @@ describe('AdminController', () => {
       actorUserId: 'supervisor-1',
       scope,
       reason: 'Reviewed duplicate local submission and cleared the queue item'
+    });
+  });
+
+  it('delegates operational policy updates through the current scope', async () => {
+    await controller.upsertOperationalPolicy(
+      {
+        defaultImportMode: 'upsert',
+        defaultDuplicateStrategy: 'merge',
+        sensitiveMfaWindowMinutes: 15
+      },
+      { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null }
+    );
+
+    expect(adminService.upsertOperationalPolicy).toHaveBeenCalledWith(scope, {
+      defaultImportMode: 'upsert',
+      defaultDuplicateStrategy: 'merge',
+      sensitiveMfaWindowMinutes: 15
     });
   });
 });

@@ -5,6 +5,7 @@ import { parse } from 'csv-parse/sync';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { CsvMapping, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
+import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 
@@ -18,7 +19,8 @@ export class ImportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly policiesService: PoliciesService
   ) {}
 
   private buildTimestampedFilename(prefix: string) {
@@ -153,8 +155,12 @@ export class ImportsService {
     if (!creator.organizationId) {
       throw new BadRequestException('CSV imports require an organization-scoped admin account');
     }
-    const mode = input.mode ?? 'create_only';
-    const duplicateStrategy = input.duplicateStrategy ?? 'skip';
+    const policy = await this.policiesService.getEffectivePolicy({
+      organizationId: creator.organizationId,
+      campaignId: creator.campaignId ?? null
+    });
+    const mode = input.mode ?? policy.defaultImportMode;
+    const duplicateStrategy = input.duplicateStrategy ?? policy.defaultDuplicateStrategy;
     const records = parse(input.csv, {
       columns: true,
       skip_empty_lines: true,

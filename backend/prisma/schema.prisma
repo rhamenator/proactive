@@ -148,6 +148,7 @@ model Organization {
   impersonationSessions ImpersonationSession[]
   visitCorrections      VisitCorrection[]
   exportBatches         ExportBatch[]
+  operationalPolicies   OperationalPolicy[]
 
   @@map("organizations")
 }
@@ -202,6 +203,7 @@ model Campaign {
   visitCorrections      VisitCorrection[]
   exportBatches         ExportBatch[]
   importBatches         ImportBatch[]
+  operationalPolicies   OperationalPolicy[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -575,6 +577,28 @@ model ImportBatchRow {
   @@index([addressId])
   @@index([householdId])
   @@map("import_batch_rows")
+}
+
+model OperationalPolicy {
+  id                       String        @id @default(uuid()) @db.Uuid
+  scopeKey                 String        @unique @map("scope_key")
+  organizationId           String        @map("organization_id") @db.Uuid
+  campaignId               String?       @map("campaign_id") @db.Uuid
+  defaultImportMode        String        @default("create_only") @map("default_import_mode")
+  defaultDuplicateStrategy String        @default("skip") @map("default_duplicate_strategy")
+  sensitiveMfaWindowMinutes Int          @default(5) @map("sensitive_mfa_window_minutes")
+  retentionArchiveDays     Int?          @map("retention_archive_days")
+  retentionPurgeDays       Int?          @map("retention_purge_days")
+  requireArchiveReason     Boolean       @default(false) @map("require_archive_reason")
+  allowOrgOutcomeFallback  Boolean       @default(true) @map("allow_org_outcome_fallback")
+  createdAt                DateTime      @default(now()) @map("created_at")
+  updatedAt                DateTime      @updatedAt @map("updated_at")
+  organization             Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign                 Campaign?     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@map("operational_policies")
 }
 
 model ImpersonationSession {

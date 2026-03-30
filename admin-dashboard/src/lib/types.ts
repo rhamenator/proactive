@@ -32,6 +32,22 @@ export interface OutcomeDefinitionRecord {
   createdAt: string;
 }
 
+export interface OperationalPolicyRecord {
+  id?: string | null;
+  organizationId?: string | null;
+  campaignId?: string | null;
+  sourceScope: 'default' | 'organization' | 'campaign';
+  explicitRecord: boolean;
+  inheritedFromOrganization: boolean;
+  defaultImportMode: 'create_only' | 'upsert';
+  defaultDuplicateStrategy: 'skip' | 'error' | 'merge';
+  sensitiveMfaWindowMinutes: number;
+  retentionArchiveDays?: number | null;
+  retentionPurgeDays?: number | null;
+  requireArchiveReason: boolean;
+  allowOrgOutcomeFallback: boolean;
+}
+
 export interface GpsReviewItem {
   id: string;
   visitLogId: string;

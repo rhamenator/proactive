@@ -1,17 +1,18 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
-import { getSensitiveMfaWindowMinutes } from '../../auth/sensitive-mfa.util';
+import { PoliciesService } from '../../policies/policies.service';
 import { REQUIRE_FRESH_MFA_KEY } from '../decorators/require-fresh-mfa.decorator';
 import { JwtUserPayload } from '../interfaces/jwt-user-payload.interface';
 
 @Injectable()
 export class FreshMfaGuard implements CanActivate {
-  private readonly defaultFreshMfaMinutes = getSensitiveMfaWindowMinutes();
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly policiesService: PoliciesService
+  ) {}
 
-  constructor(private readonly reflector: Reflector) {}
-
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const configured = this.reflector.getAllAndOverride<number | boolean | undefined>(REQUIRE_FRESH_MFA_KEY, [
       context.getHandler(),
       context.getClass()
@@ -36,7 +37,11 @@ export class FreshMfaGuard implements CanActivate {
     }
 
     const verifiedAt = user.mfaVerifiedAt ? new Date(user.mfaVerifiedAt) : null;
-    const allowedMinutes = typeof configured === 'number' ? configured : this.defaultFreshMfaMinutes;
+    const policy = await this.policiesService.getEffectivePolicy({
+      organizationId: user.organizationId ?? null,
+      campaignId: user.campaignId ?? null
+    });
+    const allowedMinutes = typeof configured === 'number' ? configured : policy.sensitiveMfaWindowMinutes;
 
     if (!verifiedAt || Number.isNaN(verifiedAt.getTime())) {
       throw new ForbiddenException('Recent MFA verification is required for this action');

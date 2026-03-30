@@ -25,6 +25,7 @@ import type {
   MfaStatusResponse,
   MfaStepUpResponse,
   OutcomeDefinitionRecord,
+  OperationalPolicyRecord,
   SafeUser,
   SyncConflictItem,
   TurfAddressImportResult,
@@ -302,6 +303,28 @@ export function createApiClient(token?: string | null) {
     },
     listCampaigns() {
       return requestJson<CampaignRecord[]>('/admin/campaigns', {}, token);
+    },
+    getOperationalPolicy(campaignId?: string | null) {
+      const params = new URLSearchParams();
+      if (campaignId) {
+        params.set('campaignId', campaignId);
+      }
+      return requestJson<OperationalPolicyRecord>(`/admin/policies${params.toString() ? `?${params.toString()}` : ''}`, {}, token);
+    },
+    updateOperationalPolicy(payload: {
+      campaignId?: string | null;
+      defaultImportMode?: OperationalPolicyRecord['defaultImportMode'];
+      defaultDuplicateStrategy?: OperationalPolicyRecord['defaultDuplicateStrategy'];
+      sensitiveMfaWindowMinutes?: number;
+      retentionArchiveDays?: number | null;
+      retentionPurgeDays?: number | null;
+      requireArchiveReason?: boolean;
+      allowOrgOutcomeFallback?: boolean;
+    }) {
+      return requestJson<OperationalPolicyRecord>('/admin/policies', {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }, token);
     },
     listOutcomeDefinitions() {
       return requestJson<OutcomeDefinitionRecord[]>('/admin/outcomes', {}, token);

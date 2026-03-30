@@ -25,6 +25,7 @@ The application suite has been built and brought to a review-ready state across 
   - Field-user management for supervisors and canvassers
   - MFA account management
   - Sensitive-action MFA confirmation flow for exports, overrides, conflict resolution, and turf control changes
+  - Policy management for configurable operational defaults such as import behavior, MFA freshness, retention planning, and organization outcome fallback
   - Outcomes management
   - GPS review
   - Sync-conflict review
@@ -77,6 +78,7 @@ Please review:
 
 - Admin dashboard workflows
 - Field/mobile workflow
+- Policy-management defaults and whether they should be set at organization level or campaign level
 - Reporting views
 - GPS review flow
 - Sync-conflict flow

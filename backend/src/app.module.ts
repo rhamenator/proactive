@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ExportsModule } from './exports/exports.module';
 import { ImportsModule } from './imports/imports.module';
+import { PoliciesModule } from './policies/policies.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReportsModule } from './reports/reports.module';
 import { SecurityModule } from './security/security.module';
@@ -22,6 +23,7 @@ import { VisitsModule } from './visits/visits.module';
     SecurityModule,
     UsersModule,
     AuthModule,
+    PoliciesModule,
     TurfsModule,
     VisitsModule,
     AdminModule,

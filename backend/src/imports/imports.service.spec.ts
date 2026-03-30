@@ -29,8 +29,14 @@ describe('ImportsService', () => {
   const auditService = {
     log: jest.fn()
   };
+  const policiesService = {
+    getEffectivePolicy: jest.fn().mockResolvedValue({
+      defaultImportMode: 'create_only',
+      defaultDuplicateStrategy: 'skip'
+    })
+  };
 
-  const service = new ImportsService(prisma as never, usersService as never, auditService as never);
+  const service = new ImportsService(prisma as never, usersService as never, auditService as never, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();

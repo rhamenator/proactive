@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -13,6 +13,7 @@ import { TurfsService } from '../turfs/turfs.service';
 import { UsersService } from '../users/users.service';
 import { InviteCanvasserDto } from './dto/invite-canvasser.dto';
 import { ResolveSyncConflictDto } from './dto/resolve-sync-conflict.dto';
+import { UpsertOperationalPolicyDto } from './dto/upsert-operational-policy.dto';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
@@ -85,6 +86,23 @@ export class AdminController {
   @Roles(UserRole.admin, UserRole.supervisor)
   async listOutcomeDefinitions(@CurrentUser() user: JwtUserPayload) {
     return this.adminService.listOutcomeDefinitions(await this.resolveScope(user));
+  }
+
+  @Get('policies')
+  @Roles(UserRole.admin, UserRole.supervisor)
+  async getOperationalPolicy(
+    @CurrentUser() user: JwtUserPayload,
+    @Query('campaignId') campaignId?: string
+  ) {
+    return this.adminService.getOperationalPolicy(await this.resolveScope(user), campaignId ?? null);
+  }
+
+  @Put('policies')
+  async upsertOperationalPolicy(
+    @Body() body: UpsertOperationalPolicyDto,
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.adminService.upsertOperationalPolicy(await this.resolveScope(user), body);
   }
 
   @Post('outcomes')

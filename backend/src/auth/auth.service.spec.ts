@@ -93,8 +93,19 @@ describe('AuthService', () => {
   const auditService = {
     log: jest.fn()
   };
+  const policiesService = {
+    getEffectivePolicy: jest.fn().mockResolvedValue({
+      sensitiveMfaWindowMinutes: 5
+    })
+  };
 
-  const service = new AuthService(usersService as never, prisma as never, jwtService as never, auditService as never);
+  const service = new AuthService(
+    usersService as never,
+    prisma as never,
+    jwtService as never,
+    auditService as never,
+    policiesService as never
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();

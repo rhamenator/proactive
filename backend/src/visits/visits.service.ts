@@ -4,6 +4,7 @@ import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PrismaService } from '../prisma/prisma.service';
 import { getDistanceInMeters } from '../common/utils/distance.util';
+import { PoliciesService } from '../policies/policies.service';
 
 @Injectable()
 export class VisitsService {
@@ -11,7 +12,8 @@ export class VisitsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly policiesService: PoliciesService
   ) {}
 
   private normalizeLegacyResult(outcomeCode: string) {
@@ -88,14 +90,20 @@ export class VisitsService {
     campaignId?: string | null;
     code: string;
   }) {
+    const policy = await this.policiesService.getEffectivePolicy({
+      organizationId: input.organizationId,
+      campaignId: input.campaignId ?? null
+    });
     const where: Prisma.OutcomeDefinitionWhereInput = {
       organizationId: input.organizationId,
       code: input.code,
       isActive: true,
       ...(input.campaignId
-        ? {
-            OR: [{ campaignId: input.campaignId }, { campaignId: null }]
-          }
+        ? policy.allowOrgOutcomeFallback
+          ? {
+              OR: [{ campaignId: input.campaignId }, { campaignId: null }]
+            }
+          : { campaignId: input.campaignId }
         : { campaignId: null })
     };
 
@@ -110,14 +118,17 @@ export class VisitsService {
   }
 
   async listActiveOutcomes(scope: AccessScope) {
+    const policy = await this.policiesService.getEffectivePolicy(scope);
     const outcomes = await this.prisma.outcomeDefinition.findMany({
       where: {
         isActive: true,
         organizationId: scope.organizationId,
         ...(scope.campaignId
-          ? {
-              OR: [{ campaignId: scope.campaignId }, { campaignId: null }]
-            }
+          ? policy.allowOrgOutcomeFallback
+            ? {
+                OR: [{ campaignId: scope.campaignId }, { campaignId: null }]
+              }
+            : { campaignId: scope.campaignId }
           : { campaignId: null })
       },
       orderBy: [{ campaignId: 'desc' }, { displayOrder: 'asc' }, { label: 'asc' }]

@@ -4,10 +4,10 @@ import bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'node:crypto';
 import { MfaChallengePurpose, UserRole } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { buildOtpAuthUri, generateBase32Secret, verifyTotp } from './mfa.util';
-import { getSensitiveMfaWindowMinutes } from './sensitive-mfa.util';
 
 @Injectable()
 export class AuthService {
@@ -20,7 +20,8 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly policiesService: PoliciesService
   ) {}
 
   private readonly refreshTokenTtlDays = Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 14);
@@ -29,7 +30,6 @@ export class AuthService {
   private readonly loginLockoutThreshold = Number(process.env.LOGIN_LOCKOUT_THRESHOLD ?? 5);
   private readonly loginLockoutMinutes = Number(process.env.LOGIN_LOCKOUT_MINUTES ?? 15);
   private readonly mfaChallengeTtlMinutes = Number(process.env.MFA_CHALLENGE_TTL_MINUTES ?? 10);
-  private readonly sensitiveMfaTtlMinutes = getSensitiveMfaWindowMinutes();
   private readonly mfaIssuer = process.env.MFA_ISSUER ?? 'PROACTIVE FCS';
   private readonly exposeResetTokens = process.env.EXPOSE_RESET_TOKENS === 'true';
 
@@ -579,6 +579,10 @@ export class AuthService {
 
     const mfaVerifiedAt = new Date();
     const accessToken = await this.issueAccessToken(this.buildJwtPayload(user, { mfaVerifiedAt }));
+    const policy = await this.policiesService.getEffectivePolicy({
+      organizationId: user.organizationId ?? null,
+      campaignId: user.campaignId ?? null
+    });
 
     await this.auditService.log({
       actorUserId: user.id,
@@ -586,7 +590,7 @@ export class AuthService {
       entityType: 'user_auth',
       entityId: user.id,
       newValuesJson: {
-        validForMinutes: this.sensitiveMfaTtlMinutes
+        validForMinutes: policy.sensitiveMfaWindowMinutes
       }
     });
 

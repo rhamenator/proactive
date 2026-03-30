@@ -32,8 +32,11 @@ describe('VisitsService', () => {
   const auditService = {
     log: jest.fn()
   };
+  const policiesService = {
+    getEffectivePolicy: jest.fn().mockResolvedValue({ allowOrgOutcomeFallback: true })
+  };
 
-  const service = new VisitsService(prisma as never, auditService as never);
+  const service = new VisitsService(prisma as never, auditService as never, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();

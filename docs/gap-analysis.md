@@ -1,6 +1,6 @@
 # PROACTIVE Current Gap Analysis
 
-Date: 2026-03-29
+Date: 2026-03-30
 
 Reference sources:
 
@@ -27,6 +27,7 @@ The system now covers the main operational v1 workflow:
 - campaign-aware reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
 - VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
 - CSV import batch history, downloadable source artifacts, and row-level import outcome tracing
+- scoped operational policy records plus admin dashboard policy management for import defaults, sensitive MFA freshness, retention defaults, and outcome fallback behavior
 - CI, build verification, regression tests, and GitHub release-build automation
 
 The remaining gaps are now mostly in deeper import-policy breadth, fine-grained authorization policy, and release inputs rather than missing operational screens. Canonical household modeling, retention metadata, on-device SQLite persistence, and import/export audit history are now in place.
@@ -50,6 +51,7 @@ The remaining gaps are now mostly in deeper import-policy breadth, fine-grained 
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
 - import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
 - a dedicated `ImportsService` and `/imports/csv` path with import modes plus duplicate skip/error/merge handling
+- operational policy records with organization/campaign fallback for import defaults, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
 - mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
 - repo-wide `verify` command and GitHub Actions CI
@@ -92,23 +94,24 @@ What remains:
 
 - extend the local schema further only if the client wants richer device-side analytics, filtering, or sync forensics
 
-### 3. Sensitive-action MFA is now enforced, but the policy may still evolve
+### 3. Policy tuning is now configurable instead of hard-coded
 
 Current state:
 
 - login MFA is enforced for admins and supervisors
 - backup codes exist and account-level MFA management exists
 - sensitive actions such as export generation, GPS overrides, turf reassignment/reopen, and conflict resolution now require a fresh MFA step-up challenge
+- the freshness window, import defaults, retention defaults, and org-outcome fallback behavior are now editable through scoped operational policy records and the dashboard policy page
 
 Why it matters:
 
-- this closes the main security-policy gap against the stricter client packet
-- the remaining question is policy tuning rather than missing enforcement
+- this closes the main “hard-coded policy” gap for the ambiguous operational rules most likely to change after client review
+- the remaining question is policy choice rather than implementation capability
 
 What remains:
 
-- decide whether the current strict per-action challenge should stay in place or whether a longer freshness window is preferable
-- extend sensitive-action coverage further only if the client wants more routes behind the same guard
+- decide which policy defaults the client wants to ship with at organization level versus campaign-specific override
+- extend the policy surface further only if the client wants more ambiguous rules exposed for runtime administration
 
 ### 4. Household normalization and retention metadata are now modeled, but delete/archive workflows are still policy-light
 
@@ -193,4 +196,5 @@ Remaining non-blocking enhancements:
 
 1. Decide whether v1.x needs richer CSV/VAN parity such as ambiguous-duplicate review queues, more source-specific mappings, or import lineage beyond the current batch/row audit trail.
 2. Decide whether explicit admin archive/delete workflows should ship now or after pilot review.
-3. Provide production release secrets and final app identifiers for EAS/App Store/Play.
+3. Set the initial organization/campaign policy defaults in the new Policies screen before broader review.
+4. Provide production release secrets and final app identifiers for EAS/App Store/Play.
