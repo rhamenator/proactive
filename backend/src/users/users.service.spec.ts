@@ -39,6 +39,9 @@ describe('UsersService', () => {
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn()
+    },
+    campaign: {
+      findFirst: jest.fn()
     }
   };
 
@@ -46,6 +49,7 @@ describe('UsersService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.campaign.findFirst.mockResolvedValue({ id: 'campaign-1', organizationId: 'org-1' });
   });
 
   it('sanitizes optional user fields to stable defaults', () => {
@@ -122,6 +126,24 @@ describe('UsersService', () => {
       })
     });
     expect(result.role).toBe(UserRole.supervisor);
+  });
+
+  it('rejects campaign assignments outside the current organization scope', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.campaign.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.createCanvasser({
+        firstName: 'Casey',
+        lastName: 'Lead',
+        email: 'casey@example.com',
+        password: 'Password123!',
+        organizationId: 'org-1',
+        campaignId: 'campaign-9'
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
   it('rejects admin as a field-user role', async () => {
@@ -203,6 +225,20 @@ describe('UsersService', () => {
     });
     expect(result.role).toBe(UserRole.supervisor);
     expect(result.status).toBe('inactive');
+  });
+
+  it('rejects campaign reassignment when the campaign is outside the user organization scope', async () => {
+    prisma.user.findUnique.mockResolvedValue(buildUser({ id: 'user-2', organizationId: 'org-1', campaignId: null }));
+    prisma.campaign.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.updateCanvasser('user-2', {
+        organizationId: 'org-1',
+        campaignId: 'campaign-9'
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
   it('rejects updates for missing canvassers', async () => {

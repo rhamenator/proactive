@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AssignmentStatus, GpsStatus, SyncStatus, UserRole, VisitResult, VisitSource } from '@prisma/client';
+import { AssignmentStatus, GpsStatus, Prisma, SyncStatus, UserRole, VisitResult, VisitSource } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PrismaService } from '../prisma/prisma.service';
@@ -83,14 +83,56 @@ export class VisitsService {
     } as const;
   }
 
+  private async findScopedOutcomeDefinition(input: {
+    organizationId: string | null;
+    campaignId?: string | null;
+    code: string;
+  }) {
+    const where: Prisma.OutcomeDefinitionWhereInput = {
+      organizationId: input.organizationId,
+      code: input.code,
+      isActive: true,
+      ...(input.campaignId
+        ? {
+            OR: [{ campaignId: input.campaignId }, { campaignId: null }]
+          }
+        : { campaignId: null })
+    };
+
+    return this.prisma.outcomeDefinition.findFirst({
+      where,
+      orderBy: [
+        { campaignId: 'desc' },
+        { displayOrder: 'asc' },
+        { label: 'asc' }
+      ]
+    });
+  }
+
   async listActiveOutcomes(scope: AccessScope) {
-    return this.prisma.outcomeDefinition.findMany({
+    const outcomes = await this.prisma.outcomeDefinition.findMany({
       where: {
         isActive: true,
-        ...this.buildScopedWhere(scope)
+        organizationId: scope.organizationId,
+        ...(scope.campaignId
+          ? {
+              OR: [{ campaignId: scope.campaignId }, { campaignId: null }]
+            }
+          : { campaignId: null })
       },
-      orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
+      orderBy: [{ campaignId: 'desc' }, { displayOrder: 'asc' }, { label: 'asc' }]
     });
+
+    const deduped = new Map<string, (typeof outcomes)[number]>();
+    for (const outcome of outcomes) {
+      if (!deduped.has(outcome.code)) {
+        deduped.set(outcome.code, outcome);
+      }
+    }
+
+    return Array.from(deduped.values()).sort(
+      (left, right) => left.displayOrder - right.displayOrder || left.label.localeCompare(right.label)
+    );
   }
 
   async listRecentVisits(input: {
@@ -187,12 +229,10 @@ export class VisitsService {
       throw new BadRequestException(lockReason);
     }
 
-    const outcomeDefinition = await this.prisma.outcomeDefinition.findFirst({
-      where: {
-        code: input.outcomeCode,
-        isActive: true,
-        ...this.buildScopedWhere(input.scope)
-      }
+    const outcomeDefinition = await this.findScopedOutcomeDefinition({
+      organizationId: input.scope.organizationId,
+      campaignId: input.scope.campaignId ?? null,
+      code: input.outcomeCode
     });
 
     if (!outcomeDefinition) {
@@ -296,13 +336,10 @@ export class VisitsService {
       throw new BadRequestException('Address not found');
     }
 
-    const outcomeDefinition = await this.prisma.outcomeDefinition.findFirst({
-      where: {
-        code: input.outcomeCode,
-        isActive: true,
-        organizationId: address.organizationId,
-        campaignId: address.campaignId
-      }
+    const outcomeDefinition = await this.findScopedOutcomeDefinition({
+      organizationId: address.organizationId,
+      campaignId: address.campaignId ?? address.turf.campaignId ?? null,
+      code: input.outcomeCode
     });
 
     if (!outcomeDefinition) {

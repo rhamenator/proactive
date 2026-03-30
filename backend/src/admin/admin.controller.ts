@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -26,6 +26,33 @@ export class AdminController {
 
   private async resolveScope(user: JwtUserPayload) {
     return resolveAccessScope(user, this.usersService);
+  }
+
+  private enforceRequestedCampaign(scope: { organizationId: string | null; campaignId?: string | null }, requestedCampaignId?: string | null) {
+    if (!scope.campaignId) {
+      return requestedCampaignId ?? null;
+    }
+
+    if (requestedCampaignId === undefined) {
+      return scope.campaignId;
+    }
+
+    if (requestedCampaignId !== scope.campaignId) {
+      throw new ForbiddenException('You cannot assign users outside your campaign scope');
+    }
+
+    return requestedCampaignId;
+  }
+
+  private async assertTargetUserScope(userId: string, scope: { organizationId: string | null; campaignId?: string | null }) {
+    if (!scope.campaignId) {
+      return;
+    }
+
+    const targetUser = await this.usersService.findById(userId);
+    if (targetUser.organizationId !== scope.organizationId || targetUser.campaignId !== scope.campaignId) {
+      throw new BadRequestException('Target user is outside your campaign scope');
+    }
   }
 
   @Get('dashboard-summary')
@@ -143,21 +170,23 @@ export class AdminController {
     @CurrentUser() user: JwtUserPayload
   ) {
     const scope = await this.resolveScope(user);
+    const campaignId = this.enforceRequestedCampaign(scope, body.campaignId);
     return this.usersService.createCanvasser({
       ...body,
       organizationId: scope.organizationId,
-      campaignId: body.campaignId ?? scope.campaignId ?? null
+      campaignId
     });
   }
 
   @Post('canvassers/invite')
   async inviteCanvasser(@Body() body: InviteCanvasserDto, @CurrentUser() user: JwtUserPayload) {
     const scope = await this.resolveScope(user);
+    const campaignId = this.enforceRequestedCampaign(scope, body.campaignId);
     return this.authService.inviteCanvasser({
       ...body,
       actorUserId: user.sub,
       organizationId: scope.organizationId,
-      campaignId: body.campaignId ?? scope.campaignId ?? null
+      campaignId
     });
   }
 
@@ -169,9 +198,12 @@ export class AdminController {
     @CurrentUser() user: JwtUserPayload
   ) {
     const scope = await this.resolveScope(user);
+    await this.assertTargetUserScope(id, scope);
+    const nextCampaignId = body.campaignId === undefined ? undefined : this.enforceRequestedCampaign(scope, body.campaignId);
     return this.usersService.updateCanvasser(id, {
       ...body,
-      organizationId: scope.organizationId
+      organizationId: scope.organizationId,
+      ...(nextCampaignId !== undefined ? { campaignId: nextCampaignId } : {})
     });
   }
 

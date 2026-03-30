@@ -101,6 +101,32 @@ describe('AdminController', () => {
     );
   });
 
+  it('rejects field-user campaign assignments outside a campaign-scoped admin scope', async () => {
+    const scopedAdmin = {
+      sub: 'admin-1',
+      email: 'admin@example.com',
+      role: UserRole.admin,
+      organizationId: 'org-1',
+      campaignId: 'campaign-1'
+    };
+
+    await expect(
+      controller.createCanvasser(
+        {
+          firstName: 'Pat',
+          lastName: 'Field',
+          email: 'pat@example.com',
+          password: 'Password123!',
+          role: UserRole.canvasser,
+          campaignId: 'campaign-2'
+        },
+        scopedAdmin
+      )
+    ).rejects.toThrow('You cannot assign users outside your campaign scope');
+
+    expect(usersService.createCanvasser).not.toHaveBeenCalled();
+  });
+
   it('delegates turf reassignment and reopen actions', async () => {
     await controller.reassignTurf(
       'turf-1',

@@ -149,10 +149,43 @@ describe('VisitsService', () => {
     const result = await service.listActiveOutcomes(scope);
 
     expect(prisma.outcomeDefinition.findMany).toHaveBeenCalledWith({
-      where: { isActive: true, organizationId: 'org-1' },
-      orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
+      where: { isActive: true, organizationId: 'org-1', campaignId: null },
+      orderBy: [{ campaignId: 'desc' }, { displayOrder: 'asc' }, { label: 'asc' }]
     });
     expect(result).toEqual([{ id: 'outcome-1', code: 'knocked' }]);
+  });
+
+  it('prefers campaign-specific outcomes but falls back to organization defaults for active outcome lists', async () => {
+    prisma.outcomeDefinition.findMany.mockResolvedValue([
+      {
+        id: 'outcome-campaign',
+        code: 'knocked',
+        label: 'Knocked Campaign',
+        displayOrder: 2,
+        campaignId: 'campaign-1'
+      },
+      {
+        id: 'outcome-org',
+        code: 'knocked',
+        label: 'Knocked Org',
+        displayOrder: 1,
+        campaignId: null
+      },
+      {
+        id: 'outcome-org-2',
+        code: 'refused',
+        label: 'Refused',
+        displayOrder: 3,
+        campaignId: null
+      }
+    ]);
+
+    const result = await service.listActiveOutcomes({ organizationId: 'org-1', campaignId: 'campaign-1' });
+
+    expect(result).toEqual([
+      expect.objectContaining({ id: 'outcome-campaign', code: 'knocked' }),
+      expect.objectContaining({ id: 'outcome-org-2', code: 'refused' })
+    ]);
   });
 
   it('flags low-accuracy visits and records the sync/geofence side effects', async () => {
@@ -242,6 +275,41 @@ describe('VisitsService', () => {
         outcomeCode: 'unknown_code'
       })
     ).rejects.toThrow('Visit outcome is not recognized');
+  });
+
+  it('falls back to organization-level outcomes when the address is campaign-bound but no campaign override exists', async () => {
+    mockAssignedAddress();
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-org',
+      code: 'knocked',
+      label: 'Knocked',
+      requiresNote: false,
+      campaignId: null
+    });
+    const tx = mockSuccessfulTransaction();
+
+    await service.logVisit({
+      canvasserId: 'canvasser-1',
+      addressId: 'address-1',
+      outcomeCode: VisitResult.knocked
+    });
+
+    expect(prisma.outcomeDefinition.findFirst).toHaveBeenCalledWith({
+      where: {
+        code: VisitResult.knocked,
+        isActive: true,
+        organizationId: 'org-1',
+        OR: [{ campaignId: 'campaign-1' }, { campaignId: null }]
+      },
+      orderBy: [{ campaignId: 'desc' }, { displayOrder: 'asc' }, { label: 'asc' }]
+    });
+    expect(tx.visitLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          outcomeDefinitionId: 'outcome-org'
+        })
+      })
+    );
   });
 
   it('rejects visits when the selected outcome requires notes', async () => {
@@ -484,6 +552,39 @@ describe('VisitsService', () => {
       tx
     );
     expect(result).toEqual({ id: 'visit-1', outcomeCode: 'talked_to_voter' });
+  });
+
+  it('falls back to organization-level outcomes when correcting a campaign-scoped visit', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(buildCorrectableVisit({ campaignId: 'campaign-1', notes: null }));
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-org',
+      code: 'talked_to_voter',
+      label: 'Talked To Voter',
+      requiresNote: true,
+      campaignId: null
+    });
+    const tx = mockCorrectionTransaction();
+
+    await service.correctVisit({
+      visitId: 'visit-1',
+      actorUserId: 'admin-1',
+      actorRole: 'admin' as never,
+      scope: { organizationId: 'org-1', campaignId: 'campaign-1' },
+      outcomeCode: 'talked_to_voter',
+      notes: 'Corrected note',
+      reason: 'Fix incorrect disposition'
+    });
+
+    expect(prisma.outcomeDefinition.findFirst).toHaveBeenCalledWith({
+      where: {
+        code: 'talked_to_voter',
+        isActive: true,
+        organizationId: 'org-1',
+        OR: [{ campaignId: 'campaign-1' }, { campaignId: null }]
+      },
+      orderBy: [{ campaignId: 'desc' }, { displayOrder: 'asc' }, { label: 'asc' }]
+    });
+    expect(tx.visitLog.update).toHaveBeenCalled();
   });
 
   it('allows supervisors to correct visits within organization scope', async () => {

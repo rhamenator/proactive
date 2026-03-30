@@ -27,6 +27,31 @@ type FieldUserRole = (typeof fieldUserRoles)[number];
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async validateCampaignScope(organizationId: string | null | undefined, campaignId: string | null | undefined) {
+    if (campaignId === undefined) {
+      return;
+    }
+
+    if (campaignId === null) {
+      return;
+    }
+
+    if (!organizationId) {
+      throw new BadRequestException('Campaign assignments require an organization scope');
+    }
+
+    const campaign = await this.prisma.campaign.findFirst({
+      where: {
+        id: campaignId,
+        organizationId
+      }
+    });
+
+    if (!campaign) {
+      throw new BadRequestException('Campaign is invalid for the current organization scope');
+    }
+  }
+
   private normalizeFieldUserRole(role?: UserRole): FieldUserRole {
     if (role === undefined) {
       return UserRole.canvasser;
@@ -103,6 +128,7 @@ export class UsersService {
     if (existing) {
       throw new ConflictException('A user with this email already exists');
     }
+    await this.validateCampaignScope(input.organizationId, input.campaignId);
 
     const passwordHash = await bcrypt.hash(input.password, 10);
     const user = await this.prisma.user.create({
@@ -142,6 +168,7 @@ export class UsersService {
     if (input.organizationId !== undefined && existing.organizationId !== input.organizationId) {
       throw new NotFoundException('User not found');
     }
+    await this.validateCampaignScope(input.organizationId ?? existing.organizationId, input.campaignId);
 
     const data: Prisma.UserUncheckedUpdateInput = {};
     if (input.firstName !== undefined) data.firstName = input.firstName;
@@ -181,6 +208,7 @@ export class UsersService {
     if (existing) {
       throw new ConflictException('A user with this email already exists');
     }
+    await this.validateCampaignScope(input.organizationId, input.campaignId);
 
     const user = await this.prisma.user.create({
       data: {
