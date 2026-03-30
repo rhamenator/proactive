@@ -534,6 +534,68 @@ describe('admin api client', () => {
     expect(updated.sourceScope).toBe('campaign');
   });
 
+  it('supports retention summary and manual cleanup requests', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            automation: { enabled: false, intervalMinutes: 60 },
+            dueNow: {
+              addressRequests: 1,
+              importBatches: 2,
+              exportBatches: 3,
+              refreshTokens: 4,
+              activationTokens: 5,
+              passwordResetTokens: 6,
+              mfaChallenges: 7,
+              usedBackupCodes: 8
+            },
+            lastRunAt: '2026-03-30T08:00:00.000Z'
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            skipped: false,
+            scheduled: false,
+            summary: {
+              addressRequests: 1,
+              importBatches: 2,
+              exportBatches: 3,
+              refreshTokens: 4,
+              activationTokens: 5,
+              passwordResetTokens: 6,
+              mfaChallenges: 7,
+              usedBackupCodes: 8
+            }
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      );
+
+    const client = createApiClient('token-123');
+    const summary = await client.retentionSummary();
+    const cleanup = await client.runRetentionCleanup();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/admin/retention-summary', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3001/admin/retention-run', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(summary.dueNow.importBatches).toBe(2);
+    expect(cleanup.skipped).toBe(false);
+  });
+
   it('supports field-user and turf archive/delete admin requests', async () => {
     fetchMock
       .mockResolvedValueOnce(

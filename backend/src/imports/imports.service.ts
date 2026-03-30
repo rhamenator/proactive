@@ -458,6 +458,7 @@ export class ImportsService {
         mappingJson: (input.mapping ?? null) as never,
         csvContent: input.csv,
         sha256Checksum: this.checksum(input.csv),
+        purgeAt: this.buildPurgeAt(policy.retentionPurgeDays),
         rows: {
           create: rowResults.map((row) => ({
             rowIndex: row.rowIndex,

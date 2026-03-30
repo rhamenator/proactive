@@ -30,6 +30,7 @@ The system now covers the main operational v1 workflow:
 - richer CSV import handling with `replace_turf_membership` mode, duplicate skip/error/merge/review handling, and expanded VAN/person/household/unit mapping support
 - import duplicate-review queue with per-row pending review tracking, reviewer resolution, and audit-backed merge/skip outcomes
 - scoped operational policy records plus admin dashboard policy management for import defaults, sensitive MFA freshness, retention defaults, and outcome fallback behavior
+- retention summary and cleanup workflow for purgeable artifacts and expired auth/security records, with optional env-driven automation
 - CI, build verification, regression tests, and GitHub release-build automation
 
 The remaining gaps are now mostly in the remaining edges of import-policy breadth, fine-grained authorization policy, and release inputs rather than missing operational screens. Canonical household modeling, retention metadata, on-device SQLite persistence, import/export audit history, and deferred duplicate import review are now in place.
@@ -49,12 +50,13 @@ The remaining gaps are now mostly in the remaining edges of import-policy breadt
 - requested-address persistence plus mobile submission and review workflow
 - SQLite-backed on-device mobile persistence for auth state, queue state, and address state
 - canonical `Household` records with turf-level address membership rows that preserve existing `addressId` contracts
-- retention / lifecycle metadata on core operational tables, including users, turfs, address memberships, visits, and address requests
+- retention / lifecycle metadata on core operational tables, including users, turfs, address memberships, visits, address requests, and import/export artifacts
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
 - import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
 - a dedicated `ImportsService` and `/imports/csv` path with import modes including replace-membership behavior, duplicate skip/error/merge/review handling, expanded source-field mapping support, and a review queue tied directly to import-batch rows
 - operational policy records with organization/campaign fallback for import defaults, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
 - explicit admin archive/delete workflows for field users and turfs, protected by fresh MFA and backed by audit logging
+- admin retention summary and manual cleanup workflow for due address requests, import/export batches, and expired credential records
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
 - mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
 - repo-wide `verify` command and GitHub Actions CI
@@ -132,8 +134,7 @@ Why it matters:
 
 What remains:
 
-- decide whether archive/delete tooling should be extended beyond field users and turfs to additional entities in v1.x
-- decide whether automated purge jobs should ship on top of the existing retention metadata
+- decide whether retention automation should expand beyond safe artifact/credential cleanup into broader lifecycle automation for additional entity types in v1.x
 
 ### 5. Signed mobile binaries still depend on external release credentials
 
@@ -195,10 +196,11 @@ Still blocked for full source-packet alignment:
 Remaining non-blocking enhancements:
 
 - richer break-glass or help-desk recovery options beyond backup codes
+- broader lifecycle automation if the client wants purge/archive behavior extended beyond the currently safe cleanup targets
 
 ## Recommended Next Sequence
 
 1. Decide whether v1.x needs richer CSV/VAN parity beyond the current batch/row audit trail, replace-membership mode, duplicate review queue, and expanded field mapping support.
-2. Decide whether archive/delete tooling should expand beyond field users and turfs in v1.x.
+2. Decide whether lifecycle automation should expand beyond the current safe cleanup targets of address requests, import/export artifacts, and expired credential records.
 3. Set the initial organization/campaign policy defaults in the new Policies screen before broader review.
 4. Provide production release secrets and final app identifiers for EAS/App Store/Play.

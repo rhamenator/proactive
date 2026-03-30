@@ -97,6 +97,17 @@ export class AdminController {
     return this.adminService.getOperationalPolicy(await this.resolveScope(user), campaignId ?? null);
   }
 
+  @Get('retention-summary')
+  async retentionSummary(@CurrentUser() user: JwtUserPayload) {
+    return this.adminService.retentionSummary(await this.resolveScope(user));
+  }
+
+  @Post('retention-run')
+  @RequireFreshMfa()
+  async runRetentionCleanup(@CurrentUser() user: JwtUserPayload) {
+    return this.adminService.runRetentionCleanup(await this.resolveScope(user), user.sub);
+  }
+
   @Put('policies')
   async upsertOperationalPolicy(
     @Body() body: UpsertOperationalPolicyDto,

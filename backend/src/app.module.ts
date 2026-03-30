@@ -10,6 +10,7 @@ import { ImportsModule } from './imports/imports.module';
 import { PoliciesModule } from './policies/policies.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReportsModule } from './reports/reports.module';
+import { RetentionModule } from './retention/retention.module';
 import { SecurityModule } from './security/security.module';
 import { TurfsModule } from './turfs/turfs.module';
 import { UsersModule } from './users/users.module';
@@ -24,6 +25,7 @@ import { VisitsModule } from './visits/visits.module';
     UsersModule,
     AuthModule,
     PoliciesModule,
+    RetentionModule,
     TurfsModule,
     VisitsModule,
     AdminModule,

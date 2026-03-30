@@ -10,6 +10,8 @@ describe('AdminController', () => {
     listCampaigns: jest.fn(),
     listOutcomeDefinitions: jest.fn(),
     getOperationalPolicy: jest.fn(),
+    retentionSummary: jest.fn(),
+    runRetentionCleanup: jest.fn(),
     archiveFieldUser: jest.fn(),
     deleteFieldUser: jest.fn(),
     gpsReviewQueue: jest.fn(),
@@ -59,6 +61,7 @@ describe('AdminController', () => {
     await controller.listCampaigns(user);
     await controller.listOutcomeDefinitions(user);
     await controller.getOperationalPolicy(user);
+    await controller.retentionSummary(user);
     await controller.gpsReviewQueue(user);
     await controller.syncConflictQueue(user);
 
@@ -68,8 +71,23 @@ describe('AdminController', () => {
     expect(adminService.listCampaigns).toHaveBeenCalledWith(scope);
     expect(adminService.listOutcomeDefinitions).toHaveBeenCalledWith(scope);
     expect(adminService.getOperationalPolicy).toHaveBeenCalledWith(scope, null);
+    expect(adminService.retentionSummary).toHaveBeenCalledWith(scope);
     expect(adminService.gpsReviewQueue).toHaveBeenCalledWith(scope);
     expect(adminService.syncConflictQueue).toHaveBeenCalledWith(scope);
+  });
+
+  it('delegates manual retention cleanup with scoped actor context', async () => {
+    const user = {
+      sub: 'admin-1',
+      email: 'admin@example.com',
+      role: UserRole.admin,
+      organizationId: 'org-1',
+      campaignId: null
+    };
+
+    await controller.runRetentionCleanup(user);
+
+    expect(adminService.runRetentionCleanup).toHaveBeenCalledWith(scope, 'admin-1');
   });
 
   it('delegates create, invite, and update field-user flows', async () => {

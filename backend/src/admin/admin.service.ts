@@ -4,6 +4,7 @@ import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RetentionService } from '../retention/retention.service';
 
 const safeUserSelect = {
   id: true,
@@ -52,7 +53,8 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly policiesService: PoliciesService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly retentionService: RetentionService
   ) {}
 
   private scopeWhere(scope: AccessScope) {
@@ -238,6 +240,17 @@ export class AdminService {
 
   async getOperationalPolicy(scope: AccessScope, requestedCampaignId?: string | null) {
     return this.policiesService.getManageablePolicy(scope, requestedCampaignId);
+  }
+
+  async retentionSummary(scope: AccessScope) {
+    return this.retentionService.getSummary(scope);
+  }
+
+  async runRetentionCleanup(scope: AccessScope, actorUserId: string) {
+    return this.retentionService.runCleanup({
+      scope,
+      actorUserId
+    });
   }
 
   async upsertOperationalPolicy(

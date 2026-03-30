@@ -16,8 +16,13 @@ describe('ExportsService', () => {
   const auditService = {
     log: jest.fn()
   };
+  const policiesService = {
+    getEffectivePolicy: jest.fn().mockResolvedValue({
+      retentionPurgeDays: 30
+    })
+  };
 
-  const service = new ExportsService(prisma as never, auditService as never);
+  const service = new ExportsService(prisma as never, auditService as never, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();

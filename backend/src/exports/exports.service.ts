@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify/sync';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
+import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 type ExportOptions = {
@@ -18,7 +19,8 @@ type ExportOptions = {
 export class ExportsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly policiesService: PoliciesService
   ) {}
 
   private buildTimestampedFilename(prefix: string) {
@@ -55,6 +57,14 @@ export class ExportsService {
     return createHash('sha256').update(csv).digest('hex');
   }
 
+  private buildPurgeAt(days?: number | null) {
+    if (!days || days <= 0) {
+      return null;
+    }
+
+    return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  }
+
   private async recordExportBatch(input: {
     profileCode: string;
     filename: string;
@@ -67,6 +77,8 @@ export class ExportsService {
     visits: Array<{ id: string }>;
     rows: Array<Record<string, unknown>>;
   }) {
+    const policy = await this.policiesService.getEffectivePolicy(input.scope);
+
     return this.prisma.exportBatch.create({
       data: {
         profileCode: input.profileCode,
@@ -84,6 +96,7 @@ export class ExportsService {
         },
         csvContent: input.csv,
         sha256Checksum: this.checksum(input.csv),
+        purgeAt: this.buildPurgeAt(policy.retentionPurgeDays),
         exportedVisits: {
           create: input.visits.map((visit, index) => ({
             visitLog: {

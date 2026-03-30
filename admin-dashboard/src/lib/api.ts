@@ -21,6 +21,7 @@ import type {
   ProductivityReport,
   ReportFilters,
   ReportOverview,
+  RetentionSummary,
   TrendReport,
   MfaSetupInitResponse,
   MfaStatusResponse,
@@ -311,6 +312,16 @@ export function createApiClient(token?: string | null) {
         params.set('campaignId', campaignId);
       }
       return requestJson<OperationalPolicyRecord>(`/admin/policies${params.toString() ? `?${params.toString()}` : ''}`, {}, token);
+    },
+    retentionSummary() {
+      return requestJson<RetentionSummary>('/admin/retention-summary', {}, token);
+    },
+    runRetentionCleanup() {
+      return requestJson<{ skipped: boolean; scheduled?: boolean; summary?: RetentionSummary['dueNow']; reason?: string }>(
+        '/admin/retention-run',
+        { method: 'POST' },
+        token
+      );
     },
     updateOperationalPolicy(payload: {
       campaignId?: string | null;

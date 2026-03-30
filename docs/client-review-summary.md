@@ -27,6 +27,7 @@ The application suite has been built and brought to a review-ready state across 
   - MFA account management
   - Sensitive-action MFA confirmation flow for exports, overrides, conflict resolution, and turf control changes
   - Policy management for configurable operational defaults such as import behavior, MFA freshness, retention planning, and organization outcome fallback
+  - Retention summary and manual cleanup workflow for purgeable artifacts and expired credential records
   - Outcomes management
   - GPS review
   - Sync-conflict review
@@ -50,7 +51,7 @@ The application suite has been built and brought to a review-ready state across 
   - Automated test coverage across backend, admin dashboard, and mobile utility layers
   - CI/build verification paths
   - Dependency vulnerability cleanup
-  - Retention metadata on core operational records to support future archive/purge policy
+  - Retention metadata on core operational records plus a reviewable/manual cleanup path for safe purge targets
   - Documentation, wiki, help docs, and updated gap analysis
   - Trusted GitHub-based build/release workflow scaffolding
 
@@ -93,7 +94,7 @@ Please confirm whether you want any of the following added before release:
 
 - Any additional CSV/VAN import rules beyond the current review-ready baseline with replace-membership imports, expanded VAN field mapping, deferred duplicate review, and duplicate handling
 - Deeper team/geography scoping beyond the current organization-and-campaign scope
-- Whether you want archive/delete workflows expanded beyond field users and turfs, plus retention-job automation on top of the new retention metadata
+- Whether you want lifecycle automation expanded beyond the current safe cleanup targets of address requests, import/export artifacts, and expired credential records
 - Any changes to impersonation policy, correction windows, or review permissions
 
 ### 3. Provide Production Release Inputs

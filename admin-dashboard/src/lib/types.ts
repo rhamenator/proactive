@@ -382,6 +382,24 @@ export interface AuditActivityReport {
   rows: AuditActivityItem[];
 }
 
+export interface RetentionSummary {
+  automation: {
+    enabled: boolean;
+    intervalMinutes: number;
+  };
+  dueNow: {
+    addressRequests: number;
+    importBatches: number;
+    exportBatches: number;
+    refreshTokens: number;
+    activationTokens: number;
+    passwordResetTokens: number;
+    mfaChallenges: number;
+    usedBackupCodes: number;
+  };
+  lastRunAt?: string | null;
+}
+
 export interface ImpersonationStartResponse extends LoginResponse {
   user: SafeUser;
 }

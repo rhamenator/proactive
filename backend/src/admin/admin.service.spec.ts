@@ -66,8 +66,12 @@ describe('AdminService', () => {
   const auditService = {
     log: jest.fn()
   };
+  const retentionService = {
+    getSummary: jest.fn(),
+    runCleanup: jest.fn()
+  };
 
-  const service = new AdminService(prisma as never, policiesService as never, auditService as never);
+  const service = new AdminService(prisma as never, policiesService as never, auditService as never, retentionService as never);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -124,6 +128,22 @@ describe('AdminService', () => {
         progressPercent: 50
       })
     );
+  });
+
+  it('delegates retention summary and cleanup to the retention service', async () => {
+    retentionService.getSummary.mockResolvedValue({ dueNow: { importBatches: 2 } });
+    retentionService.runCleanup.mockResolvedValue({ skipped: false, summary: { importBatches: 2 } });
+
+    const summary = await service.retentionSummary(scope);
+    const cleanup = await service.runRetentionCleanup(scope, 'admin-1');
+
+    expect(retentionService.getSummary).toHaveBeenCalledWith(scope);
+    expect(retentionService.runCleanup).toHaveBeenCalledWith({
+      scope,
+      actorUserId: 'admin-1'
+    });
+    expect(summary.dueNow.importBatches).toBe(2);
+    expect(cleanup.skipped).toBe(false);
   });
 
   it('lists only field users with supervisor and canvasser roles', async () => {
