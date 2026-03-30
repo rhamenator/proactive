@@ -1,3 +1,5 @@
+import { getBucketHour, getBucketWeekday } from './timezone-policy.util';
+
 type VisitAttemptSeed = {
   id: string;
   turfId: string;
@@ -44,7 +46,7 @@ export function attachVisitAttemptMetrics<T extends VisitAttemptSeed>(visits: T[
 }
 
 export function getTimeOfDayBucket(value: Date) {
-  const hour = value.getUTCHours();
+  const hour = getBucketHour(value);
   if (hour < 6) {
     return 'overnight';
   }
@@ -61,5 +63,5 @@ export function getTimeOfDayBucket(value: Date) {
 }
 
 export function getDayOfWeekBucket(value: Date) {
-  return value.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+  return getBucketWeekday(value);
 }

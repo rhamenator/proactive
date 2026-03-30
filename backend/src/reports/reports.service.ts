@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, SyncStatus, GpsStatus } from '@prisma/client';
 import { getDayOfWeekBucket, getTimeOfDayBucket, attachVisitAttemptMetrics } from '../common/utils/visit-analytics.util';
+import { REPORT_BUCKET_TIME_ZONE } from '../common/utils/timezone-policy.util';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -1004,7 +1005,7 @@ export class ReportsService {
 
     return {
       filters: this.normalizeFilters(filters),
-      bucketTimeZone: 'UTC',
+      bucketTimeZone: REPORT_BUCKET_TIME_ZONE,
       summary: {
         days: byDay.size,
         totalVisits: visits.length,

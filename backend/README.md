@@ -37,3 +37,8 @@ npm run prisma:seed
 - JWT auth uses email/password with bcrypt hashes.
 - CSV import accepts file upload plus optional header mapping.
 - Geofence validation defaults to a 100 meter radius and flags, rather than hard-rejects, visits outside the radius.
+- UTC remains the canonical storage/comparison/audit timezone.
+- Reporting and export timezone behavior is centralized in `src/common/utils/timezone-policy.util.ts`.
+- Optional environment variables:
+	- `REPORT_BUCKET_TIME_ZONE` (default `UTC`) controls trend bucket timezone labels/calculations.
+	- `EXPORT_TIME_ZONE` (default `UTC`) controls export timestamp rendering and `time_zone` column labeling.

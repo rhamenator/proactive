@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify/sync';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
+import { formatExportTimestamp, getExportTimeZoneLabel } from '../common/utils/timezone-policy.util';
 import { attachVisitAttemptMetrics } from '../common/utils/visit-analytics.util';
 import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
 import { PoliciesService } from '../policies/policies.service';
@@ -285,11 +286,11 @@ export class ExportsService {
       city: visit.address.city,
       state: visit.address.state,
       zip: visit.address.zip ?? '',
-      visit_time: visit.visitTime.toISOString(),
+      visit_time: formatExportTimestamp(visit.visitTime),
       result: visit.result,
       contact_made: visit.contactMade ? 'true' : 'false',
       notes: visit.notes ?? '',
-      time_zone: 'UTC',
+      time_zone: getExportTimeZoneLabel(),
       gps_status: visit.gpsStatus,
       latitude: visit.latitude?.toString() ?? '',
       longitude: visit.longitude?.toString() ?? '',
@@ -413,9 +414,9 @@ export class ExportsService {
       state: visit.address.state,
       zip: visit.address.zip ?? '',
       session_id: visit.sessionId ?? '',
-      visit_time: visit.visitTime.toISOString(),
-      client_created_at: visit.clientCreatedAt?.toISOString() ?? '',
-      server_received_at: visit.serverReceivedAt.toISOString(),
+      visit_time: formatExportTimestamp(visit.visitTime),
+      client_created_at: visit.clientCreatedAt ? formatExportTimestamp(visit.clientCreatedAt) : '',
+      server_received_at: formatExportTimestamp(visit.serverReceivedAt),
       outcome_definition_id: visit.outcomeDefinitionId ?? '',
       outcome_code: visit.outcomeCode,
       outcome_label: visit.outcomeLabel,
@@ -436,7 +437,7 @@ export class ExportsService {
       override_flag: visit.geofenceResult?.overrideFlag ? 'true' : 'false',
       override_reason: visit.geofenceResult?.overrideReason ?? '',
       override_by_user_id: visit.geofenceResult?.overrideByUserId ?? '',
-      override_at: visit.geofenceResult?.overrideAt?.toISOString() ?? '',
+      override_at: visit.geofenceResult?.overrideAt ? formatExportTimestamp(visit.geofenceResult.overrideAt) : '',
       latitude: visit.latitude?.toString() ?? '',
       longitude: visit.longitude?.toString() ?? '',
       accuracy_meters: visit.accuracyMeters?.toString() ?? '',
@@ -445,7 +446,7 @@ export class ExportsService {
       source: visit.source,
       canvasser_id: visit.canvasserId,
       canvasser_name: `${visit.canvasser.firstName} ${visit.canvasser.lastName}`.trim(),
-      time_zone: 'America/Detroit',
+      time_zone: getExportTimeZoneLabel(),
       van_exported: visit.vanExported ? 'true' : 'false'
     }));
     const columns = this.normalizeColumns(profileSettings.columns, Object.keys(baseRows[0] ?? {

@@ -21,6 +21,7 @@ The application suite has been built and brought to a review-ready state across 
   - Structured address fidelity for `addressLine2` and `unit`, plus deterministic normalized-address duplicate detection for non-VAN imports
   - Downloadable CSV templates generated from the active import/export profiles so operators can get the current expected file shape directly from the system
   - Reporting endpoints for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics, including supervisor filtering, final-disposition filtering, revisit/attempt semantics, and time-of-day/day-of-week trend slices where supported by the current schema
+  - Centralized timezone policy for report bucket calculations and export timestamp/label behavior, with consistent semantics across export types
   - VAN export, internal master export, export batch history, historical CSV re-download, row-traceable export artifacts, and configurable export profiles with policy-driven default profile selection, with richer operational/audit export columns where the schema already supports them
 
 - **Admin Dashboard**
@@ -58,6 +59,7 @@ The application suite has been built and brought to a review-ready state across 
   - GPS capture and warning handling
   - Missing-address request submission
   - Recent-visit correction support within policy limits
+  - In-session notes for houses/extra-address tracking, currently device-local only in this phase
 
 - **Quality and Release Guardrails**
   - Automated test coverage across backend, admin dashboard, and mobile utility layers

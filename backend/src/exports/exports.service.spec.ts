@@ -126,6 +126,9 @@ describe('ExportsService', () => {
     expect(result.csv).toContain('Pat Field');
     expect(result.csv).toContain('address_line2');
     expect(result.csv).toContain('unit');
+    expect(result.csv).toContain('time_zone');
+    expect(result.csv).toContain('UTC');
+    expect(result.csv).toContain('2026-03-28T10:00:00.000Z');
     expect(result.filename).toContain('van-results-');
     expect(prisma.exportBatch.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -277,6 +280,10 @@ describe('ExportsService', () => {
     expect(result.csv).toContain('attempt_number');
     expect(result.csv).toContain('is_final_disposition');
     expect(result.csv).toContain('Knocked');
+    expect(result.csv).toContain('time_zone');
+    expect(result.csv).toContain('UTC');
+    expect(result.csv).toContain('2026-03-28T10:00:00.000Z');
+    expect(result.csv).not.toContain('America/Detroit');
     expect(result.filename).toContain('internal-master-');
     expect(prisma.exportBatch.create).toHaveBeenCalledWith(
       expect.objectContaining({

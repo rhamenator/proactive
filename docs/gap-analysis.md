@@ -25,6 +25,7 @@ The system now covers the main operational v1 workflow:
 - requested-address submission from the field plus admin/supervisor review and approval
 - filtered reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, and audit activity
 - campaign-aware reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics; date-range filtering now correctly handles both date-only (`YYYY-MM-DD`) strings from the admin date picker and full ISO datetime strings
+- centralized timezone policy for report bucketing and exports, with consistent export timestamp semantics and explicit timezone labeling across VAN and internal master CSV outputs
 - VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
 - CSV import batch history, downloadable source artifacts, and row-level import outcome tracing
 - richer CSV import handling with `replace_turf_membership` mode, duplicate skip/error/merge/review handling, and expanded VAN/person/household/unit mapping support
@@ -73,6 +74,7 @@ The remaining gaps are now mostly in the remaining edges of import-policy breadt
 - conflict-state visit ingest that can classify duplicate-payload mismatches as reviewable sync conflicts instead of generic failed retries, with conflict reason carried back to the mobile queue state
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, teams, and field-user management
 - mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
+- in-session field notes workflow for canvassers, intentionally device-local in this phase (SQLite-backed, not backend-synced)
 - repo-wide `verify` command and GitHub Actions CI
 - GitHub release-build workflow for trusted build artifacts
 
@@ -191,6 +193,7 @@ What remains:
 - export profiles, stored artifacts, downloadable history, and row-traceability now exist
 - reporting endpoints and dashboard reporting pages now exist across overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
 - date-range report filtering handles date-only strings (`YYYY-MM-DD`) correctly — `dateTo` is snapped to end-of-UTC-day so same-day and multi-day ranges include all visits in that day
+- report bucket timezone and export timezone labeling are now derived from centralized timezone policy helpers instead of per-path hardcoded strings
 - the root build/test/Prisma verification path is automated
 - trusted GitHub release-build automation exists
 
