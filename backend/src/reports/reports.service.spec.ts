@@ -472,4 +472,140 @@ describe('ReportsService', () => {
     });
     expect(result.rows).toHaveLength(2);
   });
+
+  it('derives revisit metrics from full visit history even when the report is date-filtered', async () => {
+    prisma.visitLog.findMany
+      .mockResolvedValueOnce([
+        {
+          id: 'visit-2',
+          addressId: 'address-1',
+          canvasserId: 'user-1',
+          sessionId: 'session-1',
+          turfId: 'turf-1',
+          visitTime: new Date('2026-03-30T15:00:00.000Z'),
+          contactMade: false,
+          gpsStatus: 'verified',
+          syncStatus: 'synced',
+          syncConflictFlag: false,
+          outcomeCode: 'not_home',
+          outcomeLabel: 'Not Home',
+          result: 'not_home',
+          outcomeDefinition: { isFinalDisposition: false },
+          canvasser: {
+            id: 'user-1',
+            firstName: 'Taylor',
+            lastName: 'Field',
+            email: 'taylor@example.com',
+            role: 'canvasser'
+          },
+          turf: { id: 'turf-1', name: 'Ward 1' },
+          address: {
+            id: 'address-1',
+            addressLine1: '100 Main St',
+            addressLine2: null,
+            unit: null,
+            city: 'Detroit',
+            state: 'MI',
+            zip: '48201'
+          },
+          geofenceResult: null
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'visit-1',
+          turfId: 'turf-1',
+          addressId: 'address-1',
+          visitTime: new Date('2026-03-29T15:00:00.000Z')
+        },
+        {
+          id: 'visit-2',
+          turfId: 'turf-1',
+          addressId: 'address-1',
+          visitTime: new Date('2026-03-30T15:00:00.000Z')
+        }
+      ]);
+
+    const result = await service.getTrendSummary({
+      organizationId: 'org-1',
+      dateFrom: '2026-03-30T00:00:00.000Z',
+      dateTo: '2026-03-30T23:59:59.999Z'
+    });
+
+    expect(result.bucketTimeZone).toBe('UTC');
+    expect(result.summary.revisitVisits).toBe(1);
+    expect(result.summary.attemptOnlyVisits).toBe(1);
+  });
+
+    it('includes visits throughout a UTC day when dateTo is a date-only string (YYYY-MM-DD)', async () => {
+      // Regression for: date-only dateTo was parsed as UTC midnight (start of day),
+      // so visitTime.lte ended up at 2026-03-30T00:00:00Z, excluding all day's visits.
+      prisma.visitLog.findMany
+        .mockResolvedValueOnce([
+          {
+            id: 'visit-eod',
+            addressId: 'address-1',
+            canvasserId: 'user-1',
+            sessionId: 'session-1',
+            turfId: 'turf-1',
+            visitTime: new Date('2026-03-30T22:45:00.000Z'),
+            contactMade: true,
+            gpsStatus: 'verified',
+            syncStatus: 'synced',
+            syncConflictFlag: false,
+            outcomeCode: 'contact',
+            outcomeLabel: 'Contact Made',
+            result: 'contacted',
+            outcomeDefinition: { isFinalDisposition: true },
+            canvasser: {
+              id: 'user-1',
+              firstName: 'Taylor',
+              lastName: 'Field',
+              email: 'taylor@example.com',
+              role: 'canvasser'
+            },
+            turf: { id: 'turf-1', name: 'Ward 1' },
+            address: {
+              id: 'address-1',
+              addressLine1: '100 Main St',
+              addressLine2: null,
+              unit: null,
+              city: 'Detroit',
+              state: 'MI',
+              zip: '48201'
+            },
+            geofenceResult: null
+          }
+        ])
+        .mockResolvedValueOnce([]);
+      prisma.turfSession.findMany.mockResolvedValue([]);
+      prisma.auditLog.findMany.mockResolvedValue([]);
+
+      await service.getOverview({
+        organizationId: 'org-1',
+        // date-only strings from an HTML type="date" input
+        dateFrom: '2026-03-30',
+        dateTo: '2026-03-30'
+      });
+
+      const visitWhereArg = (prisma.visitLog.findMany as jest.Mock).mock.calls[0][0];
+      expect(visitWhereArg.where.visitTime.gte).toEqual(new Date('2026-03-30T00:00:00.000Z'));
+      expect(visitWhereArg.where.visitTime.lte).toEqual(new Date('2026-03-30T23:59:59.999Z'));
+    });
+
+    it('leaves datetime strings with explicit time component unchanged in getRange', async () => {
+      prisma.visitLog.findMany.mockResolvedValue([]).mockResolvedValueOnce([]);
+      prisma.turfSession.findMany.mockResolvedValue([]);
+      prisma.auditLog.findMany.mockResolvedValue([]);
+
+      await service.getOverview({
+        organizationId: 'org-1',
+        dateFrom: '2026-03-30T00:00:00.000Z',
+        dateTo: '2026-03-30T23:59:59.999Z'
+      });
+
+      const visitWhereArg = (prisma.visitLog.findMany as jest.Mock).mock.calls[0][0];
+      expect(visitWhereArg.where.visitTime.gte).toEqual(new Date('2026-03-30T00:00:00.000Z'));
+      expect(visitWhereArg.where.visitTime.lte).toEqual(new Date('2026-03-30T23:59:59.999Z'));
+    });
 });

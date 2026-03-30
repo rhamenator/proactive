@@ -161,7 +161,7 @@ export class PoliciesService {
       return value;
     }
 
-    return SupervisorScopeMode.campaign;
+    return SupervisorScopeMode.team;
   }
 
   private normalizePositiveInteger(value: unknown, fallback: number, fieldName: string) {

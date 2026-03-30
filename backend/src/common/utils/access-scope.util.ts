@@ -47,11 +47,15 @@ export async function resolveAccessScope(
 
   let supervisorScopeMode: SupervisorScopeMode | undefined;
   if (policiesService && resolvedRole === UserRole.supervisor && resolvedOrganizationId) {
-    const policy = await policiesService.getEffectivePolicy({
-      organizationId: resolvedOrganizationId,
-      campaignId: resolvedCampaignId
-    });
-    supervisorScopeMode = policy?.supervisorScopeMode;
+    if (resolvedUser.teamId ?? user.teamId) {
+      supervisorScopeMode = SupervisorScopeMode.team;
+    } else {
+      const policy = await policiesService.getEffectivePolicy({
+        organizationId: resolvedOrganizationId,
+        campaignId: resolvedCampaignId
+      });
+      supervisorScopeMode = policy?.supervisorScopeMode;
+    }
   }
 
   return buildScopeFromResolvedUser(resolvedUser, user, supervisorScopeMode);

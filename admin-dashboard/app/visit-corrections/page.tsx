@@ -6,6 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Button, Card, Input, Select, TextArea } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuthedApi } from '../../src/lib/auth-context';
+import { formatLocalDateTime } from '../../src/lib/datetime';
 import type { OutcomeDefinitionRecord, RecentVisitRecord } from '../../src/lib/types';
 
 export default function VisitCorrectionsPage() {
@@ -99,7 +100,7 @@ export default function VisitCorrectionsPage() {
                   <div>
                     <strong>{visit.address.addressLine1}</strong>
                     <div className="muted">
-                      {visit.canvasser.firstName} {visit.canvasser.lastName} • {new Date(visit.visitTime).toLocaleString()}
+                      {visit.canvasser.firstName} {visit.canvasser.lastName} • {formatLocalDateTime(visit.visitTime)}
                     </div>
                   </div>
                   <Button variant="secondary" onClick={() => beginEdit(visit)}>

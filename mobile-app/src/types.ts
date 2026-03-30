@@ -96,6 +96,16 @@ export interface TurfSnapshot {
   addresses: Address[];
 }
 
+export interface SessionNote {
+  id: string;
+  turfId: string;
+  sessionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  addressText?: string | null;
+  noteText: string;
+}
+
 export interface VisitSubmission {
   localRecordUuid: string;
   idempotencyKey: string;
@@ -170,4 +180,65 @@ export interface LoginResponse {
   accessToken?: string;
   role: Role;
   user: User;
+}
+
+export interface SelfPerformanceReport {
+  overview: {
+    filters: Record<string, unknown>;
+    kpis: {
+      totalVisits: number;
+      contactsMade: number;
+      gpsStatus: {
+        verified: number;
+        flagged: number;
+        missing: number;
+        lowAccuracy: number;
+        overrides: number;
+      };
+      outcomes: {
+        finalDisposition: number;
+        attemptsOnly: number;
+      };
+      revisitVisits: number;
+    };
+    dataFreshness: {
+      pendingSyncRecords: number;
+      failedSyncRecords: number;
+      conflictRecords: number;
+      reflectsSyncedDataOnly: boolean;
+    };
+  };
+  productivity: {
+    canvasserId: string;
+    canvasserName: string;
+    email: string;
+    totalVisits: number;
+    uniqueAddressesVisited: number;
+    contactsMade: number;
+    finalDispositionVisits: number;
+    revisitVisits: number;
+    sessionsCount: number;
+    totalSessionMinutes: number;
+    averageSessionMinutes: number;
+    housesPerHour: number;
+    gpsVerifiedRate: number;
+    gpsFlaggedRate: number;
+  } | null;
+  trends: {
+    bucketTimeZone: string;
+    summary: {
+      days: number;
+      totalVisits: number;
+      averageVisitsPerDay: number;
+      finalDispositionVisits: number;
+      attemptOnlyVisits: number;
+      revisitVisits: number;
+    };
+    byDay: Array<{
+      day: string;
+      visits: number;
+      contactsMade: number;
+      uniqueAddressesVisited: number;
+    }>;
+  };
 }

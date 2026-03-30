@@ -6,6 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuthedApi } from '../../src/lib/auth-context';
+import { formatLocalDateTime, getLocalTimeZoneLabel } from '../../src/lib/datetime';
 import type {
   AuditActivityItem,
   CampaignRecord,
@@ -177,6 +178,10 @@ export default function ReportsPage() {
             <div>
               <p className="section-kicker">Filters</p>
               <h2 className="heading-reset">Slice operational reporting</h2>
+              <p className="muted">
+                Timestamps display in your local timezone ({getLocalTimeZoneLabel()}). Trend buckets are calculated in{' '}
+                {trends?.bucketTimeZone ?? 'UTC'}.
+              </p>
             </div>
             <Button variant="ghost" onClick={() => void load()} disabled={loading}>
               {loading ? 'Refreshing...' : 'Refresh'}
@@ -458,7 +463,7 @@ export default function ReportsPage() {
                   </div>
                   <div className="muted">{item.turf.name}</div>
                   <div className="muted">
-                    {item.canvasser.name} at {new Date(item.visitTime).toLocaleString()}
+                    {item.canvasser.name} at {formatLocalDateTime(item.visitTime)}
                   </div>
                 </div>
               ))}
@@ -480,7 +485,7 @@ export default function ReportsPage() {
               <Card key={item.id} className="stack card-subtle">
                 <div className="inline-actions inline-actions-between">
                   <strong>{item.visitLogId}</strong>
-                  <span className="muted">{new Date(item.resolvedAt).toLocaleString()}</span>
+                  <span className="muted">{formatLocalDateTime(item.resolvedAt)}</span>
                 </div>
                 <div className="muted">
                   {item.reasonText ?? 'No reason recorded'}
@@ -523,7 +528,7 @@ export default function ReportsPage() {
                   {batch.initiatedByUser ? ` • ${batch.initiatedByUser.firstName} ${batch.initiatedByUser.lastName}` : ''}
                 </div>
                 <div className="muted">
-                  {new Date(batch.createdAt).toLocaleString()}
+                  {formatLocalDateTime(batch.createdAt)}
                   {batch.checksum ? ` • checksum ${batch.checksum.slice(0, 12)}...` : ''}
                   {batch.traceableVisitCount ? ` • ${batch.traceableVisitCount} traceable visits` : ''}
                 </div>
@@ -546,7 +551,7 @@ export default function ReportsPage() {
               <div key={entry.id} className="card card-subtle">
                 <div className="inline-actions inline-actions-between">
                   <strong>{entry.actionType}</strong>
-                  <span className="muted">{new Date(entry.createdAt).toLocaleString()}</span>
+                  <span className="muted">{formatLocalDateTime(entry.createdAt)}</span>
                 </div>
                 <div className="muted">
                   {entry.entityType} • {entry.entityId}

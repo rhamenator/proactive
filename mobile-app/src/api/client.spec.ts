@@ -126,6 +126,8 @@ describe('mobile api client', () => {
       new Response(
         JSON.stringify({
           message: 'Conflict',
+          syncConflictFlag: true,
+          syncStatus: 'conflict',
           syncConflictReason: 'assignment_changed'
         }),
         {
@@ -140,5 +142,20 @@ describe('mobile api client', () => {
     expect(isApiError(error)).toBe(true);
     expect(getSyncStatusForError(error)).toBe('conflict');
     expect(getConflictReason(error)).toBe('assignment_changed');
+  });
+
+  it('treats generic 409 business errors as failed syncs, not reviewable conflicts', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ message: 'Household attempt limit reached' }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
+
+    const error = await api.me('token-123').catch((value) => value);
+
+    expect(isApiError(error)).toBe(true);
+    expect(getSyncStatusForError(error)).toBe('failed');
+    expect(getConflictReason(error)).toBeNull();
   });
 });

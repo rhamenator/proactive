@@ -5,8 +5,8 @@ type VisitAttemptSeed = {
   visitTime: Date;
 };
 
-export function attachVisitAttemptMetrics<T extends VisitAttemptSeed>(visits: T[]) {
-  const sorted = [...visits].sort((left, right) => {
+function sortVisits<T extends VisitAttemptSeed>(visits: T[]) {
+  return [...visits].sort((left, right) => {
     if (left.turfId !== right.turfId) {
       return left.turfId.localeCompare(right.turfId);
     }
@@ -19,11 +19,15 @@ export function attachVisitAttemptMetrics<T extends VisitAttemptSeed>(visits: T[
     }
     return left.id.localeCompare(right.id);
   });
+}
+
+export function attachVisitAttemptMetrics<T extends VisitAttemptSeed>(visits: T[], history: VisitAttemptSeed[] = visits) {
+  const sortedHistory = sortVisits(history);
 
   const attemptMap = new Map<string, { attemptNumber: number; isRevisit: boolean }>();
   const addressCounts = new Map<string, number>();
 
-  for (const visit of sorted) {
+  for (const visit of sortedHistory) {
     const key = `${visit.turfId}:${visit.addressId}`;
     const nextAttemptNumber = (addressCounts.get(key) ?? 0) + 1;
     addressCounts.set(key, nextAttemptNumber);
@@ -40,7 +44,7 @@ export function attachVisitAttemptMetrics<T extends VisitAttemptSeed>(visits: T[
 }
 
 export function getTimeOfDayBucket(value: Date) {
-  const hour = value.getHours();
+  const hour = value.getUTCHours();
   if (hour < 6) {
     return 'overnight';
   }
@@ -57,5 +61,5 @@ export function getTimeOfDayBucket(value: Date) {
 }
 
 export function getDayOfWeekBucket(value: Date) {
-  return value.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/Detroit' });
+  return value.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
 }

@@ -1,6 +1,6 @@
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 
-import type { AddressState, GpsStatus, QueuedVisit, User, VisitSyncStatus } from './types';
+import type { AddressState, GpsStatus, QueuedVisit, SessionNote, User, VisitSyncStatus } from './types';
 
 const databaseName = 'proactive-mobile.db';
 const kvKeys = {
@@ -24,6 +24,16 @@ type QueueRow = {
 type AddressStateRow = {
   address_id: string;
   state_json: string;
+};
+
+type SessionNoteRow = {
+  id: string;
+  turf_id: string;
+  session_id: string | null;
+  created_at: string;
+  updated_at: string;
+  address_text: string | null;
+  note_text: string;
 };
 
 let databasePromise: Promise<DatabaseLike> | null = null;
@@ -166,6 +176,33 @@ function normalizeAddressState(item: unknown): AddressState | null {
   };
 }
 
+function normalizeSessionNote(item: unknown): SessionNote | null {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const raw = item as Record<string, unknown>;
+  if (
+    typeof raw.id !== 'string' ||
+    typeof raw.turfId !== 'string' ||
+    typeof raw.createdAt !== 'string' ||
+    typeof raw.updatedAt !== 'string' ||
+    typeof raw.noteText !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    id: raw.id,
+    turfId: raw.turfId,
+    sessionId: typeof raw.sessionId === 'string' ? raw.sessionId : null,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+    addressText: typeof raw.addressText === 'string' ? raw.addressText : null,
+    noteText: raw.noteText
+  };
+}
+
 async function getDatabase() {
   if (!databasePromise) {
     databasePromise = (async () => {
@@ -186,6 +223,15 @@ async function getDatabase() {
         CREATE TABLE IF NOT EXISTS address_state (
           address_id TEXT PRIMARY KEY NOT NULL,
           state_json TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS session_notes (
+          id TEXT PRIMARY KEY NOT NULL,
+          turf_id TEXT NOT NULL,
+          session_id TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          address_text TEXT,
+          note_text TEXT NOT NULL
         );
       `);
       return db;
@@ -244,6 +290,18 @@ function rowToAddressState(row: AddressStateRow): AddressState | null {
   } catch {
     return null;
   }
+}
+
+function rowToSessionNote(row: SessionNoteRow): SessionNote | null {
+  return normalizeSessionNote({
+    id: row.id,
+    turfId: row.turf_id,
+    sessionId: row.session_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    addressText: row.address_text,
+    noteText: row.note_text
+  });
 }
 
 export async function loadSession() {
@@ -349,10 +407,50 @@ export async function saveAddressState(addressState: Record<string, AddressState
   });
 }
 
+export async function loadSessionNotes(turfId?: string | null, sessionId?: string | null) {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<SessionNoteRow>(
+    'SELECT id, turf_id, session_id, created_at, updated_at, address_text, note_text FROM session_notes ORDER BY created_at DESC'
+  );
+
+  return rows
+    .map(rowToSessionNote)
+    .filter((item): item is SessionNote => item !== null)
+    .filter((note) => (!turfId || note.turfId === turfId) && (!sessionId || note.sessionId === sessionId));
+}
+
+export async function saveSessionNote(note: SessionNote) {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT OR REPLACE INTO session_notes (
+      id,
+      turf_id,
+      session_id,
+      created_at,
+      updated_at,
+      address_text,
+      note_text
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    note.id,
+    note.turfId,
+    note.sessionId ?? null,
+    note.createdAt,
+    note.updatedAt,
+    note.addressText ?? null,
+    note.noteText
+  );
+}
+
+export async function deleteSessionNote(noteId: string) {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM session_notes WHERE id = ?', noteId);
+}
+
 export async function clearAppCache() {
   const db = await getDatabase();
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync('DELETE FROM queued_visits');
     await txn.runAsync('DELETE FROM address_state');
+    await txn.runAsync('DELETE FROM session_notes');
   });
 }

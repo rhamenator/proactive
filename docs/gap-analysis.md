@@ -24,7 +24,7 @@ The system now covers the main operational v1 workflow:
 - organization-scoped admin, turf, export, and review queries
 - requested-address submission from the field plus admin/supervisor review and approval
 - filtered reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, and audit activity
-- campaign-aware reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
+- campaign-aware reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics; date-range filtering now correctly handles both date-only (`YYYY-MM-DD`) strings from the admin date picker and full ISO datetime strings
 - VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
 - CSV import batch history, downloadable source artifacts, and row-level import outcome tracing
 - richer CSV import handling with `replace_turf_membership` mode, duplicate skip/error/merge/review handling, and expanded VAN/person/household/unit mapping support
@@ -190,6 +190,7 @@ What remains:
 - org/campaign scaffolding exists in schema, JWT payloads, and major operational services
 - export profiles, stored artifacts, downloadable history, and row-traceability now exist
 - reporting endpoints and dashboard reporting pages now exist across overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
+- date-range report filtering handles date-only strings (`YYYY-MM-DD`) correctly — `dateTo` is snapped to end-of-UTC-day so same-day and multi-day ranges include all visits in that day
 - the root build/test/Prisma verification path is automated
 - trusted GitHub release-build automation exists
 

@@ -174,6 +174,16 @@ export function DashboardScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('AddressRequest')}
               variant="secondary"
             />
+            <Button
+              label="Session Notes"
+              onPress={() => navigation.navigate('SessionNotes')}
+              variant="secondary"
+            />
+            <Button
+              label="My Performance"
+              onPress={() => navigation.navigate('Performance')}
+              variant="ghost"
+            />
             <Button label="Sync Queue" onPress={() => void syncQueue()} variant="secondary" loading={isSyncing} />
             <Button label="Review Queue" onPress={() => navigation.navigate('Queue')} variant="ghost" />
           </View>
@@ -189,7 +199,8 @@ export function DashboardScreen({ navigation }: Props) {
         <Card style={styles.tipCard}>
           <Text style={styles.sectionLabel}>Field Notes</Text>
           <Text style={styles.tipText}>
-            Use the address detail screen to capture GPS and submit the result with minimal typing.
+            Use Session Notes to track houses, extra addresses, or reminders during an active session without breaking
+            the visit flow.
           </Text>
         </Card>
       </ScrollView>

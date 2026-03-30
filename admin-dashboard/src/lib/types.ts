@@ -272,6 +272,15 @@ export interface ReportOverview {
       lowAccuracy: number;
       overrides: number;
     };
+    outcomes: {
+      finalDisposition: number;
+      attemptsOnly: number;
+    };
+    revisitVisits: number;
+  };
+  supervisorSlice: {
+    filterApplied: boolean;
+    supervisorId?: string | null;
   };
   productivityPreview: Array<{
     canvasserId: string;
@@ -291,6 +300,8 @@ export interface ProductivityRow {
   totalVisits: number;
   uniqueAddressesVisited: number;
   contactsMade: number;
+  finalDispositionVisits: number;
+  revisitVisits: number;
   sessionsCount: number;
   totalSessionMinutes: number;
   averageSessionMinutes: number;
@@ -312,10 +323,14 @@ export interface ProductivityReport {
 
 export interface TrendReport {
   filters: ReportFilters & { limit?: number | null };
+  bucketTimeZone: string;
   summary: {
     days: number;
     totalVisits: number;
     averageVisitsPerDay: number;
+    finalDispositionVisits: number;
+    attemptOnlyVisits: number;
+    revisitVisits: number;
   };
   byDay: Array<{
     day: string;
@@ -326,6 +341,14 @@ export interface TrendReport {
   byOutcome: Array<{
     outcomeCode: string;
     outcomeLabel: string;
+    total: number;
+  }>;
+  byTimeOfDay: Array<{
+    bucket: string;
+    total: number;
+  }>;
+  byDayOfWeek: Array<{
+    bucket: string;
     total: number;
   }>;
 }

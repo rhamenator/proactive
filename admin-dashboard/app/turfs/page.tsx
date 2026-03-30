@@ -6,6 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input, TextArea } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
+import { formatLocalDateTime } from '../../src/lib/datetime';
 import type {
   CanvasserRecord,
   CsvProfileRecord,
@@ -670,7 +671,7 @@ export default function TurfsPage() {
                           {batch.importedCount} imported, {batch.mergedCount} merged, {batch.pendingReviewCount ?? 0} pending review, {batch.removedCount ?? 0} removed, {batch.invalidCount} invalid, {batch.duplicateSkippedCount} skipped
                         </p>
                         <p className="muted margin-bottom-reset">
-                          {new Date(batch.createdAt).toLocaleString()} • {batch.mode} • {batch.duplicateStrategy}
+                          {formatLocalDateTime(batch.createdAt)} • {batch.mode} • {batch.duplicateStrategy}
                         </p>
                         {(batch.teamId || batch.regionCode) ? (
                           <p className="muted margin-bottom-reset">
@@ -680,7 +681,7 @@ export default function TurfsPage() {
                         ) : null}
                         {batch.artifactPurgedAt ? (
                           <p className="muted margin-bottom-reset">
-                            Source artifact purged {new Date(batch.artifactPurgedAt).toLocaleString()} by retention policy.
+                            Source artifact purged {formatLocalDateTime(batch.artifactPurgedAt)} by retention policy.
                           </p>
                         ) : null}
                       </div>

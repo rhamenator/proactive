@@ -11,7 +11,18 @@ const dbState = {
       addressMetaJson: string;
     }
   >(),
-  addressState: new Map<string, string>()
+  addressState: new Map<string, string>(),
+  sessionNotes: new Map<
+    string,
+    {
+      turfId: string;
+      sessionId: string | null;
+      createdAt: string;
+      updatedAt: string;
+      addressText: string | null;
+      noteText: string;
+    }
+  >()
 };
 
 const databaseMock = {
@@ -37,6 +48,14 @@ const databaseMock = {
       dbState.addressState.clear();
       return;
     }
+    if (source.includes('DELETE FROM session_notes WHERE id = ?')) {
+      dbState.sessionNotes.delete(String(params[0]));
+      return;
+    }
+    if (source.includes('DELETE FROM session_notes')) {
+      dbState.sessionNotes.clear();
+      return;
+    }
     if (source.includes('INSERT INTO queued_visits') || source.includes('INSERT OR REPLACE INTO queued_visits')) {
       dbState.queue.set(String(params[0]), {
         createdAt: String(params[1]),
@@ -48,6 +67,17 @@ const databaseMock = {
     }
     if (source.includes('INSERT INTO address_state') || source.includes('INSERT OR REPLACE INTO address_state')) {
       dbState.addressState.set(String(params[0]), String(params[1]));
+      return;
+    }
+    if (source.includes('INSERT INTO session_notes') || source.includes('INSERT OR REPLACE INTO session_notes')) {
+      dbState.sessionNotes.set(String(params[0]), {
+        turfId: String(params[1]),
+        sessionId: typeof params[2] === 'string' ? params[2] : null,
+        createdAt: String(params[3]),
+        updatedAt: String(params[4]),
+        addressText: typeof params[5] === 'string' ? params[5] : null,
+        noteText: String(params[6])
+      });
       return;
     }
     throw new Error(`Unexpected SQL in runAsync: ${source}`);
@@ -79,6 +109,19 @@ const databaseMock = {
           state_json: stateJson
         }));
     }
+    if (source.includes('FROM session_notes')) {
+      return Array.from(dbState.sessionNotes.entries())
+        .sort((a, b) => b[1].createdAt.localeCompare(a[1].createdAt))
+        .map(([id, value]) => ({
+          id,
+          turf_id: value.turfId,
+          session_id: value.sessionId,
+          created_at: value.createdAt,
+          updated_at: value.updatedAt,
+          address_text: value.addressText,
+          note_text: value.noteText
+        }));
+    }
     throw new Error(`Unexpected SQL in getAllAsync: ${source}`);
   })
 };
@@ -90,20 +133,24 @@ vi.mock('expo-sqlite', () => ({
 import {
   clearAppCache,
   clearSession,
+  deleteSessionNote,
   loadAddressState,
   loadQueue,
+  loadSessionNotes,
   loadSession,
+  saveSessionNote,
   saveAddressState,
   saveQueue,
   saveSession
 } from './storage';
-import type { AddressState, QueuedVisit, User } from './types';
+import type { AddressState, QueuedVisit, SessionNote, User } from './types';
 
 describe('mobile storage helpers', () => {
   beforeEach(() => {
     dbState.kv.clear();
     dbState.queue.clear();
     dbState.addressState.clear();
+    dbState.sessionNotes.clear();
     vi.clearAllMocks();
   });
 
@@ -211,5 +258,25 @@ describe('mobile storage helpers', () => {
 
     expect(await loadQueue()).toEqual([]);
     expect(await loadAddressState()).toEqual({});
+  });
+
+  it('persists and deletes in-session notes in SQLite', async () => {
+    const note: SessionNote = {
+      id: 'note-1',
+      turfId: 'turf-1',
+      sessionId: 'session-1',
+      createdAt: '2026-03-30T19:30:00.000Z',
+      updatedAt: '2026-03-30T19:30:00.000Z',
+      addressText: '123 Main St',
+      noteText: 'Back porch light was on'
+    };
+
+    await saveSessionNote(note);
+
+    expect(await loadSessionNotes('turf-1', 'session-1')).toEqual([note]);
+
+    await deleteSessionNote('note-1');
+
+    expect(await loadSessionNotes('turf-1', 'session-1')).toEqual([]);
   });
 });

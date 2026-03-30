@@ -6,6 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Button, Card } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
+import { formatLocalDateTime } from '../../src/lib/datetime';
 import type { RetentionSummary } from '../../src/lib/types';
 
 export default function RetentionPage() {
@@ -74,7 +75,7 @@ export default function RetentionPage() {
             <>
               <div className="muted">
                 Automation: {summary.automation.enabled ? `enabled every ${summary.automation.intervalMinutes} minutes` : 'disabled'}
-                {summary.lastRunAt ? ` • Last run ${new Date(summary.lastRunAt).toLocaleString()}` : ' • No completed cleanup logged yet'}
+                {summary.lastRunAt ? ` • Last run ${formatLocalDateTime(summary.lastRunAt)}` : ' • No completed cleanup logged yet'}
               </div>
               <div className="grid two">
                 {Object.entries(summary.dueNow).map(([key, count]) => (

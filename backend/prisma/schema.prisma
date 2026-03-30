@@ -750,7 +750,7 @@ model OperationalPolicy {
   retentionPurgeDays       Int?          @map("retention_purge_days")
   requireArchiveReason     Boolean       @default(false) @map("require_archive_reason")
   allowOrgOutcomeFallback  Boolean       @default(true) @map("allow_org_outcome_fallback")
-  supervisorScopeMode      SupervisorScopeMode @default(campaign) @map("supervisor_scope_mode")
+  supervisorScopeMode      SupervisorScopeMode @default(team) @map("supervisor_scope_mode")
   createdAt                DateTime      @default(now()) @map("created_at")
   updatedAt                DateTime      @updatedAt @map("updated_at")
   organization             Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)

@@ -67,16 +67,19 @@ export class AdminService {
 
   private scopeWhere(scope: AccessScope) {
     const where = {
-      organizationId: scope.organizationId,
-      ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
+      organizationId: scope.organizationId
     } as Record<string, unknown>;
 
     if (scope.role === UserRole.supervisor) {
-      if (scope.supervisorScopeMode === 'team' && scope.teamId) {
+      if (scope.teamId) {
         where.teamId = scope.teamId;
-      } else if (scope.supervisorScopeMode === 'region' && scope.regionCode) {
+      } else if (scope.regionCode) {
         where.regionCode = scope.regionCode;
+      } else if (scope.campaignId) {
+        where.campaignId = scope.campaignId;
       }
+    } else if (scope.campaignId) {
+      where.campaignId = scope.campaignId;
     }
 
     return where;

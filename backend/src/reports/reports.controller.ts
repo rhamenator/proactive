@@ -23,47 +23,81 @@ export class ReportsController {
 
   private async withScope(user: JwtUserPayload, query: ReportFiltersDto) {
     const scope = await resolveAccessScope(user, this.usersService, this.policiesService);
+    const defaultTeamId =
+      scope.role === UserRole.supervisor || scope.role === UserRole.canvasser ? scope.teamId ?? undefined : undefined;
+    const defaultRegionCode =
+      scope.role === UserRole.supervisor && !scope.teamId ? scope.regionCode ?? undefined : undefined;
+
     return {
       ...query,
       organizationId: scope.organizationId,
-      campaignId: query.campaignId ?? scope.campaignId ?? undefined,
-      teamId: query.teamId ?? (scope.role === UserRole.supervisor && scope.supervisorScopeMode === 'team' ? scope.teamId ?? undefined : undefined),
-      regionCode: query.regionCode ?? (scope.role === UserRole.supervisor && scope.supervisorScopeMode === 'region' ? scope.regionCode ?? undefined : undefined)
+      campaignId: query.campaignId ?? undefined,
+      teamId: query.teamId ?? defaultTeamId,
+      regionCode: query.regionCode ?? defaultRegionCode
     };
   }
 
   @Get('overview')
+  @Roles(UserRole.admin, UserRole.supervisor)
   async overview(@CurrentUser() user: JwtUserPayload, @Query() query: ReportFiltersDto) {
     return this.reportsService.getOverview(await this.withScope(user, query));
   }
 
   @Get('productivity')
+  @Roles(UserRole.admin, UserRole.supervisor)
   async productivity(@CurrentUser() user: JwtUserPayload, @Query() query: ReportFiltersDto) {
     return this.reportsService.getProductivity(await this.withScope(user, query));
   }
 
   @Get('gps-exceptions')
+  @Roles(UserRole.admin, UserRole.supervisor)
   async gpsExceptions(@CurrentUser() user: JwtUserPayload, @Query() query: ReportFiltersDto) {
     return this.reportsService.getGpsExceptions(await this.withScope(user, query));
   }
 
   @Get('audit-activity')
+  @Roles(UserRole.admin, UserRole.supervisor)
   async auditActivity(@CurrentUser() user: JwtUserPayload, @Query() query: ReportFiltersDto) {
     return this.reportsService.getAuditActivity(await this.withScope(user, query));
   }
 
   @Get('trends')
+  @Roles(UserRole.admin, UserRole.supervisor)
   async trends(@CurrentUser() user: JwtUserPayload, @Query() query: ReportFiltersDto) {
     return this.reportsService.getTrendSummary(await this.withScope(user, query));
   }
 
   @Get('resolved-conflicts')
+  @Roles(UserRole.admin, UserRole.supervisor)
   async resolvedConflicts(@CurrentUser() user: JwtUserPayload, @Query() query: ReportFiltersDto) {
     return this.reportsService.getResolvedConflicts(await this.withScope(user, query));
   }
 
   @Get('export-batches')
+  @Roles(UserRole.admin, UserRole.supervisor)
   async exportBatches(@CurrentUser() user: JwtUserPayload, @Query() query: ReportFiltersDto) {
     return this.reportsService.getExportBatchAnalytics(await this.withScope(user, query));
+  }
+
+  @Get('my-performance')
+  @Roles(UserRole.admin, UserRole.supervisor, UserRole.canvasser)
+  async myPerformance(@CurrentUser() user: JwtUserPayload, @Query() query: ReportFiltersDto) {
+    const filters = await this.withScope(user, query);
+    const canvasserFilters = {
+      ...filters,
+      canvasserId: user.sub
+    };
+
+    const [overview, productivity, trends] = await Promise.all([
+      this.reportsService.getOverview(canvasserFilters),
+      this.reportsService.getProductivity(canvasserFilters),
+      this.reportsService.getTrendSummary(canvasserFilters)
+    ]);
+
+    return {
+      overview,
+      productivity: productivity.rows[0] ?? null,
+      trends
+    };
   }
 }

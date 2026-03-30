@@ -132,7 +132,15 @@ export class ReportsService {
 
   private getRange(filters: ReportFilters) {
     const from = filters.dateFrom ? new Date(filters.dateFrom) : null;
-    const to = filters.dateTo ? new Date(filters.dateTo) : null;
+    // A date-only string (YYYY-MM-DD) parses as UTC midnight, which is the start
+    // of that day, not the end. Snap date-only dateTo values to end-of-day UTC so
+    // that selecting the same date for both bounds returns the full day's visits.
+    let to: Date | null = null;
+    if (filters.dateTo) {
+      to = /^\d{4}-\d{2}-\d{2}$/.test(filters.dateTo)
+        ? new Date(`${filters.dateTo}T23:59:59.999Z`)
+        : new Date(filters.dateTo);
+    }
     return { from, to };
   }
 
@@ -174,15 +182,10 @@ export class ReportsService {
       return { impossible: true as const };
     }
 
-    const policy = await this.policiesService.getEffectivePolicy({
-      organizationId: supervisor.organizationId,
-      campaignId: supervisor.campaignId
-    });
-
-    if (policy.supervisorScopeMode === 'team' && supervisor.teamId) {
+    if (supervisor.teamId) {
       return { teamId: supervisor.teamId };
     }
-    if (policy.supervisorScopeMode === 'region' && supervisor.regionCode) {
+    if (supervisor.regionCode) {
       return { regionCode: supervisor.regionCode };
     }
     if (supervisor.campaignId) {
@@ -357,6 +360,32 @@ export class ReportsService {
     return this.applySupervisorConstraints(where, await this.resolveSupervisorConstraints(filters), filters) as Prisma.AuditLogWhereInput;
   }
 
+  private async loadVisitAttemptHistory(visits: Array<Pick<ReportVisit, 'id' | 'turfId' | 'addressId' | 'visitTime'>>) {
+    if (visits.length === 0) {
+      return [];
+    }
+
+    const pairs = Array.from(new Map(visits.map((visit) => [`${visit.turfId}:${visit.addressId}`, visit])).values());
+
+    return this.prisma.visitLog.findMany({
+      where: {
+        deletedAt: null,
+        syncStatus: { not: SyncStatus.conflict },
+        syncConflictFlag: false,
+        OR: pairs.map((visit) => ({
+          turfId: visit.turfId,
+          addressId: visit.addressId
+        }))
+      },
+      select: {
+        id: true,
+        turfId: true,
+        addressId: true,
+        visitTime: true
+      }
+    });
+  }
+
   private async loadVisits(filters: ReportFilters): Promise<ReportVisit[]> {
     return this.prisma.visitLog.findMany({
       where: await this.buildVisitWhere(filters),
@@ -490,7 +519,7 @@ export class ReportsService {
         }
       })
     ]);
-    const visits = attachVisitAttemptMetrics(loadedVisits);
+    const visits = attachVisitAttemptMetrics(loadedVisits, await this.loadVisitAttemptHistory(loadedVisits));
 
     const productivitySummary = new Map<
       string,
@@ -653,7 +682,7 @@ export class ReportsService {
 
   async getProductivity(filters: ReportFilters) {
     const [loadedVisits, sessions] = await Promise.all([this.loadVisits(filters), this.loadSessions(filters)]);
-    const visits = attachVisitAttemptMetrics(loadedVisits);
+    const visits = attachVisitAttemptMetrics(loadedVisits, await this.loadVisitAttemptHistory(loadedVisits));
     const rows = new Map<
       string,
       {
@@ -766,7 +795,8 @@ export class ReportsService {
   }
 
   async getGpsExceptions(filters: ReportFilters) {
-    const visits = attachVisitAttemptMetrics(await this.loadVisits(filters));
+    const loadedVisits = await this.loadVisits(filters);
+    const visits = attachVisitAttemptMetrics(loadedVisits, await this.loadVisitAttemptHistory(loadedVisits));
     const exceptionVisits = visits.filter(
       (visit) =>
         visit.gpsStatus === 'flagged' ||
@@ -928,7 +958,8 @@ export class ReportsService {
   }
 
   async getTrendSummary(filters: ReportFilters) {
-    const visits = attachVisitAttemptMetrics(await this.loadVisits(filters));
+    const loadedVisits = await this.loadVisits(filters);
+    const visits = attachVisitAttemptMetrics(loadedVisits, await this.loadVisitAttemptHistory(loadedVisits));
     const byDay = new Map<string, { visits: number; contactsMade: number; addresses: Set<string> }>();
     const byOutcome = new Map<string, { outcomeCode: string; outcomeLabel: string; total: number }>();
     const byTimeOfDay = new Map<string, number>();
@@ -973,6 +1004,7 @@ export class ReportsService {
 
     return {
       filters: this.normalizeFilters(filters),
+      bucketTimeZone: 'UTC',
       summary: {
         days: byDay.size,
         totalVisits: visits.length,

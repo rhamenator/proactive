@@ -6,6 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuthedApi } from '../../src/lib/auth-context';
+import { formatLocalDateTime } from '../../src/lib/datetime';
 import type { DashboardSummary } from '../../src/lib/types';
 
 export default function DashboardPage() {
@@ -85,7 +86,7 @@ export default function DashboardPage() {
                       <Badge tone="success">{session.turf.name}</Badge>
                     </div>
                     <p className="muted muted-no-bottom">
-                      Started {new Date(session.startTime).toLocaleString()}
+                      Started {formatLocalDateTime(session.startTime)}
                     </p>
                   </div>
                 ))}

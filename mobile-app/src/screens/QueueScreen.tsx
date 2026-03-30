@@ -6,6 +6,7 @@ import { Pill } from '../components/Pill';
 import { Screen } from '../components/Screen';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, typography } from '../theme';
+import { formatLocalDateTime } from '../utils/datetime';
 
 export function QueueScreen() {
   const { queue, syncQueue, isSyncing, isOnline } = useApp();
@@ -44,14 +45,17 @@ export function QueueScreen() {
             </Text>
             <Text style={styles.meta}>Result: {formatResult(item.payload.outcomeCode)}</Text>
             <Text style={styles.meta}>
-              Saved: {new Date(item.createdAt).toLocaleString()}
+              Saved: {formatLocalDateTime(item.createdAt)}
             </Text>
             <Text style={styles.meta}>
-              Client time: {new Date(item.payload.clientCreatedAt).toLocaleString()}
+              Client time: {formatLocalDateTime(item.payload.clientCreatedAt)}
             </Text>
             <Text style={styles.meta}>
               GPS accuracy: {formatAccuracy(item.payload.accuracyMeters)}
             </Text>
+            {item.syncConflictReason ? (
+              <Text style={styles.meta}>Conflict reason: {formatResult(item.syncConflictReason)}</Text>
+            ) : null}
           </Card>
         )}
         ListEmptyComponent={

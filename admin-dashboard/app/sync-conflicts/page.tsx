@@ -6,6 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, TextArea } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
+import { formatLocalDateTime } from '../../src/lib/datetime';
 import type { SyncConflictItem } from '../../src/lib/types';
 
 export default function SyncConflictsPage() {
@@ -102,7 +103,7 @@ export default function SyncConflictsPage() {
                 Source: {item.source.replace('_', ' ')}
               </div>
               <div className="muted">
-                Visit time: {new Date(item.visitTime).toLocaleString()}
+                Visit time: {formatLocalDateTime(item.visitTime)}
               </div>
               {item.localRecordUuid ? <div className="muted">Local record UUID: {item.localRecordUuid}</div> : null}
               {item.idempotencyKey ? <div className="muted">Idempotency key: {item.idempotencyKey}</div> : null}

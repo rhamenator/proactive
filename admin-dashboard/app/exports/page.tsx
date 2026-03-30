@@ -6,6 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Select } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
+import { formatLocalDateTime } from '../../src/lib/datetime';
 import type { CsvProfileRecord, ExportBatchRecord, OperationalPolicyRecord, TurfListItem } from '../../src/lib/types';
 
 function profileOptionKey(profile: Pick<CsvProfileRecord, 'direction' | 'code' | 'campaignId'>) {
@@ -262,7 +263,7 @@ export default function ExportsPage() {
                     {batch._count ? ` • ${batch._count.exportedVisits} traceable visits` : ''}
                   </p>
                   <p className="muted">
-                    {new Date(batch.createdAt).toLocaleString()}
+                    {formatLocalDateTime(batch.createdAt)}
                     {batch.initiatedByUser
                       ? ` • ${batch.initiatedByUser.firstName} ${batch.initiatedByUser.lastName}`.trim()
                       : ''}
@@ -272,7 +273,7 @@ export default function ExportsPage() {
                     {batch.campaignId ? ` • Campaign: ${batch.campaignId}` : ''}
                     {batch.sha256Checksum ? ` • Checksum: ${batch.sha256Checksum.slice(0, 12)}...` : ''}
                     {batch.artifactPurgedAt
-                      ? ` • Artifact purged ${new Date(batch.artifactPurgedAt).toLocaleString()}`
+                      ? ` • Artifact purged ${formatLocalDateTime(batch.artifactPurgedAt)}`
                       : batch.csvContent
                         ? ' • Artifact stored'
                         : ' • Metadata only'}

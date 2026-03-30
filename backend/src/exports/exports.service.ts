@@ -68,6 +68,39 @@ export class ExportsService {
     });
   }
 
+  private async loadVisitAttemptHistory(
+    visits: Array<{
+      id: string;
+      turfId: string;
+      addressId: string;
+      visitTime: Date;
+    }>
+  ) {
+    if (visits.length === 0) {
+      return [];
+    }
+
+    const pairs = Array.from(new Map(visits.map((visit) => [`${visit.turfId}:${visit.addressId}`, visit])).values());
+
+    return this.prisma.visitLog.findMany({
+      where: {
+        deletedAt: null,
+        syncStatus: { not: 'conflict' },
+        syncConflictFlag: false,
+        OR: pairs.map((visit) => ({
+          turfId: visit.turfId,
+          addressId: visit.addressId
+        }))
+      },
+      select: {
+        id: true,
+        turfId: true,
+        addressId: true,
+        visitTime: true
+      }
+    });
+  }
+
   private checksum(csv: string) {
     return createHash('sha256').update(csv).digest('hex');
   }
@@ -242,7 +275,8 @@ export class ExportsService {
       campaignId: scope.campaignId ?? null
     });
     const profileSettings = this.profileSettings(profile.settingsJson);
-    const visits = attachVisitAttemptMetrics(await this.fetchVisits(options));
+    const loadedVisits = await this.fetchVisits(options);
+    const visits = attachVisitAttemptMetrics(loadedVisits, await this.loadVisitAttemptHistory(loadedVisits));
     const baseRows = visits.map((visit) => ({
       van_id: visit.address.vanId ?? '',
       address_line1: visit.address.addressLine1,
@@ -255,7 +289,7 @@ export class ExportsService {
       result: visit.result,
       contact_made: visit.contactMade ? 'true' : 'false',
       notes: visit.notes ?? '',
-      time_zone: 'America/Detroit',
+      time_zone: 'UTC',
       gps_status: visit.gpsStatus,
       latitude: visit.latitude?.toString() ?? '',
       longitude: visit.longitude?.toString() ?? '',
@@ -354,10 +388,11 @@ export class ExportsService {
       campaignId: scope.campaignId ?? null
     });
     const profileSettings = this.profileSettings(profile.settingsJson);
-    const visits = attachVisitAttemptMetrics(await this.fetchVisits({
+    const loadedVisits = await this.fetchVisits({
       ...options,
       markExported: false
-    }));
+    });
+    const visits = attachVisitAttemptMetrics(loadedVisits, await this.loadVisitAttemptHistory(loadedVisits));
     const baseRows = visits.map((visit) => ({
       visit_id: visit.id,
       organization_id: visit.organizationId ?? '',

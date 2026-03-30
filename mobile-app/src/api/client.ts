@@ -4,6 +4,7 @@ import type {
   LoginResponse,
   OutcomeDefinition,
   RecentVisitRecord,
+  SelfPerformanceReport,
   TurfSnapshot,
   VisitSubmission
 } from '../types';
@@ -176,6 +177,36 @@ export const api = {
   myAddressRequests(token: string) {
     return request<AddressRequestRecord[]>('/address-requests/mine', {}, token);
   },
+
+  myPerformance(
+    token: string,
+    filters?: {
+      dateFrom?: string;
+      dateTo?: string;
+      campaignId?: string;
+      gpsStatus?: string;
+    }
+  ) {
+    const params = new URLSearchParams();
+    if (filters?.dateFrom) {
+      params.set('dateFrom', filters.dateFrom);
+    }
+    if (filters?.dateTo) {
+      params.set('dateTo', filters.dateTo);
+    }
+    if (filters?.campaignId) {
+      params.set('campaignId', filters.campaignId);
+    }
+    if (filters?.gpsStatus) {
+      params.set('gpsStatus', filters.gpsStatus);
+    }
+
+    return request<SelfPerformanceReport>(
+      `/reports/my-performance${params.toString() ? `?${params.toString()}` : ''}`,
+      {},
+      token
+    );
+  },
 };
 
 export function getApiBaseUrl() {
@@ -187,7 +218,7 @@ export function isApiError(error: unknown) {
 }
 
 export function getSyncStatusForError(error: unknown) {
-  if (isApiError(error) && error.status === 409) {
+  if (getConflictReason(error)) {
     return 'conflict' as const;
   }
 
@@ -203,8 +234,22 @@ export function getConflictReason(error: unknown) {
     | {
         message?: { syncConflictReason?: string | null } | string;
         syncConflictReason?: string | null;
+        syncConflictFlag?: boolean;
+        syncStatus?: string | null;
       }
     | null;
+
+  if (payload?.syncConflictFlag !== true && payload?.syncStatus !== 'conflict') {
+    const nestedMessage =
+      payload?.message && typeof payload.message === 'object' ? payload.message : null;
+
+    if (
+      typeof payload?.syncConflictReason !== 'string' &&
+      typeof nestedMessage?.syncConflictReason !== 'string'
+    ) {
+      return null;
+    }
+  }
 
   if (typeof payload?.syncConflictReason === 'string' && payload.syncConflictReason.trim()) {
     return payload.syncConflictReason;
@@ -219,7 +264,11 @@ export function getConflictReason(error: unknown) {
     return payload.message.syncConflictReason;
   }
 
-  return 'conflict';
+  if (payload?.syncConflictFlag === true || payload?.syncStatus === 'conflict') {
+    return 'conflict';
+  }
+
+  return null;
 }
 
 export function getErrorMessage(error: unknown) {

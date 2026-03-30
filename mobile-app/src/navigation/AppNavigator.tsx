@@ -9,7 +9,9 @@ import { AddressListScreen } from '../screens/AddressListScreen';
 import { AddressRequestScreen } from '../screens/AddressRequestScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { LoginScreen } from '../screens/LoginScreen';
+import { PerformanceScreen } from '../screens/PerformanceScreen';
 import { QueueScreen } from '../screens/QueueScreen';
+import { SessionNotesScreen } from '../screens/SessionNotesScreen';
 
 export type RootStackParamList = {
   Dashboard: undefined;
@@ -17,6 +19,8 @@ export type RootStackParamList = {
   AddressDetail: { addressId: string };
   AddressRequest: undefined;
   Queue: undefined;
+  SessionNotes: undefined;
+  Performance: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -90,6 +94,8 @@ export function AppNavigator() {
         />
         <Stack.Screen name="AddressRequest" component={AddressRequestScreen} options={{ title: 'Request Address' }} />
         <Stack.Screen name="Queue" component={QueueScreen} options={{ title: 'Sync Queue' }} />
+        <Stack.Screen name="SessionNotes" component={SessionNotesScreen} options={{ title: 'Session Notes' }} />
+        <Stack.Screen name="Performance" component={PerformanceScreen} options={{ title: 'My Performance' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

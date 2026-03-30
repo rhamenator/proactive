@@ -73,10 +73,6 @@ export class ImportsService {
       throw new BadRequestException('Team not found');
     }
 
-    if (campaignId && team.campaignId && team.campaignId !== campaignId) {
-      throw new BadRequestException('Team is outside the requested campaign scope');
-    }
-
     return team;
   }
 
@@ -159,7 +155,7 @@ export class ImportsService {
 
     const team = await this.validateTeamScope(creator.organizationId ?? null, creator.campaignId ?? null, input.teamId);
     const regionCode = input.regionCode?.trim() || team?.regionCode || null;
-    const effectiveCampaignId = creator.campaignId ?? team?.campaignId ?? null;
+    const effectiveCampaignId = team?.campaignId ?? creator.campaignId ?? null;
     const policy = await this.policiesService.getEffectivePolicy({
       organizationId: creator.organizationId,
       campaignId: effectiveCampaignId
