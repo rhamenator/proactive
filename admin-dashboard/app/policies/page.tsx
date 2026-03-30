@@ -55,7 +55,7 @@ function toForm(policy: OperationalPolicyRecord): PolicyForm {
 }
 
 export default function PoliciesPage() {
-  const { user } = useAuth();
+  const { user, runSensitiveAction } = useAuth();
   const api = useAuthedApi();
   const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
@@ -128,7 +128,7 @@ export default function PoliciesPage() {
     setMessage(null);
 
     try {
-      const updated = await api.updateOperationalPolicy({
+      const payload = {
         campaignId: selectedCampaignId || null,
         defaultImportMode: form.defaultImportMode,
         defaultDuplicateStrategy: form.defaultDuplicateStrategy,
@@ -149,7 +149,8 @@ export default function PoliciesPage() {
         retentionPurgeDays: form.retentionPurgeDays ? Number(form.retentionPurgeDays) : null,
         requireArchiveReason: form.requireArchiveReason,
         allowOrgOutcomeFallback: form.allowOrgOutcomeFallback
-      });
+      };
+      const updated = await runSensitiveAction('save policy changes', (freshApi) => freshApi.updateOperationalPolicy(payload));
       setPolicy(updated);
       setForm(toForm(updated));
       setMessage(`Policy saved for ${selectedCampaignId ? 'the selected campaign override' : 'the organization default'}.`);

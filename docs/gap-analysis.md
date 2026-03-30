@@ -106,7 +106,7 @@ Current state:
 - login MFA is enforced for admins and supervisors
 - backup codes exist and account-level MFA management exists
 - sensitive actions such as export generation, GPS overrides, turf reassignment/reopen, and conflict resolution now require a fresh MFA step-up challenge
-- the freshness window, canvasser correction window, attempt limits, GPS/geofence thresholds, auth/recovery timing, import defaults, retention defaults, and org-outcome fallback behavior are now editable through scoped operational policy records and the dashboard policy page
+- the freshness window, canvasser correction window, attempt limits, GPS/geofence thresholds, auth/recovery timing, import defaults, retention defaults, and org-outcome fallback behavior are now editable through scoped operational policy records and the dashboard policy page, and policy edits themselves are protected by fresh MFA and audit logging
 
 Why it matters:
 

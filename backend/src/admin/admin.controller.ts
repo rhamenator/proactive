@@ -109,11 +109,12 @@ export class AdminController {
   }
 
   @Put('policies')
+  @RequireFreshMfa()
   async upsertOperationalPolicy(
     @Body() body: UpsertOperationalPolicyDto,
     @CurrentUser() user: JwtUserPayload
   ) {
-    return this.adminService.upsertOperationalPolicy(await this.resolveScope(user), body);
+    return this.adminService.upsertOperationalPolicy(await this.resolveScope(user), body, user.sub);
   }
 
   @Post('outcomes')

@@ -286,6 +286,6 @@ describe('AdminController', () => {
       defaultImportMode: 'upsert',
       defaultDuplicateStrategy: 'merge',
       sensitiveMfaWindowMinutes: 15
-    });
+    }, 'admin-1');
   });
 });

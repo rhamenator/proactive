@@ -146,6 +146,50 @@ describe('AdminService', () => {
     expect(cleanup.skipped).toBe(false);
   });
 
+  it('audits operational policy updates with before/after values', async () => {
+    const currentPolicy = {
+      organizationId: 'org-1',
+      campaignId: null,
+      sourceScope: 'organization',
+      explicitRecord: true,
+      inheritedFromOrganization: false,
+      defaultImportMode: 'replace_turf_membership',
+      defaultDuplicateStrategy: 'skip',
+      sensitiveMfaWindowMinutes: 5
+    };
+    const updatedPolicy = {
+      ...currentPolicy,
+      defaultImportMode: 'upsert',
+      sensitiveMfaWindowMinutes: 15
+    };
+    policiesService.getManageablePolicy.mockResolvedValue(currentPolicy);
+    policiesService.upsertPolicy.mockResolvedValue(updatedPolicy);
+
+    const result = await service.upsertOperationalPolicy(
+      scope,
+      {
+        defaultImportMode: 'upsert',
+        sensitiveMfaWindowMinutes: 15
+      },
+      'admin-1'
+    );
+
+    expect(policiesService.getManageablePolicy).toHaveBeenCalledWith(scope, null);
+    expect(policiesService.upsertPolicy).toHaveBeenCalledWith(scope, {
+      defaultImportMode: 'upsert',
+      sensitiveMfaWindowMinutes: 15
+    });
+    expect(auditService.log).toHaveBeenCalledWith({
+      actorUserId: 'admin-1',
+      actionType: 'operational_policy_updated',
+      entityType: 'operational_policy',
+      entityId: 'org-1:org',
+      oldValuesJson: currentPolicy,
+      newValuesJson: updatedPolicy
+    });
+    expect(result).toBe(updatedPolicy);
+  });
+
   it('lists only field users with supervisor and canvasser roles', async () => {
     prisma.user.findMany.mockResolvedValue([{ id: 'user-1', role: UserRole.supervisor }]);
 

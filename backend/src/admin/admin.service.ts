@@ -276,9 +276,22 @@ export class AdminService {
       retentionPurgeDays?: number | null;
       requireArchiveReason?: boolean;
       allowOrgOutcomeFallback?: boolean;
-    }
+    },
+    actorUserId: string
   ) {
-    return this.policiesService.upsertPolicy(scope, input);
+    const current = await this.policiesService.getManageablePolicy(scope, input.campaignId ?? null);
+    const updated = await this.policiesService.upsertPolicy(scope, input);
+
+    await this.auditService.log({
+      actorUserId,
+      actionType: 'operational_policy_updated',
+      entityType: 'operational_policy',
+      entityId: `${updated.organizationId ?? 'global'}:${updated.campaignId ?? 'org'}`,
+      oldValuesJson: current,
+      newValuesJson: updated
+    });
+
+    return updated;
   }
 
   async archiveFieldUser(input: {
