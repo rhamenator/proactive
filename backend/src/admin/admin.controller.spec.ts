@@ -23,6 +23,8 @@ describe('AdminController', () => {
     activeCanvassers: jest.fn(),
     listCanvassers: jest.fn(),
     listCampaigns: jest.fn(),
+    listCsvProfiles: jest.fn(),
+    csvProfileTemplate: jest.fn(),
     listOutcomeDefinitions: jest.fn(),
     getOperationalPolicy: jest.fn(),
     getSystemSettings: jest.fn(),
@@ -93,6 +95,7 @@ describe('AdminController', () => {
     await controller.activeCanvassers(user);
     await controller.listCanvassers(user);
     await controller.listCampaigns(user);
+    await controller.listCsvProfiles(user, 'import' as never);
     await controller.listOutcomeDefinitions(user);
     await controller.getOperationalPolicy(user);
     await controller.getSystemSettings();
@@ -104,6 +107,7 @@ describe('AdminController', () => {
     expect(adminService.activeCanvassers).toHaveBeenCalledWith(expect.objectContaining(scope));
     expect(adminService.listCanvassers).toHaveBeenCalledWith(expect.objectContaining(scope));
     expect(adminService.listCampaigns).toHaveBeenCalledWith(expect.objectContaining(scope));
+    expect(adminService.listCsvProfiles).toHaveBeenCalledWith(expect.objectContaining(scope), 'import', null);
     expect(adminService.listOutcomeDefinitions).toHaveBeenCalledWith(expect.objectContaining(scope));
     expect(adminService.getOperationalPolicy).toHaveBeenCalledWith(expect.objectContaining(scope), null);
     expect(adminService.getSystemSettings).toHaveBeenCalled();
@@ -124,6 +128,34 @@ describe('AdminController', () => {
     await controller.runRetentionCleanup(user);
 
     expect(adminService.runRetentionCleanup).toHaveBeenCalledWith(expect.objectContaining(scope), 'admin-1');
+  });
+
+  it('downloads CSV profile templates through the admin service', async () => {
+    adminService.csvProfileTemplate.mockResolvedValue({
+      filename: 'van_standard-template.csv',
+      csv: '\uFEFFaddress_line1,city,state\n'
+    });
+    const response = {
+      setHeader: jest.fn(),
+      send: jest.fn()
+    };
+    const user = {
+      sub: 'admin-1',
+      email: 'admin@example.com',
+      role: UserRole.admin,
+      organizationId: 'org-1',
+      campaignId: null
+    };
+
+    await controller.downloadCsvProfileTemplate(user, 'import' as never, 'van_standard', undefined, response as never);
+
+    expect(adminService.csvProfileTemplate).toHaveBeenCalledWith(expect.objectContaining(scope), {
+      direction: 'import',
+      code: 'van_standard',
+      campaignId: null
+    });
+    expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
+    expect(response.send).toHaveBeenCalledWith('\uFEFFaddress_line1,city,state\n');
   });
 
   it('delegates create, invite, and update field-user flows', async () => {

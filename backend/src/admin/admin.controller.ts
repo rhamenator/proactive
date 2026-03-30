@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { CsvProfileDirection, UserRole } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -137,6 +138,32 @@ export class AdminController {
     }
 
     return this.adminService.listCsvProfiles(await this.resolveScope(user), direction, campaignId ?? null);
+  }
+
+  @Get('csv-profiles/template')
+  @Roles(UserRole.admin, UserRole.supervisor)
+  async downloadCsvProfileTemplate(
+    @CurrentUser() user: JwtUserPayload,
+    @Query('direction') direction: CsvProfileDirection,
+    @Query('code') code: string,
+    @Query('campaignId') campaignId: string | undefined,
+    @Res() response: Response
+  ) {
+    if (direction !== CsvProfileDirection.import && direction !== CsvProfileDirection.export) {
+      throw new BadRequestException('direction must be import or export');
+    }
+    if (!code?.trim()) {
+      throw new BadRequestException('code is required');
+    }
+
+    const result = await this.adminService.csvProfileTemplate(await this.resolveScope(user), {
+      direction,
+      code: code.trim(),
+      campaignId: campaignId ?? null
+    });
+    response.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    response.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    return response.send(result.csv);
   }
 
   @Get('retention-summary')

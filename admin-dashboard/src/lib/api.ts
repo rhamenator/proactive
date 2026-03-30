@@ -351,6 +351,15 @@ export function createApiClient(token?: string | null) {
         method: 'DELETE'
       }, token);
     },
+    downloadCsvProfileTemplate(direction: CsvProfileDirection, code: string, campaignId?: string | null) {
+      const params = new URLSearchParams();
+      params.set('direction', direction);
+      params.set('code', code);
+      if (campaignId) {
+        params.set('campaignId', campaignId);
+      }
+      return requestBlob(`/admin/csv-profiles/template?${params.toString()}`, token);
+    },
     listTeams() {
       return requestJson<TeamRecord[]>('/admin/teams', {}, token);
     },

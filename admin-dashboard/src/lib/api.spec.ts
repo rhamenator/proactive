@@ -333,6 +333,30 @@ describe('admin api client', () => {
     expect(result.rowsReady).toBe(2);
   });
 
+  it('downloads CSV profile templates', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(new Blob(['address_line1,city,state\n']), {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': 'attachment; filename="van_standard-template.csv"'
+        }
+      })
+    );
+
+    const result = await createApiClient('token-123').downloadCsvProfileTemplate('import', 'van_standard');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/admin/csv-profiles/template?direction=import&code=van_standard',
+      {
+        headers: {
+          Authorization: 'Bearer token-123'
+        }
+      }
+    );
+    expect(result.filename).toBe('van_standard-template.csv');
+  });
+
   it('lists and downloads import history', async () => {
     fetchMock
       .mockResolvedValueOnce(

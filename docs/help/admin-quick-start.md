@@ -60,8 +60,9 @@ If login fails, see [Troubleshooting](/home/rich/dev/proactive/docs/help/trouble
 1. Open `CSV Profiles`.
 2. Choose whether you are editing an import profile or export profile.
 3. Select the organization default scope or a campaign-specific override scope.
-4. Update the mapping JSON and settings JSON for the target profile.
-5. Save the override, or reset a scoped override to fall back to the inherited or built-in definition.
+4. Use `Download Template` when you need the current expected CSV shape for that profile.
+5. Update the mapping JSON and settings JSON for the target profile.
+6. Save the override, or reset a scoped override to fall back to the inherited or built-in definition.
 
 Expected minimum address data:
 

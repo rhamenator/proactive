@@ -79,6 +79,7 @@ export default function CsvProfilesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingCode, setDeletingCode] = useState<string | null>(null);
+  const [downloadingCode, setDownloadingCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -229,6 +230,27 @@ export default function CsvProfilesPage() {
       setError(getErrorMessage(value));
     } finally {
       setDeletingCode(null);
+    }
+  }
+
+  async function handleDownloadTemplate(profile: CsvProfileRecord) {
+    setDownloadingCode(profile.code);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const result = await api.downloadCsvProfileTemplate(profile.direction, profile.code, profile.campaignId ?? null);
+      const url = URL.createObjectURL(result.blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = result.filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Template downloaded as ${result.filename}.`);
+    } catch (value) {
+      setError(getErrorMessage(value));
+    } finally {
+      setDownloadingCode(null);
     }
   }
 
@@ -473,6 +495,14 @@ export default function CsvProfilesPage() {
                         </div>
 
                         <div className="inline-actions">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => void handleDownloadTemplate(profile)}
+                            disabled={downloadingCode === profile.code}
+                          >
+                            {downloadingCode === profile.code ? 'Downloading...' : 'Download Template'}
+                          </Button>
                           <Button
                             type="button"
                             variant={current.isActive ? 'secondary' : 'ghost'}

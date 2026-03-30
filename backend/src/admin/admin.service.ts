@@ -420,6 +420,24 @@ export class AdminService {
     return this.csvProfilesService.listProfiles(targetScope, direction, targetScope.campaignId ?? null);
   }
 
+  async csvProfileTemplate(
+    scope: AccessScope,
+    input: { direction: CsvProfileDirection; code: string; campaignId?: string | null }
+  ) {
+    const targetScope = await this.policiesService.resolveTargetScope(scope, input.campaignId ?? null);
+    const profile = await this.csvProfilesService.resolveProfile({
+      direction: input.direction,
+      code: input.code,
+      organizationId: targetScope.organizationId,
+      campaignId: targetScope.campaignId ?? null
+    });
+    const csv = this.csvProfilesService.buildTemplateCsv(profile);
+    return {
+      filename: `${profile.code}-template.csv`,
+      csv
+    };
+  }
+
   async retentionSummary(scope: AccessScope) {
     return this.retentionService.getSummary(scope);
   }

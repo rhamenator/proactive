@@ -18,6 +18,7 @@ The application suite has been built and brought to a review-ready state across 
   - Requested-address submission and review workflow
   - Dedicated CSV import service with create-only, upsert, and replace-membership modes; duplicate skip/error/merge/review handling; expanded VAN/person/household/unit mapping; batch history; downloadable source artifacts; row-level import tracing; reviewer resolution for deferred duplicate rows; and configurable import profiles with organization/campaign overrides
   - Pre-import CSV preview that validates the selected profile, headers, fallback turf usage, and sample row readiness before data is committed
+  - Downloadable CSV templates generated from the active import/export profiles so operators can get the current expected file shape directly from the system
   - Reporting endpoints for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
   - VAN export, internal master export, export batch history, historical CSV re-download, row-traceable export artifacts, and configurable export profiles with policy-driven default profile selection
 
@@ -31,6 +32,7 @@ The application suite has been built and brought to a review-ready state across 
   - Sensitive-action MFA confirmation flow for exports, overrides, conflict resolution, and turf control changes
   - Policy management for configurable operational defaults such as field visit/GPS thresholds, auth/recovery timing, import behavior, MFA freshness, retention planning, and organization outcome fallback, with step-up MFA required for policy edits and explicit overrides that can be cleared back to inherited defaults
   - CSV profile management for import/export mappings and settings, including organization/campaign overrides and policy-selected default profile codes
+  - Profile-template downloads from the CSV Profiles screen for the current import or export shape
   - Supervisor scope configuration across campaign, team, and region modes
   - System-wide settings management for deployment-level auth throttling and retention automation timing, with step-up MFA required for save/reset actions
   - Retention summary and manual cleanup workflow for purgeable artifacts and expired credential records

@@ -67,6 +67,8 @@ describe('AdminService', () => {
   };
   const csvProfilesService = {
     listProfiles: jest.fn(),
+    resolveProfile: jest.fn(),
+    buildTemplateCsv: jest.fn(),
     upsertProfile: jest.fn(),
     clearProfile: jest.fn()
   };
@@ -168,6 +170,32 @@ describe('AdminService', () => {
     });
     expect(summary.dueNow.importBatches).toBe(2);
     expect(cleanup.skipped).toBe(false);
+  });
+
+  it('renders CSV profile templates through the CSV profile service', async () => {
+    policiesService.resolveTargetScope.mockResolvedValue({ organizationId: 'org-1', campaignId: null });
+    csvProfilesService.resolveProfile.mockResolvedValue({
+      direction: 'import',
+      code: 'van_standard',
+      name: 'VAN Standard Import'
+    });
+    csvProfilesService.buildTemplateCsv.mockReturnValue('\uFEFFaddress_line1,city,state\n');
+
+    const result = await service.csvProfileTemplate(scope, {
+      direction: 'import' as never,
+      code: 'van_standard'
+    });
+
+    expect(csvProfilesService.resolveProfile).toHaveBeenCalledWith({
+      direction: 'import',
+      code: 'van_standard',
+      organizationId: 'org-1',
+      campaignId: null
+    });
+    expect(result).toEqual({
+      filename: 'van_standard-template.csv',
+      csv: '\uFEFFaddress_line1,city,state\n'
+    });
   });
 
   it('updates global system settings, refreshes retention automation, and audits the change', async () => {

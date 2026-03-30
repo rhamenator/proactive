@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CsvProfileDirection, type CsvProfile } from '@prisma/client';
+import { stringify } from 'csv-stringify/sync';
 import { CsvMapping } from '../common/utils/csv.util';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -27,6 +28,21 @@ type ResolveProfileInput = {
   organizationId?: string | null;
   campaignId?: string | null;
 };
+
+const IMPORT_TEMPLATE_FIELDS: Array<keyof CsvMapping> = [
+  'turfName',
+  'addressLine1',
+  'addressLine2',
+  'unit',
+  'city',
+  'state',
+  'zip',
+  'vanHouseholdId',
+  'vanPersonId',
+  'vanId',
+  'latitude',
+  'longitude'
+];
 
 const BUILT_IN_PROFILES: CsvProfileRecord[] = [
   {
@@ -357,5 +373,20 @@ export class CsvProfilesService {
     await this.prisma.csvProfile.delete({
       where: { id: existing.id }
     });
+  }
+
+  buildTemplateCsv(profile: CsvProfileRecord) {
+    if (profile.direction === CsvProfileDirection.import) {
+      const mapping = this.sanitizeMapping(profile.mappingJson) ?? {};
+      const headers = IMPORT_TEMPLATE_FIELDS.map((field) => mapping[field] ?? field);
+      return stringify([headers], { header: false, bom: true });
+    }
+
+    const settings = this.sanitizeSettings(profile.settingsJson) ?? {};
+    const columns = Array.isArray(settings.columns)
+      ? settings.columns.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+      : [];
+    const headers = columns.length > 0 ? columns : ['result', 'address_line1', 'visit_time'];
+    return stringify([headers], { header: false, bom: true });
   }
 }
