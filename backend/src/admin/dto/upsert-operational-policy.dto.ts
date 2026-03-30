@@ -46,6 +46,41 @@ export class UpsertOperationalPolicyDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  refreshTokenTtlDays?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  activationTokenTtlHours?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  passwordResetTtlMinutes?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  loginLockoutThreshold?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  loginLockoutMinutes?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  mfaChallengeTtlMinutes?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  mfaBackupCodeCount?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
   retentionArchiveDays?: number | null;
 
   @IsOptional()

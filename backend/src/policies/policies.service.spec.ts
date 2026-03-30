@@ -36,6 +36,13 @@ describe('PoliciesService', () => {
         minMinutesBetweenAttempts: 5,
         geofenceRadiusFeet: 75,
         gpsLowAccuracyMeters: 30,
+        refreshTokenTtlDays: 14,
+        activationTokenTtlHours: 48,
+        passwordResetTtlMinutes: 30,
+        loginLockoutThreshold: 5,
+        loginLockoutMinutes: 15,
+        mfaChallengeTtlMinutes: 10,
+        mfaBackupCodeCount: 10,
         allowOrgOutcomeFallback: true
       })
     );
@@ -54,6 +61,13 @@ describe('PoliciesService', () => {
         minMinutesBetweenAttempts: 8,
         geofenceRadiusFeet: 100,
         gpsLowAccuracyMeters: 40,
+        refreshTokenTtlDays: 21,
+        activationTokenTtlHours: 72,
+        passwordResetTtlMinutes: 45,
+        loginLockoutThreshold: 6,
+        loginLockoutMinutes: 20,
+        mfaChallengeTtlMinutes: 12,
+        mfaBackupCodeCount: 12,
         retentionArchiveDays: 30,
         retentionPurgeDays: 90,
         requireArchiveReason: true,
@@ -76,6 +90,13 @@ describe('PoliciesService', () => {
         minMinutesBetweenAttempts: 8,
         geofenceRadiusFeet: 100,
         gpsLowAccuracyMeters: 40,
+        refreshTokenTtlDays: 21,
+        activationTokenTtlHours: 72,
+        passwordResetTtlMinutes: 45,
+        loginLockoutThreshold: 6,
+        loginLockoutMinutes: 20,
+        mfaChallengeTtlMinutes: 12,
+        mfaBackupCodeCount: 12,
         allowOrgOutcomeFallback: false
       })
     );
@@ -96,6 +117,7 @@ describe('PoliciesService', () => {
       {
         defaultImportMode: 'upsert',
         canvasserCorrectionWindowMinutes: 20,
+        refreshTokenTtlDays: 30,
         retentionArchiveDays: 30,
         retentionPurgeDays: 90
       }
@@ -111,12 +133,14 @@ describe('PoliciesService', () => {
         campaignId: null,
         defaultImportMode: 'upsert',
         canvasserCorrectionWindowMinutes: 20,
+        refreshTokenTtlDays: 30,
         retentionArchiveDays: 30,
         retentionPurgeDays: 90
       }),
       update: expect.objectContaining({
         defaultImportMode: 'upsert',
         canvasserCorrectionWindowMinutes: 20,
+        refreshTokenTtlDays: 30,
         retentionArchiveDays: 30,
         retentionPurgeDays: 90
       })

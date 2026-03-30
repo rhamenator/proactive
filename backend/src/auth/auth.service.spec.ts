@@ -95,7 +95,14 @@ describe('AuthService', () => {
   };
   const policiesService = {
     getEffectivePolicy: jest.fn().mockResolvedValue({
-      sensitiveMfaWindowMinutes: 5
+      sensitiveMfaWindowMinutes: 5,
+      refreshTokenTtlDays: 14,
+      activationTokenTtlHours: 48,
+      passwordResetTtlMinutes: 30,
+      loginLockoutThreshold: 5,
+      loginLockoutMinutes: 15,
+      mfaChallengeTtlMinutes: 10,
+      mfaBackupCodeCount: 10
     })
   };
 
@@ -327,6 +334,35 @@ describe('AuthService', () => {
     expect(result).not.toHaveProperty('resetToken');
   });
 
+  it('uses policy-configured password reset expiry when issuing a reset token', async () => {
+    const user = buildUser();
+    usersService.findByEmail.mockResolvedValue(user);
+    policiesService.getEffectivePolicy.mockResolvedValueOnce({
+      sensitiveMfaWindowMinutes: 5,
+      refreshTokenTtlDays: 14,
+      activationTokenTtlHours: 48,
+      passwordResetTtlMinutes: 45,
+      loginLockoutThreshold: 5,
+      loginLockoutMinutes: 15,
+      mfaChallengeTtlMinutes: 10,
+      mfaBackupCodeCount: 10
+    });
+
+    const result = await service.requestPasswordReset(user.email);
+
+    if (!('expiresAt' in result)) {
+      throw new Error('Expected a password reset response with expiresAt');
+    }
+
+    expect(prisma.passwordResetToken.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: user.id,
+        expiresAt: expect.any(Date)
+      })
+    });
+    expect(result.expiresAt.getTime()).toBeGreaterThan(Date.now() + 44 * 60 * 1000);
+  });
+
   it('activates a valid account token and issues a session', async () => {
     const user = buildUser();
     prisma.activationToken.findFirst.mockResolvedValue({
@@ -452,6 +488,51 @@ describe('AuthService', () => {
         lastLoginAt: expect.any(Date)
       }
     });
+    verifySpy.mockRestore();
+  });
+
+  it('uses the policy backup-code count when MFA setup completes', async () => {
+    const user = buildUser({
+      role: UserRole.admin,
+      mfaTempSecret: 'JBSWY3DPEHPK3PXP'
+    });
+    prisma.mfaChallengeToken.findFirst.mockResolvedValue({
+      id: 'challenge-1',
+      userId: user.id,
+      user
+    });
+    usersService.findById.mockResolvedValue({
+      ...user,
+      mfaEnabled: true,
+      mfaSecret: 'JBSWY3DPEHPK3PXP',
+      mfaTempSecret: null
+    });
+    policiesService.getEffectivePolicy
+      .mockResolvedValueOnce({
+        sensitiveMfaWindowMinutes: 5,
+        refreshTokenTtlDays: 14,
+        activationTokenTtlHours: 48,
+        passwordResetTtlMinutes: 30,
+        loginLockoutThreshold: 5,
+        loginLockoutMinutes: 15,
+        mfaChallengeTtlMinutes: 10,
+        mfaBackupCodeCount: 12
+      })
+      .mockResolvedValueOnce({
+        sensitiveMfaWindowMinutes: 5,
+        refreshTokenTtlDays: 14,
+        activationTokenTtlHours: 48,
+        passwordResetTtlMinutes: 30,
+        loginLockoutThreshold: 5,
+        loginLockoutMinutes: 15,
+        mfaChallengeTtlMinutes: 10,
+        mfaBackupCodeCount: 12
+      });
+    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(true);
+
+    const result = await service.completeMfaSetup('challenge-token', '123456');
+
+    expect(result.backupCodes).toHaveLength(12);
     verifySpy.mockRestore();
   });
 

@@ -17,6 +17,13 @@ type PolicyForm = {
   minMinutesBetweenAttempts: number;
   geofenceRadiusFeet: number;
   gpsLowAccuracyMeters: number;
+  refreshTokenTtlDays: number;
+  activationTokenTtlHours: number;
+  passwordResetTtlMinutes: number;
+  loginLockoutThreshold: number;
+  loginLockoutMinutes: number;
+  mfaChallengeTtlMinutes: number;
+  mfaBackupCodeCount: number;
   retentionArchiveDays: string;
   retentionPurgeDays: string;
   requireArchiveReason: boolean;
@@ -33,6 +40,13 @@ function toForm(policy: OperationalPolicyRecord): PolicyForm {
     minMinutesBetweenAttempts: policy.minMinutesBetweenAttempts,
     geofenceRadiusFeet: policy.geofenceRadiusFeet,
     gpsLowAccuracyMeters: policy.gpsLowAccuracyMeters,
+    refreshTokenTtlDays: policy.refreshTokenTtlDays,
+    activationTokenTtlHours: policy.activationTokenTtlHours,
+    passwordResetTtlMinutes: policy.passwordResetTtlMinutes,
+    loginLockoutThreshold: policy.loginLockoutThreshold,
+    loginLockoutMinutes: policy.loginLockoutMinutes,
+    mfaChallengeTtlMinutes: policy.mfaChallengeTtlMinutes,
+    mfaBackupCodeCount: policy.mfaBackupCodeCount,
     retentionArchiveDays: policy.retentionArchiveDays ? String(policy.retentionArchiveDays) : '',
     retentionPurgeDays: policy.retentionPurgeDays ? String(policy.retentionPurgeDays) : '',
     requireArchiveReason: policy.requireArchiveReason,
@@ -124,6 +138,13 @@ export default function PoliciesPage() {
         minMinutesBetweenAttempts: form.minMinutesBetweenAttempts,
         geofenceRadiusFeet: form.geofenceRadiusFeet,
         gpsLowAccuracyMeters: form.gpsLowAccuracyMeters,
+        refreshTokenTtlDays: form.refreshTokenTtlDays,
+        activationTokenTtlHours: form.activationTokenTtlHours,
+        passwordResetTtlMinutes: form.passwordResetTtlMinutes,
+        loginLockoutThreshold: form.loginLockoutThreshold,
+        loginLockoutMinutes: form.loginLockoutMinutes,
+        mfaChallengeTtlMinutes: form.mfaChallengeTtlMinutes,
+        mfaBackupCodeCount: form.mfaBackupCodeCount,
         retentionArchiveDays: form.retentionArchiveDays ? Number(form.retentionArchiveDays) : null,
         retentionPurgeDays: form.retentionPurgeDays ? Number(form.retentionPurgeDays) : null,
         requireArchiveReason: form.requireArchiveReason,
@@ -332,6 +353,126 @@ export default function PoliciesPage() {
                   />
                 </div>
 
+                <div>
+                  <p className="section-kicker">Authentication And Recovery</p>
+                  <h3 className="heading-reset-tight">Credential timing and lockout defaults</h3>
+                </div>
+
+                <div className="split">
+                  <div className="field-group">
+                    <label htmlFor="refresh-ttl-days">Refresh token TTL (days)</label>
+                    <Input
+                      id="refresh-ttl-days"
+                      type="number"
+                      min={1}
+                      value={String(form.refreshTokenTtlDays)}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, refreshTokenTtlDays: Number(event.target.value || 1) } : current
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label htmlFor="activation-ttl-hours">Activation token TTL (hours)</label>
+                    <Input
+                      id="activation-ttl-hours"
+                      type="number"
+                      min={1}
+                      value={String(form.activationTokenTtlHours)}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, activationTokenTtlHours: Number(event.target.value || 1) } : current
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="split">
+                  <div className="field-group">
+                    <label htmlFor="password-reset-ttl">Password reset TTL (minutes)</label>
+                    <Input
+                      id="password-reset-ttl"
+                      type="number"
+                      min={1}
+                      value={String(form.passwordResetTtlMinutes)}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, passwordResetTtlMinutes: Number(event.target.value || 1) } : current
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label htmlFor="mfa-challenge-ttl">MFA challenge TTL (minutes)</label>
+                    <Input
+                      id="mfa-challenge-ttl"
+                      type="number"
+                      min={1}
+                      value={String(form.mfaChallengeTtlMinutes)}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, mfaChallengeTtlMinutes: Number(event.target.value || 1) } : current
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="split">
+                  <div className="field-group">
+                    <label htmlFor="lockout-threshold">Login lockout threshold (attempts)</label>
+                    <Input
+                      id="lockout-threshold"
+                      type="number"
+                      min={1}
+                      value={String(form.loginLockoutThreshold)}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, loginLockoutThreshold: Number(event.target.value || 1) } : current
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label htmlFor="lockout-minutes">Login lockout duration (minutes)</label>
+                    <Input
+                      id="lockout-minutes"
+                      type="number"
+                      min={1}
+                      value={String(form.loginLockoutMinutes)}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, loginLockoutMinutes: Number(event.target.value || 1) } : current
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="field-group">
+                  <label htmlFor="backup-code-count">Backup code count</label>
+                  <Input
+                    id="backup-code-count"
+                    type="number"
+                    min={1}
+                    value={String(form.mfaBackupCodeCount)}
+                    disabled={!isAdmin}
+                    onChange={(event) =>
+                      setForm((current) =>
+                        current ? { ...current, mfaBackupCodeCount: Number(event.target.value || 1) } : current
+                      )
+                    }
+                  />
+                </div>
+
                 <div className="split">
                   <div className="field-group">
                     <label htmlFor="archive-days">Archive after days</label>
@@ -385,7 +526,7 @@ export default function PoliciesPage() {
                 </div>
 
                 <p className="muted">
-                  These defaults control import behavior, field visit rules, sensitive-action MFA freshness, retention planning, and whether campaign users inherit organization-level outcome definitions.
+                  These defaults control import behavior, field visit rules, authentication and recovery timing, sensitive-action MFA freshness, retention planning, and whether campaign users inherit organization-level outcome definitions.
                 </p>
 
                 {isAdmin ? (

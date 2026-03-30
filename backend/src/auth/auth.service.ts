@@ -14,7 +14,6 @@ export class AuthService {
   private readonly authRateLimitWindowMs = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
   private readonly authRateLimitMaxAttempts = Number(process.env.AUTH_RATE_LIMIT_MAX_ATTEMPTS ?? 10);
   private readonly authRateLimitState = new Map<string, { count: number; resetAt: number }>();
-  private readonly backupCodeCount = Number(process.env.MFA_BACKUP_CODE_COUNT ?? 10);
 
   constructor(
     private readonly usersService: UsersService,
@@ -24,12 +23,6 @@ export class AuthService {
     private readonly policiesService: PoliciesService
   ) {}
 
-  private readonly refreshTokenTtlDays = Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 14);
-  private readonly activationTokenTtlHours = Number(process.env.ACTIVATION_TOKEN_TTL_HOURS ?? 48);
-  private readonly passwordResetTtlMinutes = Number(process.env.PASSWORD_RESET_TTL_MINUTES ?? 30);
-  private readonly loginLockoutThreshold = Number(process.env.LOGIN_LOCKOUT_THRESHOLD ?? 5);
-  private readonly loginLockoutMinutes = Number(process.env.LOGIN_LOCKOUT_MINUTES ?? 15);
-  private readonly mfaChallengeTtlMinutes = Number(process.env.MFA_CHALLENGE_TTL_MINUTES ?? 10);
   private readonly mfaIssuer = process.env.MFA_ISSUER ?? 'PROACTIVE FCS';
   private readonly exposeResetTokens = process.env.EXPOSE_RESET_TOKENS === 'true';
 
@@ -137,21 +130,29 @@ export class AuthService {
     return user.role === UserRole.admin || user.role === UserRole.supervisor;
   }
 
+  private async getAuthPolicy(scope?: { organizationId?: string | null; campaignId?: string | null }) {
+    return this.policiesService.getEffectivePolicy({
+      organizationId: scope?.organizationId ?? null,
+      campaignId: scope?.campaignId ?? null
+    });
+  }
+
   private generateBackupCodeValue() {
     return `${randomBytes(2).toString('hex')}-${randomBytes(2).toString('hex')}`.toUpperCase();
   }
 
-  private async replaceBackupCodes(userId: string) {
-    const backupCodes = Array.from({ length: this.backupCodeCount }, () => this.generateBackupCodeValue());
+  private async replaceBackupCodes(user: { id: string; organizationId?: string | null; campaignId?: string | null }) {
+    const policy = await this.getAuthPolicy(user);
+    const backupCodes = Array.from({ length: policy.mfaBackupCodeCount }, () => this.generateBackupCodeValue());
 
     await this.prisma.$transaction(async (tx) => {
       await tx.mfaBackupCode.deleteMany({
-        where: { userId }
+        where: { userId: user.id }
       });
 
       await tx.mfaBackupCode.createMany({
         data: backupCodes.map((code) => ({
-          userId,
+          userId: user.id,
           codeHash: this.hashOpaqueToken(code)
         }))
       });
@@ -181,10 +182,13 @@ export class AuthService {
     return true;
   }
 
-  private async createMfaChallenge(userId: string, purpose: MfaChallengePurpose) {
+  private async createMfaChallenge(
+    user: { id: string; organizationId?: string | null; campaignId?: string | null },
+    purpose: MfaChallengePurpose
+  ) {
     await this.prisma.mfaChallengeToken.updateMany({
       where: {
-        userId,
+        userId: user.id,
         purpose,
         usedAt: null
       },
@@ -194,12 +198,13 @@ export class AuthService {
     });
 
     const challengeToken = this.createOpaqueToken();
+    const policy = await this.getAuthPolicy(user);
     await this.prisma.mfaChallengeToken.create({
       data: {
-        userId,
+        userId: user.id,
         purpose,
         tokenHash: this.hashOpaqueToken(challengeToken),
-        expiresAt: this.minutesFromNow(this.mfaChallengeTtlMinutes)
+        expiresAt: this.minutesFromNow(policy.mfaChallengeTtlMinutes)
       }
     });
 
@@ -255,12 +260,13 @@ export class AuthService {
     const payload = this.buildJwtPayload(user, options);
     const accessToken = await this.jwtService.signAsync(payload);
     const refreshToken = this.createOpaqueToken();
+    const policy = await this.getAuthPolicy(user);
 
     await this.prisma.authRefreshToken.create({
       data: {
         userId: user.id,
         tokenHash: this.hashOpaqueToken(refreshToken),
-        expiresAt: this.daysFromNow(this.refreshTokenTtlDays)
+        expiresAt: this.daysFromNow(policy.refreshTokenTtlDays)
       }
     });
 
@@ -304,10 +310,11 @@ export class AuthService {
 
     const matches = await bcrypt.compare(password, user.passwordHash);
     if (!matches) {
+      const policy = await this.getAuthPolicy(user);
       const failedLoginAttempts = user.failedLoginAttempts + 1;
       const lockedUntil =
-        failedLoginAttempts >= this.loginLockoutThreshold
-          ? this.minutesFromNow(this.loginLockoutMinutes)
+        failedLoginAttempts >= policy.loginLockoutThreshold
+          ? this.minutesFromNow(policy.loginLockoutMinutes)
           : null;
 
       await this.prisma.user.update({
@@ -355,7 +362,7 @@ export class AuthService {
     if (this.requiresMfa(user)) {
       const setupRequired = !user.mfaEnabled;
       const challengeToken = await this.createMfaChallenge(
-        user.id,
+        user,
         setupRequired ? MfaChallengePurpose.setup : MfaChallengePurpose.verify
       );
 
@@ -435,7 +442,7 @@ export class AuthService {
       }
     });
     await this.consumeMfaChallenge(challenge.id);
-    const backupCodes = await this.replaceBackupCodes(challenge.userId);
+    const backupCodes = await this.replaceBackupCodes(challenge.user);
 
     const user = await this.usersService.findById(challenge.userId);
     const mfaVerifiedAt = new Date();
@@ -819,6 +826,7 @@ export class AuthService {
     if (!user) {
       return { success: true };
     }
+    const policy = await this.getAuthPolicy(user);
 
     await this.prisma.passwordResetToken.updateMany({
       where: {
@@ -835,7 +843,7 @@ export class AuthService {
       data: {
         userId: user.id,
         tokenHash: this.hashOpaqueToken(token),
-        expiresAt: this.minutesFromNow(this.passwordResetTtlMinutes)
+        expiresAt: this.minutesFromNow(policy.passwordResetTtlMinutes)
       }
     });
 
@@ -848,7 +856,7 @@ export class AuthService {
 
     const response = {
       success: true,
-      expiresAt: this.minutesFromNow(this.passwordResetTtlMinutes)
+      expiresAt: this.minutesFromNow(policy.passwordResetTtlMinutes)
     } as { success: true; expiresAt: Date; resetToken?: string };
 
     if (this.exposeResetTokens) {
@@ -912,6 +920,7 @@ export class AuthService {
   }
 
   async createActivationForUser(userId: string) {
+    const user = await this.usersService.findById(userId);
     await this.prisma.activationToken.updateMany({
       where: {
         userId,
@@ -923,7 +932,8 @@ export class AuthService {
     });
 
     const token = this.createOpaqueToken();
-    const expiresAt = this.hoursFromNow(this.activationTokenTtlHours);
+    const policy = await this.getAuthPolicy(user);
+    const expiresAt = this.hoursFromNow(policy.activationTokenTtlHours);
 
     await this.prisma.activationToken.create({
       data: {
@@ -1025,7 +1035,7 @@ export class AuthService {
     if (this.requiresMfa(user)) {
       const setupRequired = !user.mfaEnabled;
       const challengeToken = await this.createMfaChallenge(
-        user.id,
+        user,
         setupRequired ? MfaChallengePurpose.setup : MfaChallengePurpose.verify
       );
 

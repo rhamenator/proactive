@@ -23,6 +23,13 @@ export type EffectiveOperationalPolicy = {
   minMinutesBetweenAttempts: number;
   geofenceRadiusFeet: number;
   gpsLowAccuracyMeters: number;
+  refreshTokenTtlDays: number;
+  activationTokenTtlHours: number;
+  passwordResetTtlMinutes: number;
+  loginLockoutThreshold: number;
+  loginLockoutMinutes: number;
+  mfaChallengeTtlMinutes: number;
+  mfaBackupCodeCount: number;
   retentionArchiveDays: number | null;
   retentionPurgeDays: number | null;
   requireArchiveReason: boolean;
@@ -38,6 +45,13 @@ type PolicyUpdateInput = Partial<{
   minMinutesBetweenAttempts: number;
   geofenceRadiusFeet: number;
   gpsLowAccuracyMeters: number;
+  refreshTokenTtlDays: number;
+  activationTokenTtlHours: number;
+  passwordResetTtlMinutes: number;
+  loginLockoutThreshold: number;
+  loginLockoutMinutes: number;
+  mfaChallengeTtlMinutes: number;
+  mfaBackupCodeCount: number;
   retentionArchiveDays: number | null;
   retentionPurgeDays: number | null;
   requireArchiveReason: boolean;
@@ -84,6 +98,33 @@ export class PoliciesService {
         30,
         'gpsLowAccuracyMeters'
       ),
+      refreshTokenTtlDays: this.normalizePositiveInteger(process.env.REFRESH_TOKEN_TTL_DAYS, 14, 'refreshTokenTtlDays'),
+      activationTokenTtlHours: this.normalizePositiveInteger(
+        process.env.ACTIVATION_TOKEN_TTL_HOURS,
+        48,
+        'activationTokenTtlHours'
+      ),
+      passwordResetTtlMinutes: this.normalizePositiveInteger(
+        process.env.PASSWORD_RESET_TTL_MINUTES,
+        30,
+        'passwordResetTtlMinutes'
+      ),
+      loginLockoutThreshold: this.normalizePositiveInteger(
+        process.env.LOGIN_LOCKOUT_THRESHOLD,
+        5,
+        'loginLockoutThreshold'
+      ),
+      loginLockoutMinutes: this.normalizePositiveInteger(
+        process.env.LOGIN_LOCKOUT_MINUTES,
+        15,
+        'loginLockoutMinutes'
+      ),
+      mfaChallengeTtlMinutes: this.normalizePositiveInteger(
+        process.env.MFA_CHALLENGE_TTL_MINUTES,
+        10,
+        'mfaChallengeTtlMinutes'
+      ),
+      mfaBackupCodeCount: this.normalizePositiveInteger(process.env.MFA_BACKUP_CODE_COUNT, 10, 'mfaBackupCodeCount'),
       retentionArchiveDays: Number.isFinite(archiveDays) && archiveDays > 0 ? archiveDays : null,
       retentionPurgeDays: Number.isFinite(purgeDays) && purgeDays > 0 ? purgeDays : null,
       requireArchiveReason: process.env.REQUIRE_ARCHIVE_REASON === 'true',
@@ -180,6 +221,13 @@ export class PoliciesService {
       ),
       geofenceRadiusFeet: this.normalizePositiveInteger(record.geofenceRadiusFeet, 75, 'geofenceRadiusFeet'),
       gpsLowAccuracyMeters: this.normalizePositiveInteger(record.gpsLowAccuracyMeters, 30, 'gpsLowAccuracyMeters'),
+      refreshTokenTtlDays: this.normalizePositiveInteger(record.refreshTokenTtlDays, 14, 'refreshTokenTtlDays'),
+      activationTokenTtlHours: this.normalizePositiveInteger(record.activationTokenTtlHours, 48, 'activationTokenTtlHours'),
+      passwordResetTtlMinutes: this.normalizePositiveInteger(record.passwordResetTtlMinutes, 30, 'passwordResetTtlMinutes'),
+      loginLockoutThreshold: this.normalizePositiveInteger(record.loginLockoutThreshold, 5, 'loginLockoutThreshold'),
+      loginLockoutMinutes: this.normalizePositiveInteger(record.loginLockoutMinutes, 15, 'loginLockoutMinutes'),
+      mfaChallengeTtlMinutes: this.normalizePositiveInteger(record.mfaChallengeTtlMinutes, 10, 'mfaChallengeTtlMinutes'),
+      mfaBackupCodeCount: this.normalizePositiveInteger(record.mfaBackupCodeCount, 10, 'mfaBackupCodeCount'),
       retentionArchiveDays: record.retentionArchiveDays ?? null,
       retentionPurgeDays: record.retentionPurgeDays ?? null,
       requireArchiveReason: record.requireArchiveReason,
@@ -325,6 +373,50 @@ export class PoliciesService {
         input.gpsLowAccuracyMeters === undefined
           ? current.gpsLowAccuracyMeters
           : this.normalizePositiveInteger(input.gpsLowAccuracyMeters, current.gpsLowAccuracyMeters, 'gpsLowAccuracyMeters'),
+      refreshTokenTtlDays:
+        input.refreshTokenTtlDays === undefined
+          ? current.refreshTokenTtlDays
+          : this.normalizePositiveInteger(input.refreshTokenTtlDays, current.refreshTokenTtlDays, 'refreshTokenTtlDays'),
+      activationTokenTtlHours:
+        input.activationTokenTtlHours === undefined
+          ? current.activationTokenTtlHours
+          : this.normalizePositiveInteger(
+              input.activationTokenTtlHours,
+              current.activationTokenTtlHours,
+              'activationTokenTtlHours'
+            ),
+      passwordResetTtlMinutes:
+        input.passwordResetTtlMinutes === undefined
+          ? current.passwordResetTtlMinutes
+          : this.normalizePositiveInteger(
+              input.passwordResetTtlMinutes,
+              current.passwordResetTtlMinutes,
+              'passwordResetTtlMinutes'
+            ),
+      loginLockoutThreshold:
+        input.loginLockoutThreshold === undefined
+          ? current.loginLockoutThreshold
+          : this.normalizePositiveInteger(
+              input.loginLockoutThreshold,
+              current.loginLockoutThreshold,
+              'loginLockoutThreshold'
+            ),
+      loginLockoutMinutes:
+        input.loginLockoutMinutes === undefined
+          ? current.loginLockoutMinutes
+          : this.normalizePositiveInteger(input.loginLockoutMinutes, current.loginLockoutMinutes, 'loginLockoutMinutes'),
+      mfaChallengeTtlMinutes:
+        input.mfaChallengeTtlMinutes === undefined
+          ? current.mfaChallengeTtlMinutes
+          : this.normalizePositiveInteger(
+              input.mfaChallengeTtlMinutes,
+              current.mfaChallengeTtlMinutes,
+              'mfaChallengeTtlMinutes'
+            ),
+      mfaBackupCodeCount:
+        input.mfaBackupCodeCount === undefined
+          ? current.mfaBackupCodeCount
+          : this.normalizePositiveInteger(input.mfaBackupCodeCount, current.mfaBackupCodeCount, 'mfaBackupCodeCount'),
       retentionArchiveDays: normalizedArchiveDays === undefined ? current.retentionArchiveDays : normalizedArchiveDays,
       retentionPurgeDays: normalizedPurgeDays === undefined ? current.retentionPurgeDays : normalizedPurgeDays,
       requireArchiveReason: input.requireArchiveReason ?? current.requireArchiveReason,

@@ -48,6 +48,13 @@ export interface OperationalPolicyRecord {
   minMinutesBetweenAttempts: number;
   geofenceRadiusFeet: number;
   gpsLowAccuracyMeters: number;
+  refreshTokenTtlDays: number;
+  activationTokenTtlHours: number;
+  passwordResetTtlMinutes: number;
+  loginLockoutThreshold: number;
+  loginLockoutMinutes: number;
+  mfaChallengeTtlMinutes: number;
+  mfaBackupCodeCount: number;
   retentionArchiveDays?: number | null;
   retentionPurgeDays?: number | null;
   requireArchiveReason: boolean;
