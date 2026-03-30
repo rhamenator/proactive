@@ -5,7 +5,10 @@ describe('ReportsController', () => {
     getOverview: jest.fn(),
     getProductivity: jest.fn(),
     getGpsExceptions: jest.fn(),
-    getAuditActivity: jest.fn()
+    getAuditActivity: jest.fn(),
+    getTrendSummary: jest.fn(),
+    getResolvedConflicts: jest.fn(),
+    getExportBatchAnalytics: jest.fn()
   };
   const usersService = {
     findById: jest.fn()
@@ -67,6 +70,37 @@ describe('ReportsController', () => {
       organizationId: 'org-1',
       canvasserId: 'user-1',
       limit: 10
+    });
+  });
+
+  it('delegates trend, resolved conflict, and export batch reports with campaign-aware scope', async () => {
+    await controller.trends(
+      { sub: 'admin-1', email: 'alex@example.com', role: 'admin' as never, organizationId: 'org-1', campaignId: 'campaign-1' },
+      { outcomeCode: 'talked_to_voter' }
+    );
+    await controller.resolvedConflicts(
+      { sub: 'admin-1', email: 'alex@example.com', role: 'admin' as never, organizationId: 'org-1', campaignId: 'campaign-1' },
+      { limit: 15 }
+    );
+    await controller.exportBatches(
+      { sub: 'admin-1', email: 'alex@example.com', role: 'admin' as never, organizationId: 'org-1', campaignId: 'campaign-1' },
+      { turfId: 'turf-1' }
+    );
+
+    expect(reportsService.getTrendSummary).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      campaignId: 'campaign-1',
+      outcomeCode: 'talked_to_voter'
+    });
+    expect(reportsService.getResolvedConflicts).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      campaignId: 'campaign-1',
+      limit: 15
+    });
+    expect(reportsService.getExportBatchAnalytics).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      campaignId: 'campaign-1',
+      turfId: 'turf-1'
     });
   });
 });

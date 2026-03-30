@@ -1,6 +1,7 @@
 import { TurfsController } from './turfs.controller';
 
 describe('TurfsController', () => {
+  const scope = { organizationId: 'org-1', campaignId: null };
   const turfsService = {
     listTurfs: jest.fn(),
     createTurf: jest.fn(),
@@ -39,10 +40,10 @@ describe('TurfsController', () => {
     );
     await controller.getAddresses('turf-1', adminUser);
 
-    expect(turfsService.listTurfs).toHaveBeenCalledWith('org-1');
+    expect(turfsService.listTurfs).toHaveBeenCalledWith(scope);
     expect(turfsService.createTurf).toHaveBeenCalledWith({ name: 'North' }, 'admin-1');
-    expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'canvasser-1', 'admin-1', undefined, 'org-1');
-    expect(turfsService.getTurfAddresses).toHaveBeenCalledWith('turf-1', 'org-1');
+    expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'canvasser-1', 'admin-1', undefined, scope);
+    expect(turfsService.getTurfAddresses).toHaveBeenCalledWith('turf-1', scope);
   });
 
   it('delegates CSV import after parsing mapping JSON', async () => {

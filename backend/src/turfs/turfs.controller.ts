@@ -18,6 +18,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
+import { resolveAccessScope } from '../common/utils/access-scope.util';
 import { UsersService } from '../users/users.service';
 import { AssignTurfDto } from './dto/assign-turf.dto';
 import { CreateTurfDto } from './dto/create-turf.dto';
@@ -33,20 +34,15 @@ export class TurfsController {
     private readonly usersService: UsersService
   ) {}
 
-  private async resolveOrganizationId(user: JwtUserPayload) {
-    if (user.organizationId !== undefined) {
-      return user.organizationId ?? null;
-    }
-
-    const currentUser = await this.usersService.findById(user.sub);
-    return currentUser.organizationId ?? null;
+  private async resolveScope(user: JwtUserPayload) {
+    return resolveAccessScope(user, this.usersService);
   }
 
   @Get('turfs')
   @UseGuards(RolesGuard)
   @Roles(UserRole.admin, UserRole.supervisor)
   async listTurfs(@CurrentUser() user: JwtUserPayload) {
-    return this.turfsService.listTurfs(await this.resolveOrganizationId(user));
+    return this.turfsService.listTurfs(await this.resolveScope(user));
   }
 
   @Post('turfs')
@@ -64,7 +60,7 @@ export class TurfsController {
     @Body() body: AssignTurfDto,
     @CurrentUser() user: JwtUserPayload
   ) {
-    return this.turfsService.assignTurf(turfId, body.canvasserId, user.sub, undefined, await this.resolveOrganizationId(user));
+    return this.turfsService.assignTurf(turfId, body.canvasserId, user.sub, undefined, await this.resolveScope(user));
   }
 
   @Post('turfs/import-csv')
@@ -101,7 +97,7 @@ export class TurfsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.admin, UserRole.supervisor)
   async getAddresses(@Param('id', ParseUUIDPipe) turfId: string, @CurrentUser() user: JwtUserPayload) {
-    return this.turfsService.getTurfAddresses(turfId, await this.resolveOrganizationId(user));
+    return this.turfsService.getTurfAddresses(turfId, await this.resolveScope(user));
   }
 
   @Get('my-turf')

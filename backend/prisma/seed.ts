@@ -39,18 +39,30 @@ async function main() {
   ];
 
   for (const outcome of defaultOutcomes) {
-    await prisma.outcomeDefinition.upsert({
-      where: { code: outcome.code },
-      update: {
-        label: outcome.label,
-        requiresNote: outcome.requiresNote ?? false,
-        displayOrder: outcome.displayOrder,
-        isFinalDisposition: true,
-        isActive: true,
+    const existing = await prisma.outcomeDefinition.findFirst({
+      where: {
         organizationId: organization.id,
-        campaignId: campaign.id
-      },
-      create: {
+        campaignId: campaign.id,
+        code: outcome.code
+      }
+    });
+
+    if (existing) {
+      await prisma.outcomeDefinition.update({
+        where: { id: existing.id },
+        data: {
+          label: outcome.label,
+          requiresNote: outcome.requiresNote ?? false,
+          displayOrder: outcome.displayOrder,
+          isFinalDisposition: true,
+          isActive: true
+        }
+      });
+      continue;
+    }
+
+    await prisma.outcomeDefinition.create({
+      data: {
         code: outcome.code,
         label: outcome.label,
         requiresNote: outcome.requiresNote ?? false,
@@ -72,7 +84,8 @@ async function main() {
       email: 'admin@proactive.local',
       passwordHash,
       role: UserRole.admin,
-      organizationId: organization.id
+      organizationId: organization.id,
+      campaignId: campaign.id
     }
   });
 
@@ -85,7 +98,8 @@ async function main() {
       email: 'canvasser@proactive.local',
       passwordHash,
       role: UserRole.canvasser,
-      organizationId: organization.id
+      organizationId: organization.id,
+      campaignId: campaign.id
     }
   });
 
@@ -98,7 +112,8 @@ async function main() {
       email: 'supervisor@proactive.local',
       passwordHash,
       role: UserRole.supervisor,
-      organizationId: organization.id
+      organizationId: organization.id,
+      campaignId: campaign.id
     }
   });
 

@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify/sync';
 import { AuditService } from '../audit/audit.service';
+import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PrismaService } from '../prisma/prisma.service';
 
 type ExportOptions = {
@@ -8,6 +11,7 @@ type ExportOptions = {
   markExported?: boolean;
   actorUserId?: string;
   organizationId?: string | null;
+  campaignId?: string | null;
 };
 
 @Injectable()
@@ -22,16 +26,17 @@ export class ExportsService {
     return `${prefix}-${timestamp}.csv`;
   }
 
-  private organizationScope(organizationId: string | null | undefined) {
+  private buildScope(scope: AccessScope | ExportOptions) {
     return {
-      organizationId: organizationId ?? null
+      organizationId: scope.organizationId ?? null,
+      ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
     } as const;
   }
 
   private async fetchVisits(options?: ExportOptions) {
     return this.prisma.visitLog.findMany({
       where: {
-        ...this.organizationScope(options?.organizationId),
+        ...this.buildScope(options ?? { organizationId: null }),
         ...(options?.turfId ? { turfId: options.turfId } : {}),
         ...(options?.markExported === false ? {} : { vanExported: false })
       },
@@ -45,19 +50,60 @@ export class ExportsService {
     });
   }
 
-  async exportHistory(organizationId: string | null) {
-    return this.prisma.exportBatch.findMany({
-      where: {
-        OR: [
-          { turf: this.organizationScope(organizationId) },
-          {
-            turfId: null,
-            initiatedByUser: this.organizationScope(organizationId)
-          }
-        ]
+  private checksum(csv: string) {
+    return createHash('sha256').update(csv).digest('hex');
+  }
+
+  private async recordExportBatch(input: {
+    profileCode: string;
+    filename: string;
+    csv: string;
+    rowCount: number;
+    turfId?: string;
+    actorUserId?: string;
+    markExported: boolean;
+    scope: AccessScope;
+    visits: Array<{ id: string }>;
+    rows: Array<Record<string, unknown>>;
+  }) {
+    return this.prisma.exportBatch.create({
+      data: {
+        profileCode: input.profileCode,
+        filename: input.filename,
+        organizationId: input.scope.organizationId,
+        campaignId: input.scope.campaignId ?? null,
+        turfId: input.turfId,
+        initiatedByUserId: input.actorUserId ?? null,
+        markExported: input.markExported,
+        rowCount: input.rowCount,
+        filterScopeJson: {
+          turfId: input.turfId ?? null,
+          organizationId: input.scope.organizationId,
+          campaignId: input.scope.campaignId ?? null
+        },
+        csvContent: input.csv,
+        sha256Checksum: this.checksum(input.csv),
+        exportedVisits: {
+          create: input.visits.map((visit, index) => ({
+            visitLog: {
+              connect: { id: visit.id }
+            },
+            rowIndex: index + 1,
+            rowSnapshotJson: (input.rows[index] ?? null) as Prisma.InputJsonValue
+          }))
+        }
       },
+      include: {
+        exportedVisits: true
+      }
+    });
+  }
+
+  async exportHistory(scope: AccessScope) {
+    return this.prisma.exportBatch.findMany({
+      where: this.buildScope(scope),
       orderBy: { createdAt: 'desc' },
-      take: 25,
+      take: 50,
       include: {
         initiatedByUser: {
           select: {
@@ -66,7 +112,14 @@ export class ExportsService {
             lastName: true,
             email: true,
             role: true,
+            organizationId: true,
+            campaignId: true,
             isActive: true,
+            status: true,
+            mfaEnabled: true,
+            invitedAt: true,
+            activatedAt: true,
+            lastLoginAt: true,
             createdAt: true
           }
         },
@@ -75,14 +128,59 @@ export class ExportsService {
             id: true,
             name: true
           }
+        },
+        _count: {
+          select: {
+            exportedVisits: true
+          }
         }
       }
     });
   }
 
+  async downloadExportBatch(batchId: string, scope: AccessScope) {
+    const batch = await this.prisma.exportBatch.findFirst({
+      where: {
+        id: batchId,
+        ...this.buildScope(scope)
+      }
+    });
+
+    if (!batch || !batch.csvContent) {
+      throw new NotFoundException('Export batch not found');
+    }
+
+    return {
+      csv: batch.csvContent,
+      filename: batch.filename,
+      checksum: batch.sha256Checksum
+    };
+  }
+
   async vanResultsCsv(options?: ExportOptions) {
     const visits = await this.fetchVisits(options);
     const filename = this.buildTimestampedFilename('van-results');
+    const rows = visits.map((visit) => ({
+      van_id: visit.address.vanId ?? '',
+      address_line1: visit.address.addressLine1,
+      visit_time: visit.visitTime.toISOString(),
+      result: visit.result,
+      contact_made: visit.contactMade ? 'true' : 'false',
+      notes: visit.notes ?? '',
+      time_zone: 'America/Detroit',
+      gps_status: visit.gpsStatus,
+      latitude: visit.latitude?.toString() ?? '',
+      longitude: visit.longitude?.toString() ?? '',
+      accuracy_meters: visit.accuracyMeters?.toString() ?? '',
+      distance_from_target_feet: visit.geofenceResult?.distanceFromTargetFeet?.toString() ?? '',
+      sync_status: visit.syncStatus,
+      canvasser_name: `${visit.canvasser.firstName} ${visit.canvasser.lastName}`.trim()
+    }));
+
+    const csv = stringify(rows, {
+      header: true,
+      bom: true
+    });
 
     if (options?.markExported && visits.length > 0) {
       await this.prisma.visitLog.updateMany({
@@ -91,42 +189,21 @@ export class ExportsService {
       });
     }
 
-    const csv = stringify(
-      visits.map((visit) => ({
-        van_id: visit.address.vanId ?? '',
-        address_line1: visit.address.addressLine1,
-        visit_time: visit.visitTime.toISOString(),
-        result: visit.result,
-        contact_made: visit.contactMade ? 'true' : 'false',
-        notes: visit.notes ?? '',
-        time_zone: 'America/Detroit',
-        gps_status: visit.gpsStatus,
-        latitude: visit.latitude?.toString() ?? '',
-        longitude: visit.longitude?.toString() ?? '',
-        accuracy_meters: visit.accuracyMeters?.toString() ?? '',
-        distance_from_target_feet: visit.geofenceResult?.distanceFromTargetFeet?.toString() ?? '',
-        sync_status: visit.syncStatus,
-        canvasser_name: `${visit.canvasser.firstName} ${visit.canvasser.lastName}`.trim()
-      })),
-      {
-        header: true,
-        bom: true
-      }
-    );
-
-    await this.prisma.exportBatch.create({
-      data: {
-        profileCode: 'van_compatible',
-        filename,
-        turfId: options?.turfId,
-        initiatedByUserId: options?.actorUserId ?? null,
-        markExported: options?.markExported ?? false,
-        rowCount: visits.length,
-        filterScopeJson: {
-          turfId: options?.turfId ?? null,
-          organizationId: options?.organizationId ?? null
-        }
-      }
+    const scope = {
+      organizationId: options?.organizationId ?? null,
+      campaignId: options?.campaignId ?? null
+    };
+    await this.recordExportBatch({
+      profileCode: 'van_compatible',
+      filename,
+      csv,
+      rowCount: visits.length,
+      turfId: options?.turfId,
+      actorUserId: options?.actorUserId,
+      markExported: options?.markExported ?? false,
+      scope,
+      visits,
+      rows
     });
 
     await this.auditService.log({
@@ -136,9 +213,11 @@ export class ExportsService {
       entityId: options?.turfId ?? 'all',
       newValuesJson: {
         turfId: options?.turfId ?? null,
-        organizationId: options?.organizationId ?? null,
+        organizationId: scope.organizationId,
+        campaignId: scope.campaignId,
         markExported: options?.markExported ?? false,
-        count: visits.length
+        count: visits.length,
+        profileCode: 'van_compatible'
       }
     });
 
@@ -151,65 +230,65 @@ export class ExportsService {
       markExported: false
     });
     const filename = this.buildTimestampedFilename('internal-master');
+    const rows = visits.map((visit) => ({
+      visit_id: visit.id,
+      turf_id: visit.turfId,
+      turf_name: visit.turf.name,
+      address_id: visit.addressId,
+      van_id: visit.address.vanId ?? '',
+      address_line1: visit.address.addressLine1,
+      city: visit.address.city,
+      state: visit.address.state,
+      zip: visit.address.zip ?? '',
+      visit_time: visit.visitTime.toISOString(),
+      client_created_at: visit.clientCreatedAt?.toISOString() ?? '',
+      server_received_at: visit.serverReceivedAt.toISOString(),
+      outcome_code: visit.outcomeCode,
+      outcome_label: visit.outcomeLabel,
+      legacy_result: visit.result,
+      contact_made: visit.contactMade ? 'true' : 'false',
+      notes: visit.notes ?? '',
+      sync_status: visit.syncStatus,
+      sync_conflict_flag: visit.syncConflictFlag ? 'true' : 'false',
+      sync_conflict_reason: visit.syncConflictReason ?? '',
+      gps_status: visit.gpsStatus,
+      geofence_validated: visit.geofenceValidated ? 'true' : 'false',
+      geofence_distance_meters: visit.geofenceDistanceMeters?.toString() ?? '',
+      distance_from_target_feet: visit.geofenceResult?.distanceFromTargetFeet?.toString() ?? '',
+      override_flag: visit.geofenceResult?.overrideFlag ? 'true' : 'false',
+      override_reason: visit.geofenceResult?.overrideReason ?? '',
+      latitude: visit.latitude?.toString() ?? '',
+      longitude: visit.longitude?.toString() ?? '',
+      accuracy_meters: visit.accuracyMeters?.toString() ?? '',
+      local_record_uuid: visit.localRecordUuid ?? '',
+      idempotency_key: visit.idempotencyKey ?? '',
+      source: visit.source,
+      canvasser_id: visit.canvasserId,
+      canvasser_name: `${visit.canvasser.firstName} ${visit.canvasser.lastName}`.trim(),
+      time_zone: 'America/Detroit',
+      van_exported: visit.vanExported ? 'true' : 'false'
+    }));
 
-    const csv = stringify(
-      visits.map((visit) => ({
-        visit_id: visit.id,
-        turf_id: visit.turfId,
-        turf_name: visit.turf.name,
-        address_id: visit.addressId,
-        van_id: visit.address.vanId ?? '',
-        address_line1: visit.address.addressLine1,
-        city: visit.address.city,
-        state: visit.address.state,
-        zip: visit.address.zip ?? '',
-        visit_time: visit.visitTime.toISOString(),
-        client_created_at: visit.clientCreatedAt?.toISOString() ?? '',
-        server_received_at: visit.serverReceivedAt.toISOString(),
-        outcome_code: visit.outcomeCode,
-        outcome_label: visit.outcomeLabel,
-        legacy_result: visit.result,
-        contact_made: visit.contactMade ? 'true' : 'false',
-        notes: visit.notes ?? '',
-        sync_status: visit.syncStatus,
-        sync_conflict_flag: visit.syncConflictFlag ? 'true' : 'false',
-        sync_conflict_reason: visit.syncConflictReason ?? '',
-        gps_status: visit.gpsStatus,
-        geofence_validated: visit.geofenceValidated ? 'true' : 'false',
-        geofence_distance_meters: visit.geofenceDistanceMeters?.toString() ?? '',
-        distance_from_target_feet: visit.geofenceResult?.distanceFromTargetFeet?.toString() ?? '',
-        override_flag: visit.geofenceResult?.overrideFlag ? 'true' : 'false',
-        override_reason: visit.geofenceResult?.overrideReason ?? '',
-        latitude: visit.latitude?.toString() ?? '',
-        longitude: visit.longitude?.toString() ?? '',
-        accuracy_meters: visit.accuracyMeters?.toString() ?? '',
-        local_record_uuid: visit.localRecordUuid ?? '',
-        idempotency_key: visit.idempotencyKey ?? '',
-        source: visit.source,
-        canvasser_id: visit.canvasserId,
-        canvasser_name: `${visit.canvasser.firstName} ${visit.canvasser.lastName}`.trim(),
-        time_zone: 'America/Detroit',
-        van_exported: visit.vanExported ? 'true' : 'false'
-      })),
-      {
-        header: true,
-        bom: true
-      }
-    );
+    const csv = stringify(rows, {
+      header: true,
+      bom: true
+    });
 
-    await this.prisma.exportBatch.create({
-      data: {
-        profileCode: 'internal_master',
-        filename,
-        turfId: options?.turfId,
-        initiatedByUserId: options?.actorUserId ?? null,
-        markExported: false,
-        rowCount: visits.length,
-        filterScopeJson: {
-          turfId: options?.turfId ?? null,
-          organizationId: options?.organizationId ?? null
-        }
-      }
+    const scope = {
+      organizationId: options?.organizationId ?? null,
+      campaignId: options?.campaignId ?? null
+    };
+    await this.recordExportBatch({
+      profileCode: 'internal_master',
+      filename,
+      csv,
+      rowCount: visits.length,
+      turfId: options?.turfId,
+      actorUserId: options?.actorUserId,
+      markExported: false,
+      scope,
+      visits,
+      rows
     });
 
     await this.auditService.log({
@@ -219,7 +298,8 @@ export class ExportsService {
       entityId: options?.turfId ?? 'all',
       newValuesJson: {
         turfId: options?.turfId ?? null,
-        organizationId: options?.organizationId ?? null,
+        organizationId: scope.organizationId,
+        campaignId: scope.campaignId,
         markExported: false,
         count: visits.length,
         profileCode: 'internal_master'

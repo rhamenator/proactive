@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { AssignmentStatus, GpsStatus, SyncStatus, UserRole, VisitResult, VisitSource } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PrismaService } from '../prisma/prisma.service';
 import { getDistanceInMeters } from '../common/utils/distance.util';
 
@@ -75,9 +76,19 @@ export class VisitsService {
     };
   }
 
-  async listActiveOutcomes(organizationId: string | null) {
+  private buildScopedWhere(scope: AccessScope) {
+    return {
+      organizationId: scope.organizationId,
+      ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
+    } as const;
+  }
+
+  async listActiveOutcomes(scope: AccessScope) {
     return this.prisma.outcomeDefinition.findMany({
-      where: { isActive: true, organizationId },
+      where: {
+        isActive: true,
+        ...this.buildScopedWhere(scope)
+      },
       orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
     });
   }
@@ -85,7 +96,7 @@ export class VisitsService {
   async listRecentVisits(input: {
     requesterId: string;
     requesterRole: UserRole;
-    organizationId: string | null;
+    scope: AccessScope;
     turfId?: string;
     canvasserId?: string;
     addressId?: string;
@@ -97,7 +108,7 @@ export class VisitsService {
 
     return this.prisma.visitLog.findMany({
       where: {
-        organizationId: input.organizationId,
+        ...this.buildScopedWhere(input.scope),
         ...(input.turfId ? { turfId: input.turfId } : {}),
         ...(canvasserId ? { canvasserId } : {}),
         ...(input.addressId ? { addressId: input.addressId } : {})
@@ -116,6 +127,8 @@ export class VisitsService {
             lastName: true,
             email: true,
             role: true,
+            organizationId: true,
+            campaignId: true,
             isActive: true,
             status: true,
             mfaEnabled: true,
@@ -134,7 +147,7 @@ export class VisitsService {
     visitId: string;
     actorUserId: string;
     actorRole: UserRole;
-    organizationId: string | null;
+    scope: AccessScope;
     outcomeCode: string;
     notes?: string;
     reason: string;
@@ -147,7 +160,7 @@ export class VisitsService {
     const visit = await this.prisma.visitLog.findFirst({
       where: {
         id: input.visitId,
-        organizationId: input.organizationId
+        ...this.buildScopedWhere(input.scope)
       },
       include: {
         geofenceResult: true
@@ -178,7 +191,7 @@ export class VisitsService {
       where: {
         code: input.outcomeCode,
         isActive: true,
-        organizationId: input.organizationId
+        ...this.buildScopedWhere(input.scope)
       }
     });
 
@@ -286,7 +299,9 @@ export class VisitsService {
     const outcomeDefinition = await this.prisma.outcomeDefinition.findFirst({
       where: {
         code: input.outcomeCode,
-        isActive: true
+        isActive: true,
+        organizationId: address.organizationId,
+        campaignId: address.campaignId
       }
     });
 

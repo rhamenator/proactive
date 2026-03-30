@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SyncStatus, UserRole } from '@prisma/client';
+import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PrismaService } from '../prisma/prisma.service';
 
 const safeUserSelect = {
@@ -8,6 +9,8 @@ const safeUserSelect = {
   lastName: true,
   email: true,
   role: true,
+  organizationId: true,
+  campaignId: true,
   isActive: true,
   status: true,
   mfaEnabled: true,
@@ -46,15 +49,16 @@ const syncConflictReviewInclude = {
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private organizationScope(organizationId: string | null) {
+  private scopeWhere(scope: AccessScope) {
     return {
-      organizationId
+      organizationId: scope.organizationId,
+      ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
     } as const;
   }
 
-  private syncConflictWhere(organizationId: string | null): Prisma.VisitLogWhereInput {
+  private syncConflictWhere(scope: AccessScope): Prisma.VisitLogWhereInput {
     return {
-      ...this.organizationScope(organizationId),
+      ...this.scopeWhere(scope),
       OR: [
         { syncStatus: SyncStatus.conflict },
         { syncConflictFlag: true }
@@ -62,8 +66,8 @@ export class AdminService {
     };
   }
 
-  async dashboardSummary(organizationId: string | null) {
-    const organizationScope = this.organizationScope(organizationId);
+  async dashboardSummary(scope: AccessScope) {
+    const organizationScope = this.scopeWhere(scope);
     const [users, turfs, addresses, assignments, activeSessions, visits] = await Promise.all([
       this.prisma.user.count({ where: organizationScope }),
       this.prisma.turf.count({ where: organizationScope }),
@@ -137,9 +141,9 @@ export class AdminService {
     };
   }
 
-  async activeCanvassers(organizationId: string | null) {
+  async activeCanvassers(scope: AccessScope) {
     return this.prisma.turfSession.findMany({
-      where: { ...this.organizationScope(organizationId), endTime: null },
+      where: { ...this.scopeWhere(scope), endTime: null },
       orderBy: { startTime: 'desc' },
       include: {
         canvasser: {
@@ -155,10 +159,10 @@ export class AdminService {
     });
   }
 
-  async listCanvassers(organizationId: string | null) {
+  async listCanvassers(scope: AccessScope) {
     return this.prisma.user.findMany({
       where: {
-        ...this.organizationScope(organizationId),
+        ...this.scopeWhere(scope),
         role: {
           in: [UserRole.supervisor, UserRole.canvasser]
         }
@@ -168,9 +172,19 @@ export class AdminService {
     });
   }
 
-  async listOutcomeDefinitions(organizationId: string | null) {
+  async listCampaigns(scope: AccessScope) {
+    return this.prisma.campaign.findMany({
+      where: {
+        ...(scope.organizationId ? { organizationId: scope.organizationId } : {}),
+        ...(scope.campaignId ? { id: scope.campaignId } : {})
+      },
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }]
+    });
+  }
+
+  async listOutcomeDefinitions(scope: AccessScope) {
     return this.prisma.outcomeDefinition.findMany({
-      where: this.organizationScope(organizationId),
+      where: this.scopeWhere(scope),
       orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
     });
   }
@@ -183,8 +197,21 @@ export class AdminService {
     isFinalDisposition?: boolean;
     displayOrder?: number;
     isActive?: boolean;
-  }, organizationId: string | null) {
+  }, scope: AccessScope) {
     const normalizedCode = input.code.trim();
+    const existingByCode = await this.prisma.outcomeDefinition.findFirst({
+      where: {
+        code: normalizedCode,
+        organizationId: scope.organizationId,
+        campaignId: scope.campaignId ?? null,
+        ...(input.id ? { id: { not: input.id } } : {})
+      }
+    });
+
+    if (existingByCode) {
+      throw new BadRequestException('An outcome with this code already exists in the current scope');
+    }
+
     const data = {
       code: normalizedCode,
       label: input.label.trim(),
@@ -192,14 +219,15 @@ export class AdminService {
       isFinalDisposition: input.isFinalDisposition ?? true,
       displayOrder: input.displayOrder ?? 0,
       isActive: input.isActive ?? true,
-      organizationId
+      organizationId: scope.organizationId,
+      campaignId: scope.campaignId ?? null
     };
 
     if (input.id) {
       const existing = await this.prisma.outcomeDefinition.findFirst({
         where: {
           id: input.id,
-          ...this.organizationScope(organizationId)
+          ...this.scopeWhere(scope)
         }
       });
 
@@ -218,10 +246,10 @@ export class AdminService {
     });
   }
 
-  async gpsReviewQueue(organizationId: string | null) {
+  async gpsReviewQueue(scope: AccessScope) {
     return this.prisma.visitGeofenceResult.findMany({
       where: {
-        visitLog: this.organizationScope(organizationId),
+        visitLog: this.scopeWhere(scope),
         OR: [
           { gpsStatus: { not: 'verified' } },
           { overrideFlag: true }
@@ -247,9 +275,9 @@ export class AdminService {
     });
   }
 
-  async syncConflictQueue(organizationId: string | null) {
+  async syncConflictQueue(scope: AccessScope) {
     return this.prisma.visitLog.findMany({
-      where: this.syncConflictWhere(organizationId),
+      where: this.syncConflictWhere(scope),
       orderBy: { visitTime: 'desc' },
       include: syncConflictReviewInclude
     });
@@ -258,7 +286,7 @@ export class AdminService {
   async overrideGpsResult(input: {
     visitLogId: string;
     actorUserId: string;
-    organizationId: string | null;
+    scope: AccessScope;
     reason: string;
   }) {
     const reason = input.reason.trim();
@@ -268,7 +296,7 @@ export class AdminService {
     const existing = await this.prisma.visitGeofenceResult.findFirst({
       where: {
         visitLogId: input.visitLogId,
-        visitLog: this.organizationScope(input.organizationId)
+        visitLog: this.scopeWhere(input.scope)
       }
     });
 
@@ -318,7 +346,7 @@ export class AdminService {
   async resolveSyncConflict(input: {
     visitLogId: string;
     actorUserId: string;
-    organizationId: string | null;
+    scope: AccessScope;
     reason: string;
   }) {
     const reason = input.reason.trim();
@@ -328,7 +356,7 @@ export class AdminService {
     const existing = await this.prisma.visitLog.findFirst({
       where: {
         id: input.visitLogId,
-        ...this.syncConflictWhere(input.organizationId)
+        ...this.syncConflictWhere(input.scope)
       }
     });
 
@@ -362,7 +390,7 @@ export class AdminService {
       this.prisma.auditLog.create({
         data: {
           actorUserId: input.actorUserId,
-          organizationId: input.organizationId,
+          organizationId: input.scope.organizationId,
           actionType: 'sync_conflict_resolved',
           entityType: 'visit_log',
           entityId: input.visitLogId,

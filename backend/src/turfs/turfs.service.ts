@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 import { parse } from 'csv-parse/sync';
 import { AuditService } from '../audit/audit.service';
+import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { CsvField, CsvMapping, normalizeHeader, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -68,17 +69,18 @@ export class TurfsService {
     };
   }
 
-  private organizationScope(organizationId: string | null) {
+  private scopeWhere(scope: AccessScope) {
     return {
-      organizationId
+      organizationId: scope.organizationId,
+      ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
     } as const;
   }
 
-  private async findScopedTurf(db: PrismaWriter, turfId: string, organizationId: string | null) {
+  private async findScopedTurf(db: PrismaWriter, turfId: string, scope: AccessScope) {
     return db.turf.findFirst({
       where: {
         id: turfId,
-        ...this.organizationScope(organizationId)
+        ...this.scopeWhere(scope)
       }
     });
   }
@@ -142,9 +144,9 @@ export class TurfsService {
     return turf;
   }
 
-  async listTurfs(organizationId: string | null) {
+  async listTurfs(scope: AccessScope) {
     const turfs = await this.prisma.turf.findMany({
-      where: this.organizationScope(organizationId),
+      where: this.scopeWhere(scope),
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {
@@ -159,7 +161,7 @@ export class TurfsService {
     });
 
     const sessions = await this.prisma.turfSession.findMany({
-      where: { ...this.organizationScope(organizationId), endTime: null }
+      where: { ...this.scopeWhere(scope), endTime: null }
     });
     const activeSessionCounts = new Map<string, number>();
     for (const session of sessions) {
@@ -191,12 +193,12 @@ export class TurfsService {
     canvasserId: string,
     actorUserId: string,
     reasonText?: string,
-    organizationId: string | null = null
+    scope: AccessScope = { organizationId: null, campaignId: null }
   ) {
-    await this.ensureAssignableCanvasser(canvasserId, organizationId);
+    await this.ensureAssignableCanvasser(canvasserId, scope.organizationId);
 
     return this.prisma.$transaction(async (tx) => {
-      const turf = await this.findScopedTurf(tx, turfId, organizationId);
+      const turf = await this.findScopedTurf(tx, turfId, scope);
       if (!turf) {
         throw new NotFoundException('Turf not found');
       }
@@ -288,10 +290,10 @@ export class TurfsService {
     turfId: string,
     actorUserId: string,
     reasonText?: string,
-    organizationId: string | null = null
+    scope: AccessScope = { organizationId: null, campaignId: null }
   ) {
     return this.prisma.$transaction(async (tx) => {
-      const turf = await this.findScopedTurf(tx, turfId, organizationId);
+      const turf = await this.findScopedTurf(tx, turfId, scope);
       if (!turf) {
         throw new NotFoundException('Turf not found');
       }
@@ -427,11 +429,11 @@ export class TurfsService {
     return result;
   }
 
-  async getTurfAddresses(turfId: string, organizationId: string | null) {
+  async getTurfAddresses(turfId: string, scope: AccessScope) {
     const turf = await this.prisma.turf.findFirst({
       where: {
         id: turfId,
-        ...this.organizationScope(organizationId)
+        ...this.scopeWhere(scope)
       },
       include: {
         addresses: {

@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -6,6 +6,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
+import { resolveAccessScope } from '../common/utils/access-scope.util';
 import { UsersService } from '../users/users.service';
 import { ExportsService } from './exports.service';
 
@@ -18,18 +19,21 @@ export class ExportsController {
     private readonly usersService: UsersService
   ) {}
 
-  private async resolveOrganizationId(user: JwtUserPayload) {
-    if (user.organizationId !== undefined) {
-      return user.organizationId ?? null;
-    }
-
-    const currentUser = await this.usersService.findById(user.sub);
-    return currentUser.organizationId ?? null;
-  }
-
   @Get('history')
   async exportHistory(@CurrentUser() user: JwtUserPayload) {
-    return this.exportsService.exportHistory(await this.resolveOrganizationId(user));
+    return this.exportsService.exportHistory(await resolveAccessScope(user, this.usersService));
+  }
+
+  @Get('history/:id/download')
+  async downloadExportBatch(
+    @Param('id') batchId: string,
+    @CurrentUser() user: JwtUserPayload,
+    @Res() response: Response
+  ) {
+    const result = await this.exportsService.downloadExportBatch(batchId, await resolveAccessScope(user, this.usersService));
+    response.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    response.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    return response.send(result.csv);
   }
 
   @Get('van-results')
@@ -39,11 +43,13 @@ export class ExportsController {
     @CurrentUser() user?: JwtUserPayload,
     @Res() response?: Response
   ) {
+    const scope = user ? await resolveAccessScope(user, this.usersService) : { organizationId: null, campaignId: null };
     const result = await this.exportsService.vanResultsCsv({
       turfId,
       markExported: markExported === 'true',
       actorUserId: user?.sub,
-      organizationId: user ? await this.resolveOrganizationId(user) : null
+      organizationId: scope.organizationId,
+      campaignId: scope.campaignId
     });
 
     if (!response) {
@@ -61,10 +67,12 @@ export class ExportsController {
     @CurrentUser() user?: JwtUserPayload,
     @Res() response?: Response
   ) {
+    const scope = user ? await resolveAccessScope(user, this.usersService) : { organizationId: null, campaignId: null };
     const result = await this.exportsService.internalMasterCsv({
       turfId,
       actorUserId: user?.sub,
-      organizationId: user ? await this.resolveOrganizationId(user) : null
+      organizationId: scope.organizationId,
+      campaignId: scope.campaignId
     });
 
     if (!response) {

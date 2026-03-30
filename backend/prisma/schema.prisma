@@ -87,6 +87,7 @@ model User {
   passwordHash String          @map("password_hash")
   role         UserRole
   organizationId String?       @map("organization_id") @db.Uuid
+  campaignId   String?         @map("campaign_id") @db.Uuid
   isActive     Boolean         @default(true) @map("is_active")
   status       String          @default("active")
   mfaEnabled   Boolean         @default(false) @map("mfa_enabled")
@@ -99,6 +100,7 @@ model User {
   lastLoginAt  DateTime?       @map("last_login_at")
   createdAt    DateTime        @default(now()) @map("created_at")
   organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign     Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   createdTurfs Turf[]          @relation("TurfsCreated")
   assignments  TurfAssignment[]
   sessions     TurfSession[]
@@ -117,6 +119,7 @@ model User {
   resetTokens   PasswordResetToken[]
 
   @@index([organizationId])
+  @@index([campaignId])
   @@map("users")
 }
 
@@ -137,6 +140,7 @@ model Organization {
   addressRequests AddressRequest[]
   impersonationSessions ImpersonationSession[]
   visitCorrections VisitCorrection[]
+  exportBatches ExportBatch[]
 
   @@map("organizations")
 }
@@ -149,6 +153,7 @@ model Campaign {
   isActive       Boolean            @default(true) @map("is_active")
   createdAt      DateTime           @default(now()) @map("created_at")
   organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users          User[]
   turfs          Turf[]
   addresses      Address[]
   assignments    TurfAssignment[]
@@ -158,6 +163,7 @@ model Campaign {
   addressRequests AddressRequest[]
   impersonationSessions ImpersonationSession[]
   visitCorrections VisitCorrection[]
+  exportBatches  ExportBatch[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -168,7 +174,7 @@ model OutcomeDefinition {
   id                 String      @id @default(uuid()) @db.Uuid
   organizationId     String?     @map("organization_id") @db.Uuid
   campaignId         String?     @map("campaign_id") @db.Uuid
-  code               String      @unique
+  code               String
   label              String
   requiresNote       Boolean     @default(false) @map("requires_note")
   isFinalDisposition Boolean     @default(true) @map("is_final_disposition")
@@ -181,6 +187,7 @@ model OutcomeDefinition {
 
   @@index([organizationId])
   @@index([campaignId])
+  @@index([organizationId, campaignId, code])
   @@index([isActive, displayOrder])
   @@map("outcome_definitions")
 }
@@ -333,6 +340,7 @@ model VisitLog {
   canvasser             User        @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
   geofenceResult        VisitGeofenceResult?
   corrections           VisitCorrection[]
+  exportBatchVisits     ExportBatchVisit[]
 
   @@index([turfId])
   @@index([addressId])
@@ -422,20 +430,44 @@ model ExportBatch {
   id                String   @id @default(uuid()) @db.Uuid
   profileCode       String   @map("profile_code")
   filename          String
+  organizationId    String?  @map("organization_id") @db.Uuid
+  campaignId        String?  @map("campaign_id") @db.Uuid
   turfId            String?  @map("turf_id") @db.Uuid
   initiatedByUserId String?  @map("initiated_by_user_id") @db.Uuid
   markExported      Boolean  @default(false) @map("mark_exported")
   rowCount          Int      @default(0) @map("row_count")
   filterScopeJson   Json?    @map("filter_scope_json")
+  csvContent        String?  @map("csv_content")
+  sha256Checksum    String?  @map("sha256_checksum")
   createdAt         DateTime @default(now()) @map("created_at")
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign          Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   turf              Turf?    @relation(fields: [turfId], references: [id], onDelete: SetNull)
   initiatedByUser   User?    @relation("ExportBatchesInitiated", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
+  exportedVisits    ExportBatchVisit[]
 
   @@index([profileCode])
+  @@index([organizationId])
+  @@index([campaignId])
   @@index([turfId])
   @@index([initiatedByUserId])
   @@index([createdAt])
   @@map("export_batches")
+}
+
+model ExportBatchVisit {
+  id            String      @id @default(uuid()) @db.Uuid
+  exportBatchId String      @map("export_batch_id") @db.Uuid
+  visitLogId    String      @map("visit_log_id") @db.Uuid
+  rowIndex      Int         @map("row_index")
+  rowSnapshotJson Json?     @map("row_snapshot_json")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  exportBatch   ExportBatch @relation(fields: [exportBatchId], references: [id], onDelete: Cascade)
+  visitLog      VisitLog    @relation(fields: [visitLogId], references: [id], onDelete: Cascade)
+
+  @@unique([exportBatchId, visitLogId])
+  @@index([visitLogId])
+  @@map("export_batch_visits")
 }
 
 model ImpersonationSession {

@@ -1,6 +1,7 @@
 import { VisitsController } from './visits.controller';
 
 describe('VisitsController', () => {
+  const scope = { organizationId: 'org-1', campaignId: null };
   const visitsService = {
     logVisit: jest.fn(),
     listActiveOutcomes: jest.fn(),
@@ -24,7 +25,7 @@ describe('VisitsController', () => {
       organizationId: 'org-1'
     });
 
-    expect(visitsService.listActiveOutcomes).toHaveBeenCalledWith('org-1');
+    expect(visitsService.listActiveOutcomes).toHaveBeenCalledWith(scope);
   });
 
   it('injects the current user id into visit logging', () => {
@@ -61,7 +62,7 @@ describe('VisitsController', () => {
     expect(visitsService.listRecentVisits).toHaveBeenCalledWith({
       requesterId: 'admin-1',
       requesterRole: 'admin',
-      organizationId: 'org-1',
+      scope,
       turfId: 'turf-1',
       canvasserId: 'user-2',
       addressId: undefined
@@ -70,7 +71,7 @@ describe('VisitsController', () => {
       visitId: '9f870efe-98f7-4d34-9ef7-16b1965de5b6',
       actorUserId: 'admin-1',
       actorRole: 'admin',
-      organizationId: 'org-1',
+      scope,
       outcomeCode: 'talked_to_voter',
       notes: 'Corrected',
       reason: 'Fix typo'

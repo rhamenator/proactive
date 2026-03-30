@@ -2,6 +2,7 @@ import { AssignmentStatus, GpsStatus, SyncStatus, VisitResult } from '@prisma/cl
 import { VisitsService } from './visits.service';
 
 describe('VisitsService', () => {
+  const scope = { organizationId: 'org-1', campaignId: null };
   const prisma = {
     $transaction: jest.fn(),
     visitLog: {
@@ -145,7 +146,7 @@ describe('VisitsService', () => {
   it('lists active outcomes in display order for the current organization', async () => {
     prisma.outcomeDefinition.findMany.mockResolvedValue([{ id: 'outcome-1', code: 'knocked' }]);
 
-    const result = await service.listActiveOutcomes('org-1');
+    const result = await service.listActiveOutcomes(scope);
 
     expect(prisma.outcomeDefinition.findMany).toHaveBeenCalledWith({
       where: { isActive: true, organizationId: 'org-1' },
@@ -430,7 +431,7 @@ describe('VisitsService', () => {
     const result = await service.listRecentVisits({
       requesterId: 'admin-1',
       requesterRole: 'admin' as never,
-      organizationId: 'org-1',
+      scope,
       turfId: 'turf-1'
     });
 
@@ -459,7 +460,7 @@ describe('VisitsService', () => {
       visitId: 'visit-1',
       actorUserId: 'admin-1',
       actorRole: 'admin' as never,
-      organizationId: 'org-1',
+      scope,
       outcomeCode: 'talked_to_voter',
       notes: 'Corrected note',
       reason: 'Fix incorrect disposition'
@@ -499,7 +500,7 @@ describe('VisitsService', () => {
       visitId: 'visit-1',
       actorUserId: 'supervisor-1',
       actorRole: 'supervisor' as never,
-      organizationId: 'org-1',
+      scope,
       outcomeCode: 'other',
       notes: 'Supervisor correction',
       reason: 'Supervisor QA review'
@@ -523,7 +524,7 @@ describe('VisitsService', () => {
         visitId: 'visit-1',
         actorUserId: 'user-1',
         actorRole: 'canvasser' as never,
-        organizationId: 'org-1',
+        scope,
         outcomeCode: 'knocked',
         reason: 'Not my visit'
       })
@@ -549,7 +550,7 @@ describe('VisitsService', () => {
       visitId: 'visit-1',
       actorUserId: 'user-1',
       actorRole: 'canvasser' as never,
-      organizationId: 'org-1',
+      scope,
       outcomeCode: 'other',
       reason: 'Fix my last entry'
     });
@@ -576,7 +577,7 @@ describe('VisitsService', () => {
         visitId: 'visit-1',
         actorUserId: 'user-1',
         actorRole: 'canvasser' as never,
-        organizationId: 'org-1',
+        scope,
         outcomeCode: 'knocked',
         notes: undefined,
         reason: 'Too late'
@@ -592,7 +593,7 @@ describe('VisitsService', () => {
         visitId: 'visit-1',
         actorUserId: 'admin-1',
         actorRole: 'admin' as never,
-        organizationId: 'org-1',
+        scope,
         outcomeCode: 'other',
         reason: 'Blocked export'
       })
@@ -607,7 +608,7 @@ describe('VisitsService', () => {
         visitId: 'visit-1',
         actorUserId: 'admin-1',
         actorRole: 'admin' as never,
-        organizationId: 'org-1',
+        scope,
         outcomeCode: 'other',
         reason: 'Blocked conflict'
       })
@@ -622,7 +623,7 @@ describe('VisitsService', () => {
         visitId: 'visit-1',
         actorUserId: 'admin-1',
         actorRole: 'admin' as never,
-        organizationId: 'org-1',
+        scope,
         outcomeCode: 'other',
         reason: 'Blocked conflict status'
       })
@@ -639,7 +640,7 @@ describe('VisitsService', () => {
         visitId: 'visit-1',
         actorUserId: 'admin-1',
         actorRole: 'admin' as never,
-        organizationId: 'org-1',
+        scope,
         outcomeCode: 'other',
         reason: 'Blocked gps override'
       })
@@ -660,7 +661,7 @@ describe('VisitsService', () => {
       visitId: 'visit-1',
       actorUserId: 'admin-1',
       actorRole: 'admin' as never,
-      organizationId: 'org-1',
+      scope,
       outcomeCode: 'other',
       reason: 'Keep existing note'
     });
@@ -687,7 +688,7 @@ describe('VisitsService', () => {
         visitId: 'visit-1',
         actorUserId: 'admin-1',
         actorRole: 'admin' as never,
-        organizationId: 'org-1',
+        scope,
         outcomeCode: 'refused',
         notes: '   ',
         reason: 'Need note'
@@ -709,7 +710,7 @@ describe('VisitsService', () => {
         visitId: 'visit-1',
         actorUserId: 'admin-1',
         actorRole: 'admin' as never,
-        organizationId: 'org-1',
+        scope,
         outcomeCode: 'knocked',
         reason: 'No change'
       })

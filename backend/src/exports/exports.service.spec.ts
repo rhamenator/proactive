@@ -2,6 +2,7 @@ import { GpsStatus, SyncStatus, VisitResult } from '@prisma/client';
 import { ExportsService } from './exports.service';
 
 describe('ExportsService', () => {
+  const scope = { organizationId: 'org-1', campaignId: null };
   const prisma = {
     visitLog: {
       findMany: jest.fn(),
@@ -80,15 +81,31 @@ describe('ExportsService', () => {
     expect(result.csv).toContain('VAN-123');
     expect(result.csv).toContain('Pat Field');
     expect(result.filename).toContain('van-results-');
-    expect(prisma.exportBatch.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        profileCode: 'van_compatible',
-        turfId: 'turf-1',
-        initiatedByUserId: 'admin-1',
-        markExported: true,
-        rowCount: 1
+    expect(prisma.exportBatch.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          profileCode: 'van_compatible',
+          organizationId: 'org-1',
+          campaignId: null,
+          turfId: 'turf-1',
+          initiatedByUserId: 'admin-1',
+          markExported: true,
+          rowCount: 1,
+          csvContent: expect.any(String),
+          sha256Checksum: expect.any(String),
+          exportedVisits: {
+            create: [
+              expect.objectContaining({
+                rowIndex: 1
+              })
+            ]
+          }
+        }),
+        include: {
+          exportedVisits: true
+        }
       })
-    });
+    );
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         actionType: 'csv_export_generated',
@@ -184,33 +201,43 @@ describe('ExportsService', () => {
       actorUserId: 'admin-1',
       organizationId: 'org-1'
     });
-    const history = await service.exportHistory('org-1');
+    const history = await service.exportHistory(scope);
 
     expect(prisma.visitLog.updateMany).not.toHaveBeenCalled();
     expect(result.csv).toContain('outcome_code');
     expect(result.csv).toContain('Knocked');
     expect(result.filename).toContain('internal-master-');
-    expect(prisma.exportBatch.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        profileCode: 'internal_master',
-        turfId: 'turf-1',
-        initiatedByUserId: 'admin-1',
-        markExported: false,
-        rowCount: 1
+    expect(prisma.exportBatch.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          profileCode: 'internal_master',
+          organizationId: 'org-1',
+          campaignId: null,
+          turfId: 'turf-1',
+          initiatedByUserId: 'admin-1',
+          markExported: false,
+          rowCount: 1,
+          csvContent: expect.any(String),
+          sha256Checksum: expect.any(String),
+          exportedVisits: {
+            create: [
+              expect.objectContaining({
+                rowIndex: 1
+              })
+            ]
+          }
+        }),
+        include: {
+          exportedVisits: true
+        }
       })
-    });
+    );
     expect(prisma.exportBatch.findMany).toHaveBeenCalledWith({
       where: {
-        OR: [
-          { turf: { organizationId: 'org-1' } },
-          {
-            turfId: null,
-            initiatedByUser: { organizationId: 'org-1' }
-          }
-        ]
+        organizationId: 'org-1'
       },
       orderBy: { createdAt: 'desc' },
-      take: 25,
+      take: 50,
       include: {
         initiatedByUser: {
           select: expect.any(Object)
@@ -219,6 +246,11 @@ describe('ExportsService', () => {
           select: {
             id: true,
             name: true
+          }
+        },
+        _count: {
+          select: {
+            exportedVisits: true
           }
         }
       }

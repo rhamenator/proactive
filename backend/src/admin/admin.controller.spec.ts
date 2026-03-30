@@ -2,10 +2,12 @@ import { UserRole } from '@prisma/client';
 import { AdminController } from './admin.controller';
 
 describe('AdminController', () => {
+  const scope = { organizationId: 'org-1', campaignId: null };
   const adminService = {
     dashboardSummary: jest.fn(),
     activeCanvassers: jest.fn(),
     listCanvassers: jest.fn(),
+    listCampaigns: jest.fn(),
     listOutcomeDefinitions: jest.fn(),
     gpsReviewQueue: jest.fn(),
     syncConflictQueue: jest.fn(),
@@ -41,22 +43,25 @@ describe('AdminController', () => {
       sub: 'admin-1',
       email: 'admin@example.com',
       role: UserRole.admin,
-      organizationId: 'org-1'
+      organizationId: 'org-1',
+      campaignId: null
     };
 
     await controller.dashboardSummary(user);
     await controller.activeCanvassers(user);
     await controller.listCanvassers(user);
+    await controller.listCampaigns(user);
     await controller.listOutcomeDefinitions(user);
     await controller.gpsReviewQueue(user);
     await controller.syncConflictQueue(user);
 
-    expect(adminService.dashboardSummary).toHaveBeenCalledWith('org-1');
-    expect(adminService.activeCanvassers).toHaveBeenCalledWith('org-1');
-    expect(adminService.listCanvassers).toHaveBeenCalledWith('org-1');
-    expect(adminService.listOutcomeDefinitions).toHaveBeenCalledWith('org-1');
-    expect(adminService.gpsReviewQueue).toHaveBeenCalledWith('org-1');
-    expect(adminService.syncConflictQueue).toHaveBeenCalledWith('org-1');
+    expect(adminService.dashboardSummary).toHaveBeenCalledWith(scope);
+    expect(adminService.activeCanvassers).toHaveBeenCalledWith(scope);
+    expect(adminService.listCanvassers).toHaveBeenCalledWith(scope);
+    expect(adminService.listCampaigns).toHaveBeenCalledWith(scope);
+    expect(adminService.listOutcomeDefinitions).toHaveBeenCalledWith(scope);
+    expect(adminService.gpsReviewQueue).toHaveBeenCalledWith(scope);
+    expect(adminService.syncConflictQueue).toHaveBeenCalledWith(scope);
   });
 
   it('delegates create, invite, and update field-user flows', async () => {
@@ -64,7 +69,8 @@ describe('AdminController', () => {
       sub: 'admin-1',
       email: 'admin@example.com',
       role: UserRole.admin,
-      organizationId: 'org-1'
+      organizationId: 'org-1',
+      campaignId: null
     };
 
     await controller.createCanvasser({
@@ -84,28 +90,31 @@ describe('AdminController', () => {
 
     expect(usersService.createCanvasser).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 'org-1' }));
     expect(authService.inviteCanvasser).toHaveBeenCalledWith(
-      expect.objectContaining({ actorUserId: 'admin-1', organizationId: 'org-1' })
+      expect.objectContaining({ actorUserId: 'admin-1', organizationId: 'org-1', campaignId: null })
     );
-    expect(usersService.updateCanvasser).toHaveBeenCalledWith('user-1', {
-      isActive: false,
-      organizationId: 'org-1'
-    });
+    expect(usersService.updateCanvasser).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        isActive: false,
+        organizationId: 'org-1'
+      })
+    );
   });
 
   it('delegates turf reassignment and reopen actions', async () => {
     await controller.reassignTurf(
       'turf-1',
       { canvasserId: 'user-2', reason: 'Coverage' },
-      { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1' }
+      { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null }
     );
     await controller.reopenTurf(
       'turf-1',
       { reason: 'Need more attempts' },
-      { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1' }
+      { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null }
     );
 
-    expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'user-2', 'admin-1', 'Coverage', 'org-1');
-    expect(turfsService.reopenTurf).toHaveBeenCalledWith('turf-1', 'admin-1', 'Need more attempts', 'org-1');
+    expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'user-2', 'admin-1', 'Coverage', scope);
+    expect(turfsService.reopenTurf).toHaveBeenCalledWith('turf-1', 'admin-1', 'Need more attempts', scope);
   });
 
   it('delegates outcome management, GPS override, and sync conflict resolution actions', async () => {
@@ -113,21 +122,21 @@ describe('AdminController', () => {
       code: 'refused',
       label: 'Refused',
       requiresNote: true
-    }, { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1' });
+    }, { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null });
     await controller.updateOutcomeDefinition('8cb8fd34-5625-48f7-8a91-6657bdbf2c6d', {
       code: 'refused',
       label: 'Refused at door',
       requiresNote: true
-    }, { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1' });
+    }, { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null });
     await controller.overrideGpsResult(
       '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
       { reason: 'Supervisor confirmed doorstep visit' },
-      { sub: 'supervisor-1', email: 'sup@example.com', role: UserRole.supervisor, organizationId: 'org-1' }
+      { sub: 'supervisor-1', email: 'sup@example.com', role: UserRole.supervisor, organizationId: 'org-1', campaignId: null }
     );
     await controller.resolveSyncConflict(
       '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
       { reason: 'Reviewed duplicate local submission and cleared the queue item' },
-      { sub: 'supervisor-1', email: 'sup@example.com', role: UserRole.supervisor, organizationId: 'org-1' }
+      { sub: 'supervisor-1', email: 'sup@example.com', role: UserRole.supervisor, organizationId: 'org-1', campaignId: null }
     );
 
     expect(adminService.upsertOutcomeDefinition).toHaveBeenNthCalledWith(
@@ -137,18 +146,28 @@ describe('AdminController', () => {
         label: 'Refused',
         requiresNote: true
       },
-      'org-1'
+      scope
+    );
+    expect(adminService.upsertOutcomeDefinition).toHaveBeenNthCalledWith(
+      2,
+      {
+        id: '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
+        code: 'refused',
+        label: 'Refused at door',
+        requiresNote: true
+      },
+      scope
     );
     expect(adminService.overrideGpsResult).toHaveBeenCalledWith({
       visitLogId: '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
       actorUserId: 'supervisor-1',
-      organizationId: 'org-1',
+      scope,
       reason: 'Supervisor confirmed doorstep visit'
     });
     expect(adminService.resolveSyncConflict).toHaveBeenCalledWith({
       visitLogId: '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
       actorUserId: 'supervisor-1',
-      organizationId: 'org-1',
+      scope,
       reason: 'Reviewed duplicate local submission and cleared the queue item'
     });
   });

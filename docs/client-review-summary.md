@@ -13,8 +13,8 @@ The application suite has been built and brought to a review-ready state across 
   - Sync-conflict review and resolution workflow
   - Configurable visit outcomes
   - Requested-address submission and review workflow
-  - Reporting endpoints for overview, productivity, GPS exceptions, and audit activity
-  - VAN export, internal master export, and export batch history
+  - Reporting endpoints for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
+  - VAN export, internal master export, export batch history, historical CSV re-download, and row-traceable export artifacts
 
 - **Admin Dashboard**
   - Dashboard and operational summary views
@@ -25,6 +25,7 @@ The application suite has been built and brought to a review-ready state across 
   - GPS review
   - Sync-conflict review
   - Reports pages
+  - Campaign-aware report filtering
   - Requested-address review
   - Visit correction workflow
   - Impersonation-aware admin experience with visible banner
@@ -81,8 +82,10 @@ Please review:
 
 Please confirm whether you want any of the following added before release:
 
-- Deeper campaign/team/geography scoping
-- Additional reporting depth beyond the first implemented reporting slice
+- Step-up MFA for sensitive admin actions such as exports and GPS overrides
+- A stronger on-device database implementation for the mobile offline queue
+- Deeper team/geography scoping beyond the current organization-and-campaign scope
+- Household normalization / retention-policy schema work beyond the current operational model
 - Any changes to impersonation policy, correction windows, or review permissions
 
 ### 3. Provide Production Release Inputs

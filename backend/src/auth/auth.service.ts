@@ -48,6 +48,8 @@ export class AuthService {
     lastName: string;
     email: string;
     role: UserRole;
+    organizationId?: string | null;
+    campaignId?: string | null;
     isActive: boolean;
     status: string;
     mfaEnabled: boolean;
@@ -56,15 +58,26 @@ export class AuthService {
     lastLoginAt: Date | null;
     createdAt: Date;
   }) {
-    return this.usersService.sanitize(user);
+    return this.usersService.sanitize({
+      ...user,
+      organizationId: user.organizationId ?? null,
+      campaignId: user.campaignId ?? null
+    });
   }
 
-  private buildJwtPayload(user: { id: string; email: string; role: UserRole; organizationId?: string | null }) {
+  private buildJwtPayload(user: {
+    id: string;
+    email: string;
+    role: UserRole;
+    organizationId?: string | null;
+    campaignId?: string | null;
+  }) {
     return {
       sub: user.id,
       email: user.email,
       role: user.role,
-      organizationId: user.organizationId ?? null
+      organizationId: user.organizationId ?? null,
+      campaignId: user.campaignId ?? null
     };
   }
 
@@ -227,6 +240,7 @@ export class AuthService {
     email: string;
     role: UserRole;
     organizationId?: string | null;
+    campaignId?: string | null;
     isActive: boolean;
     status: string;
     mfaEnabled: boolean;
@@ -891,6 +905,7 @@ export class AuthService {
     role?: UserRole;
     actorUserId: string;
     organizationId?: string | null;
+    campaignId?: string | null;
   }) {
     const placeholderPasswordHash = await bcrypt.hash(this.createOpaqueToken(), 10);
     const user = await this.usersService.createInvitedCanvasser({

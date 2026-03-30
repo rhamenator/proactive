@@ -9,6 +9,8 @@ export type SafeUser = {
   lastName: string;
   email: string;
   role: UserRole;
+  organizationId: string | null;
+  campaignId: string | null;
   isActive: boolean;
   status: string;
   mfaEnabled: boolean;
@@ -47,6 +49,8 @@ export class UsersService {
     lastName: string;
     email: string;
     role: UserRole;
+    organizationId: string | null;
+    campaignId: string | null;
     isActive: boolean;
     status: string;
     mfaEnabled: boolean;
@@ -92,6 +96,7 @@ export class UsersService {
     password: string;
     role?: UserRole;
     organizationId?: string | null;
+    campaignId?: string | null;
   }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -108,6 +113,7 @@ export class UsersService {
         passwordHash,
         role: this.normalizeFieldUserRole(input.role),
         organizationId: input.organizationId ?? null,
+        campaignId: input.campaignId ?? null,
         status: 'active',
         activatedAt: new Date()
       }
@@ -126,6 +132,7 @@ export class UsersService {
       isActive: boolean;
       role: UserRole;
       organizationId: string | null;
+      campaignId: string | null;
     }>
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
@@ -136,10 +143,11 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const data: Prisma.UserUpdateInput = {};
+    const data: Prisma.UserUncheckedUpdateInput = {};
     if (input.firstName !== undefined) data.firstName = input.firstName;
     if (input.lastName !== undefined) data.lastName = input.lastName;
     if (input.email !== undefined) data.email = input.email.trim().toLowerCase();
+    if (input.campaignId !== undefined) data.campaignId = input.campaignId;
     if (input.isActive !== undefined) {
       data.isActive = input.isActive;
       data.status = input.isActive ? 'active' : 'inactive';
@@ -166,6 +174,7 @@ export class UsersService {
     passwordHash: string;
     role?: UserRole;
     organizationId?: string | null;
+    campaignId?: string | null;
   }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -181,6 +190,7 @@ export class UsersService {
         passwordHash: input.passwordHash,
         role: this.normalizeFieldUserRole(input.role),
         organizationId: input.organizationId ?? null,
+        campaignId: input.campaignId ?? null,
         isActive: false,
         status: 'invited',
         invitedAt: new Date()

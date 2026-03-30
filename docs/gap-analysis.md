@@ -24,10 +24,11 @@ The system now covers the main operational v1 workflow:
 - organization-scoped admin, turf, export, and review queries
 - requested-address submission from the field plus admin/supervisor review and approval
 - filtered reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, and audit activity
-- VAN-compatible export, internal master export, and export history
+- campaign-aware reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
+- VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
 - CI, build verification, regression tests, and GitHub release-build automation
 
-The remaining gaps are now mostly outside the core application logic. They are concentrated in finer-grained authorization policy, deeper analytics/report-history polish, and external mobile signing inputs.
+The remaining gaps are now mostly in deeper architecture and release policy rather than missing operational screens. They are concentrated in offline-first storage depth, normalized household modeling, step-up MFA for sensitive actions, and external mobile signing inputs.
 
 ## What Is In Place
 
@@ -35,13 +36,14 @@ The remaining gaps are now mostly outside the core application logic. They are c
 - admin/supervisor MFA challenge, setup, verification, backup-code, and disable flows
 - token-backed admin impersonation start/stop, active impersonation banner context, and audited impersonation sessions
 - configurable outcome definitions in the database
+- campaign-scoped outcome definitions with scoped uniqueness
 - GPS review queue and override actions
 - sync-conflict queue and resolution actions
 - visit correction endpoints and UI with role-aware edit restrictions
-- organization scoping in backend admin/turf/export review flows
-- org/campaign scaffolding in the schema
+- organization and campaign scoping in backend admin/turf/export/reports flows
+- org/campaign scaffolding in the schema and user/session JWT payloads
 - requested-address persistence plus mobile submission and review workflow
-- export batch tracking and two export profiles
+- export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
 - mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
 - repo-wide `verify` command and GitHub Actions CI
@@ -49,43 +51,79 @@ The remaining gaps are now mostly outside the core application logic. They are c
 
 ## Remaining Material Gaps
 
-### 1. Fine-grained scope enforcement still stops at the organization boundary
+### 1. Fine-grained scope enforcement still stops at campaign scope
 
 Current state:
 
-- admin and supervisor operational queries are organization-scoped
-- `organization_id` and `campaign_id` are present in the schema
-- there is still no deeper team, geography, or campaign-specific permission matrix
+- admin and supervisor operational queries are now organization-and-campaign scoped
+- `organization_id` and `campaign_id` are enforced through JWT-derived access scope in admin, turf, export, report, and visit review flows
+- there is still no deeper team, geography, or turf-region permission matrix
 
 Why it matters:
 
-- the immediate multi-org leakage risk is addressed
+- the immediate multi-org and cross-campaign leakage risk is addressed
 - future finer-grained scoping would still require policy decisions and additional enforcement work
 
 What remains:
 
-- decide whether campaign, team, or turf-region scoping is required in v1.x
+- decide whether team or turf-region scoping is required in v1.x
 - if yes, model those assignments and enforce them in backend authorization
 
-### 2. Reporting history and analytics depth can still be extended
+### 2. Mobile storage is still durable queueing, not a full on-device relational database
 
 Current state:
 
-- the dashboard now exposes filtered reporting for overview, productivity, GPS exceptions, and audit activity
-- exportable views now match active filters at the page layer
-- the reporting packet still leaves room for deeper slices such as long-range trend reporting, resolved-conflict history, and richer export-batch analytics
+- the mobile app persists auth state, queue state, and address state via `AsyncStorage`
+- offline queueing, retry, and idempotent sync are implemented
+- the client packet originally called for a stronger local database approach for long offline shifts
 
 Why it matters:
 
-- the client reporting packet is broader than any sensible first release surface
-- additional analytics would improve operations, but they are no longer core product blockers
+- the current approach is workable for pilot use and modest queue sizes
+- a true device database would be more resilient for larger offline workloads, richer sync metadata, and local querying
 
 What remains:
 
-- decide whether resolved-conflict history, export-batch rollups, or longitudinal trend views belong in the next release
-- add those pages/endpoints if the client wants them in v1.x rather than a later enhancement
+- decide whether to keep the current queue persistence for v1 or upgrade to SQLite-backed storage in v1.x
+- if upgraded, migrate queue/address persistence to a real device database and carry forward the same sync semantics
 
-### 3. Signed mobile binaries still depend on external release credentials
+### 3. Step-up MFA is still not enforced for sensitive admin actions
+
+Current state:
+
+- login MFA is enforced for admins and supervisors
+- backup codes exist and account-level MFA management exists
+- sensitive actions such as export generation, GPS overrides, turf reassignment/reopen, and conflict resolution are still role-guarded but do not require a fresh MFA step-up challenge
+
+Why it matters:
+
+- this is the main remaining security-policy gap against the stricter client packet
+- role checks alone are sufficient for pilot use but weaker than the written security requirements
+
+What remains:
+
+- decide whether v1 production requires true step-up MFA or whether login-time MFA is sufficient
+- if required, add challenge-on-action UX plus backend enforcement for sensitive routes
+
+### 4. Normalized households, soft-delete/retention metadata, and deeper export lineage are still not full-packet complete
+
+Current state:
+
+- the current address model remains turf-owned rather than normalized into reusable households plus join tables
+- soft-delete and retention metadata are still not modeled on major operational tables
+- exports now store the generated CSV and per-row membership, which closes the most important auditability gap
+
+Why it matters:
+
+- the system is operationally usable now, but future cross-campaign household reuse and retention-policy automation would require another schema evolution
+- this is an architectural completeness gap, not a current pilot blocker
+
+What remains:
+
+- decide whether household normalization and retention metadata belong in v1.x or a post-pilot schema revision
+- if yes, migrate from turf-owned addresses to reusable households and add archive/purge metadata
+
+### 5. Signed mobile binaries still depend on external release credentials
 
 Current state:
 
@@ -117,16 +155,16 @@ What remains:
 - admin/supervisor MFA exists, is enforced, and supports backup codes
 - visit correction flows exist across backend and UI
 - requested-address submission/review exists across mobile and admin
-- organization-scoped operational access exists
-- org/campaign scaffolding exists
-- export profiles and export history now exist
-- reporting endpoints and dashboard reporting pages now exist
+- organization/campaign-scoped operational access exists
+- org/campaign scaffolding exists in schema, JWT payloads, and major operational services
+- export profiles, stored artifacts, downloadable history, and row-traceability now exist
+- reporting endpoints and dashboard reporting pages now exist across overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
 - the root build/test/Prisma verification path is automated
 - trusted GitHub release-build automation exists
 
 ## Release Readiness Assessment
 
-The product is still stronger than before, but the full client packet raises the bar beyond the earlier consolidated spec. With that fuller source set, the repo is not yet cleanly “feature-complete.”
+The product is now stronger than before and is closer to full packet alignment, but the client packet still sets a higher bar in a few architectural and security areas. The repo is operationally review-ready and pilot-ready, but not yet literal “everything in every addendum is maximally implemented.”
 
 Safe for:
 
@@ -137,16 +175,18 @@ Safe for:
 
 Still blocked for full source-packet alignment:
 
-- deeper team/campaign/geography scope policy and enforcement if the client wants that in v1.x
+- deeper team/geography scope policy and enforcement if the client wants that in v1.x
+- stronger offline-first storage if the client insists on a true local database in v1
+- step-up MFA for sensitive actions if the client insists on full security-packet parity in v1
+- household normalization and retention metadata if the client insists on full schema-packet parity in v1
 - final signed mobile app distribution without real external signing credentials
 
 Remaining non-blocking enhancements:
 
-- deeper analytics/report-history breadth beyond the first reporting slice
 - richer break-glass or help-desk recovery options beyond backup codes
 
 ## Recommended Next Sequence
 
-1. Decide whether deeper campaign/team/geography scope belongs in the next release and implement it if required.
-2. Provide production release secrets and final app identifiers for EAS/App Store/Play.
-3. If desired, extend reporting with resolved-conflict history and longer-range analytics.
+1. Decide whether v1 production needs step-up MFA and/or a true on-device database, and implement either if required.
+2. Decide whether household normalization and retention metadata belong in v1.x or the post-pilot schema roadmap.
+3. Provide production release secrets and final app identifiers for EAS/App Store/Play.

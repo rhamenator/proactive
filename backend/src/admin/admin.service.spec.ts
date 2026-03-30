@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 describe('AdminService', () => {
+  const scope = { organizationId: 'org-1', campaignId: null };
   const prisma = {
     $transaction: jest.fn(),
     user: {
@@ -89,7 +90,7 @@ describe('AdminService', () => {
       }
     ]);
 
-    const result = await service.dashboardSummary('org-1');
+    const result = await service.dashboardSummary(scope);
 
     expect(result.totals).toEqual(
       expect.objectContaining({
@@ -111,7 +112,7 @@ describe('AdminService', () => {
   it('lists only field users with supervisor and canvasser roles', async () => {
     prisma.user.findMany.mockResolvedValue([{ id: 'user-1', role: UserRole.supervisor }]);
 
-    const result = await service.listCanvassers('org-1');
+    const result = await service.listCanvassers(scope);
 
     expect(prisma.user.findMany).toHaveBeenCalledWith({
       where: {
@@ -129,7 +130,7 @@ describe('AdminService', () => {
   it('lists configurable outcomes in display order', async () => {
     prisma.outcomeDefinition.findMany.mockResolvedValue([{ id: 'outcome-1', code: 'knocked' }]);
 
-    const result = await service.listOutcomeDefinitions('org-1');
+    const result = await service.listOutcomeDefinitions(scope);
 
     expect(prisma.outcomeDefinition.findMany).toHaveBeenCalledWith({
       where: { organizationId: 'org-1' },
@@ -140,7 +141,10 @@ describe('AdminService', () => {
 
   it('creates and updates outcome definitions with normalized values', async () => {
     prisma.outcomeDefinition.create.mockResolvedValue({ id: 'outcome-2', code: 'refused' });
-    prisma.outcomeDefinition.findFirst.mockResolvedValue({ id: 'outcome-2', organizationId: 'org-1' });
+    prisma.outcomeDefinition.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'outcome-2', organizationId: 'org-1' });
     prisma.outcomeDefinition.update.mockResolvedValue({ id: 'outcome-2', code: 'refused' });
 
     const created = await service.upsertOutcomeDefinition({
@@ -148,13 +152,13 @@ describe('AdminService', () => {
       label: ' Refused ',
       requiresNote: true,
       displayOrder: 40
-    }, 'org-1');
+    }, scope);
     const updated = await service.upsertOutcomeDefinition({
       id: 'outcome-2',
       code: 'refused',
       label: 'Refused At Door',
       isActive: false
-    }, 'org-1');
+    }, scope);
 
     expect(prisma.outcomeDefinition.create).toHaveBeenCalledWith({
       data: {
@@ -164,10 +168,26 @@ describe('AdminService', () => {
         isFinalDisposition: true,
         displayOrder: 40,
         isActive: true,
-        organizationId: 'org-1'
+        organizationId: 'org-1',
+        campaignId: null
       }
     });
-    expect(prisma.outcomeDefinition.findFirst).toHaveBeenCalledWith({
+    expect(prisma.outcomeDefinition.findFirst).toHaveBeenNthCalledWith(1, {
+      where: {
+        code: 'refused',
+        organizationId: 'org-1',
+        campaignId: null
+      }
+    });
+    expect(prisma.outcomeDefinition.findFirst).toHaveBeenNthCalledWith(2, {
+      where: {
+        code: 'refused',
+        organizationId: 'org-1',
+        campaignId: null,
+        id: { not: 'outcome-2' }
+      }
+    });
+    expect(prisma.outcomeDefinition.findFirst).toHaveBeenNthCalledWith(3, {
       where: {
         id: 'outcome-2',
         organizationId: 'org-1'
@@ -182,7 +202,8 @@ describe('AdminService', () => {
         isFinalDisposition: true,
         displayOrder: 0,
         isActive: false,
-        organizationId: 'org-1'
+        organizationId: 'org-1',
+        campaignId: null
       }
     });
     expect(created).toEqual({ id: 'outcome-2', code: 'refused' });
@@ -192,7 +213,7 @@ describe('AdminService', () => {
   it('returns the GPS review queue with canvasser and turf context', async () => {
     prisma.visitGeofenceResult.findMany.mockResolvedValue([{ id: 'geo-1' }]);
 
-    const result = await service.gpsReviewQueue('org-1');
+    const result = await service.gpsReviewQueue(scope);
 
     expect(prisma.visitGeofenceResult.findMany).toHaveBeenCalledWith({
       where: {
@@ -216,7 +237,7 @@ describe('AdminService', () => {
   it('returns visit logs that are still in sync conflict review', async () => {
     prisma.visitLog.findMany.mockResolvedValue([{ id: 'visit-1', syncStatus: SyncStatus.conflict }]);
 
-    const result = await service.syncConflictQueue('org-1');
+    const result = await service.syncConflictQueue(scope);
 
     expect(prisma.visitLog.findMany).toHaveBeenCalledWith({
       where: {
@@ -259,7 +280,7 @@ describe('AdminService', () => {
     const result = await service.overrideGpsResult({
       visitLogId: 'visit-1',
       actorUserId: 'admin-1',
-      organizationId: 'org-1',
+      scope,
       reason: 'Manual verification'
     });
 
@@ -290,7 +311,7 @@ describe('AdminService', () => {
     await expect(service.overrideGpsResult({
       visitLogId: 'visit-1',
       actorUserId: 'admin-1',
-      organizationId: 'org-1',
+      scope,
       reason: '   '
     })).rejects.toBeInstanceOf(BadRequestException);
 
@@ -314,7 +335,7 @@ describe('AdminService', () => {
     const result = await service.resolveSyncConflict({
       visitLogId: 'visit-1',
       actorUserId: 'supervisor-1',
-      organizationId: 'org-1',
+      scope,
       reason: 'Confirmed the server record is the correct final submission.'
     });
 
@@ -375,7 +396,7 @@ describe('AdminService', () => {
     await expect(service.resolveSyncConflict({
       visitLogId: 'visit-1',
       actorUserId: 'supervisor-1',
-      organizationId: 'org-1',
+      scope,
       reason: '   '
     })).rejects.toThrow('Resolution reason is required');
 

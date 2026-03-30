@@ -3,6 +3,7 @@ import { AssignmentStatus, SessionStatus, TurfStatus, UserRole, VisitResult } fr
 import { TurfsService } from './turfs.service';
 
 describe('TurfsService', () => {
+  const scope = { organizationId: 'org-1', campaignId: null };
   const prisma = {
     $transaction: jest.fn(),
     turf: {
@@ -46,7 +47,7 @@ describe('TurfsService', () => {
       status: 'active'
     });
 
-    await expect(service.assignTurf('turf-1', 'supervisor-1', 'admin-1', undefined, null)).rejects.toBeInstanceOf(
+    await expect(service.assignTurf('turf-1', 'supervisor-1', 'admin-1', undefined)).rejects.toBeInstanceOf(
       BadRequestException
     );
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -67,7 +68,7 @@ describe('TurfsService', () => {
     };
     prisma.$transaction.mockImplementation(async (callback) => callback(tx));
 
-    await expect(service.reopenTurf('turf-1', 'admin-1', 'Resume work', null)).rejects.toBeInstanceOf(
+    await expect(service.reopenTurf('turf-1', 'admin-1', 'Resume work')).rejects.toBeInstanceOf(
       BadRequestException
     );
 
@@ -251,7 +252,7 @@ describe('TurfsService', () => {
       { id: 'session-2', turfId: 'turf-1' }
     ]);
 
-    const result = await service.listTurfs('org-1');
+    const result = await service.listTurfs(scope);
 
     expect(prisma.turf.findMany).toHaveBeenCalledWith({
       where: { organizationId: 'org-1' },
@@ -327,7 +328,7 @@ describe('TurfsService', () => {
       status: 'inactive'
     });
 
-    await expect(service.assignTurf('turf-1', 'canvasser-2', 'admin-1', undefined, null)).rejects.toBeInstanceOf(
+    await expect(service.assignTurf('turf-1', 'canvasser-2', 'admin-1', undefined)).rejects.toBeInstanceOf(
       BadRequestException
     );
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -368,7 +369,7 @@ describe('TurfsService', () => {
     prisma.$transaction.mockImplementation(async (callback) => callback(tx));
     auditService.log.mockResolvedValue(undefined);
 
-    const result = await service.assignTurf('turf-1', 'canvasser-1', 'admin-1', 'balanced workload', 'org-1');
+    const result = await service.assignTurf('turf-1', 'canvasser-1', 'admin-1', 'balanced workload', scope);
 
     expect(tx.turfAssignment.create).toHaveBeenCalledWith({
       data: {
@@ -462,7 +463,7 @@ describe('TurfsService', () => {
       ]
     });
 
-    const result = await service.getTurfAddresses('turf-1', 'org-1');
+    const result = await service.getTurfAddresses('turf-1', scope);
 
     expect(prisma.turf.findFirst).toHaveBeenCalledWith({
       where: {

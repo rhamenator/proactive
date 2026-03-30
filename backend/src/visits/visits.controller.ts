@@ -5,6 +5,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
+import { resolveAccessScope } from '../common/utils/access-scope.util';
 import { UsersService } from '../users/users.service';
 import { CorrectVisitDto } from './dto/correct-visit.dto';
 import { CreateVisitDto } from './dto/create-visit.dto';
@@ -18,20 +19,15 @@ export class VisitsController {
     private readonly usersService: UsersService
   ) {}
 
-  private async resolveOrganizationId(user: JwtUserPayload) {
-    if (user.organizationId !== undefined) {
-      return user.organizationId ?? null;
-    }
-
-    const currentUser = await this.usersService.findById(user.sub);
-    return currentUser.organizationId ?? null;
+  private async resolveScope(user: JwtUserPayload) {
+    return resolveAccessScope(user, this.usersService);
   }
 
   @Get('outcomes')
   @UseGuards(RolesGuard)
   @Roles(UserRole.admin, UserRole.supervisor, UserRole.canvasser)
   async listActiveOutcomes(@CurrentUser() user: JwtUserPayload) {
-    return this.visitsService.listActiveOutcomes(await this.resolveOrganizationId(user));
+    return this.visitsService.listActiveOutcomes(await this.resolveScope(user));
   }
 
   @Get('recent')
@@ -46,7 +42,7 @@ export class VisitsController {
     return this.visitsService.listRecentVisits({
       requesterId: user.sub,
       requesterRole: user.role,
-      organizationId: await this.resolveOrganizationId(user),
+      scope: await this.resolveScope(user),
       turfId,
       canvasserId,
       addressId
@@ -73,7 +69,7 @@ export class VisitsController {
       visitId,
       actorUserId: user.sub,
       actorRole: user.role,
-      organizationId: await this.resolveOrganizationId(user),
+      scope: await this.resolveScope(user),
       outcomeCode: body.outcomeCode,
       notes: body.notes,
       reason: body.reason

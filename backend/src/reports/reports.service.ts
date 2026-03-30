@@ -4,10 +4,13 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type ReportFilters = {
   organizationId: string | null;
+  campaignId?: string;
   dateFrom?: string;
   dateTo?: string;
   turfId?: string;
   canvasserId?: string;
+  outcomeCode?: string;
+  overrideFlag?: boolean;
   syncStatus?: SyncStatus;
   gpsStatus?: GpsStatus;
   limit?: number;
@@ -122,10 +125,13 @@ export class ReportsService {
   private normalizeFilters(filters: ReportFilters) {
     return {
       organizationId: filters.organizationId,
+      campaignId: filters.campaignId ?? null,
       dateFrom: filters.dateFrom ?? null,
       dateTo: filters.dateTo ?? null,
       turfId: filters.turfId ?? null,
       canvasserId: filters.canvasserId ?? null,
+      outcomeCode: filters.outcomeCode ?? null,
+      overrideFlag: filters.overrideFlag ?? null,
       syncStatus: filters.syncStatus ?? null,
       gpsStatus: filters.gpsStatus ?? null,
       limit: filters.limit ?? null
@@ -136,6 +142,9 @@ export class ReportsService {
     const where: Prisma.VisitLogWhereInput = {
       organizationId: filters.organizationId
     };
+    if (filters.campaignId) {
+      where.campaignId = filters.campaignId;
+    }
     const { from, to } = this.getRange(filters);
 
     if (from || to) {
@@ -154,11 +163,21 @@ export class ReportsService {
     if (filters.canvasserId) {
       where.canvasserId = filters.canvasserId;
     }
+    if (filters.outcomeCode) {
+      where.outcomeCode = filters.outcomeCode;
+    }
     if (filters.syncStatus) {
       where.syncStatus = filters.syncStatus;
     }
     if (filters.gpsStatus) {
       where.gpsStatus = filters.gpsStatus;
+    }
+    if (filters.overrideFlag !== undefined) {
+      where.geofenceResult = {
+        is: {
+          overrideFlag: filters.overrideFlag
+        }
+      };
     }
 
     return where;
@@ -168,6 +187,9 @@ export class ReportsService {
     const where: Prisma.TurfSessionWhereInput = {
       organizationId: filters.organizationId
     };
+    if (filters.campaignId) {
+      where.campaignId = filters.campaignId;
+    }
     const { from, to } = this.getRange(filters);
     const andConditions: Prisma.TurfSessionWhereInput[] = [];
 
@@ -739,6 +761,144 @@ export class ReportsService {
         newValuesJson: entry.newValuesJson,
         createdAt: entry.createdAt,
         actorUser: entry.actorUser
+      }))
+    };
+  }
+
+  async getTrendSummary(filters: ReportFilters) {
+    const visits = await this.loadVisits(filters);
+    const byDay = new Map<string, { visits: number; contactsMade: number; addresses: Set<string> }>();
+    const byOutcome = new Map<string, { outcomeCode: string; outcomeLabel: string; total: number }>();
+
+    for (const visit of visits) {
+      const day = visit.visitTime.toISOString().slice(0, 10);
+      const dayBucket = byDay.get(day) ?? { visits: 0, contactsMade: 0, addresses: new Set<string>() };
+      dayBucket.visits += 1;
+      dayBucket.addresses.add(visit.addressId);
+      if (visit.contactMade) {
+        dayBucket.contactsMade += 1;
+      }
+      byDay.set(day, dayBucket);
+
+      const outcomeBucket = byOutcome.get(visit.outcomeCode) ?? {
+        outcomeCode: visit.outcomeCode,
+        outcomeLabel: visit.outcomeLabel,
+        total: 0
+      };
+      outcomeBucket.total += 1;
+      byOutcome.set(visit.outcomeCode, outcomeBucket);
+    }
+
+    return {
+      filters: this.normalizeFilters(filters),
+      summary: {
+        days: byDay.size,
+        totalVisits: visits.length,
+        averageVisitsPerDay: byDay.size ? Number((visits.length / byDay.size).toFixed(2)) : 0
+      },
+      byDay: Array.from(byDay.entries())
+        .map(([day, bucket]) => ({
+          day,
+          visits: bucket.visits,
+          contactsMade: bucket.contactsMade,
+          uniqueAddressesVisited: bucket.addresses.size
+        }))
+        .sort((left, right) => left.day.localeCompare(right.day)),
+      byOutcome: Array.from(byOutcome.values()).sort((left, right) => right.total - left.total)
+    };
+  }
+
+  async getResolvedConflicts(filters: ReportFilters) {
+    const rows = await this.prisma.auditLog.findMany({
+      where: {
+        ...this.buildAuditWhere(filters),
+        actionType: 'sync_conflict_resolved'
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(filters.limit ?? 100, 250),
+      include: {
+        actorUser: {
+          select: safeUserSelect
+        }
+      }
+    });
+
+    return {
+      filters: this.normalizeFilters(filters),
+      summary: {
+        totalResolved: rows.length
+      },
+      rows: rows.map((row) => ({
+        id: row.id,
+        visitLogId: row.entityId,
+        resolvedAt: row.createdAt,
+        reasonText: row.reasonText,
+        actorUser: row.actorUser,
+        oldValuesJson: row.oldValuesJson,
+        newValuesJson: row.newValuesJson
+      }))
+    };
+  }
+
+  async getExportBatchAnalytics(filters: ReportFilters) {
+    const rows = await this.prisma.exportBatch.findMany({
+      where: {
+        organizationId: filters.organizationId,
+        ...(filters.campaignId ? { campaignId: filters.campaignId } : {}),
+        ...(filters.turfId ? { turfId: filters.turfId } : {})
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(filters.limit ?? 100, 250),
+      include: {
+        turf: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        initiatedByUser: {
+          select: safeUserSelect
+        },
+        _count: {
+          select: {
+            exportedVisits: true
+          }
+        }
+      }
+    });
+
+    const byProfile = new Map<string, number>();
+    let totalRows = 0;
+    let artifactBackedBatches = 0;
+
+    for (const row of rows) {
+      totalRows += row.rowCount;
+      if (row.csvContent) {
+        artifactBackedBatches += 1;
+      }
+      byProfile.set(row.profileCode, (byProfile.get(row.profileCode) ?? 0) + 1);
+    }
+
+    return {
+      filters: this.normalizeFilters(filters),
+      summary: {
+        totalBatches: rows.length,
+        totalRows,
+        artifactBackedBatches,
+        byProfile: Array.from(byProfile.entries()).map(([profileCode, count]) => ({ profileCode, count }))
+      },
+      rows: rows.map((row) => ({
+        id: row.id,
+        profileCode: row.profileCode,
+        filename: row.filename,
+        createdAt: row.createdAt,
+        rowCount: row.rowCount,
+        markExported: row.markExported,
+        hasStoredArtifact: Boolean(row.csvContent),
+        checksum: row.sha256Checksum,
+        turf: row.turf,
+        initiatedByUser: row.initiatedByUser,
+        traceableVisitCount: row._count.exportedVisits
       }))
     };
   }

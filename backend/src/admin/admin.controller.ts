@@ -6,6 +6,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
+import { resolveAccessScope } from '../common/utils/access-scope.util';
 import { TurfsService } from '../turfs/turfs.service';
 import { UsersService } from '../users/users.service';
 import { InviteCanvasserDto } from './dto/invite-canvasser.dto';
@@ -23,37 +24,38 @@ export class AdminController {
     private readonly turfsService: TurfsService
   ) {}
 
-  private async resolveOrganizationId(user: JwtUserPayload) {
-    if (user.organizationId !== undefined) {
-      return user.organizationId ?? null;
-    }
-
-    const currentUser = await this.usersService.findById(user.sub);
-    return currentUser.organizationId ?? null;
+  private async resolveScope(user: JwtUserPayload) {
+    return resolveAccessScope(user, this.usersService);
   }
 
   @Get('dashboard-summary')
   @Roles(UserRole.admin, UserRole.supervisor)
   async dashboardSummary(@CurrentUser() user: JwtUserPayload) {
-    return this.adminService.dashboardSummary(await this.resolveOrganizationId(user));
+    return this.adminService.dashboardSummary(await this.resolveScope(user));
   }
 
   @Get('active-canvassers')
   @Roles(UserRole.admin, UserRole.supervisor)
   async activeCanvassers(@CurrentUser() user: JwtUserPayload) {
-    return this.adminService.activeCanvassers(await this.resolveOrganizationId(user));
+    return this.adminService.activeCanvassers(await this.resolveScope(user));
   }
 
   @Get('canvassers')
   @Roles(UserRole.admin, UserRole.supervisor)
   async listCanvassers(@CurrentUser() user: JwtUserPayload) {
-    return this.adminService.listCanvassers(await this.resolveOrganizationId(user));
+    return this.adminService.listCanvassers(await this.resolveScope(user));
+  }
+
+  @Get('campaigns')
+  @Roles(UserRole.admin, UserRole.supervisor)
+  async listCampaigns(@CurrentUser() user: JwtUserPayload) {
+    return this.adminService.listCampaigns(await this.resolveScope(user));
   }
 
   @Get('outcomes')
   @Roles(UserRole.admin, UserRole.supervisor)
   async listOutcomeDefinitions(@CurrentUser() user: JwtUserPayload) {
-    return this.adminService.listOutcomeDefinitions(await this.resolveOrganizationId(user));
+    return this.adminService.listOutcomeDefinitions(await this.resolveScope(user));
   }
 
   @Post('outcomes')
@@ -69,7 +71,7 @@ export class AdminController {
     },
     @CurrentUser() user: JwtUserPayload
   ) {
-    return this.adminService.upsertOutcomeDefinition(body, await this.resolveOrganizationId(user));
+    return this.adminService.upsertOutcomeDefinition(body, await this.resolveScope(user));
   }
 
   @Patch('outcomes/:id')
@@ -89,19 +91,19 @@ export class AdminController {
     return this.adminService.upsertOutcomeDefinition({
       id,
       ...body
-    }, await this.resolveOrganizationId(user));
+    }, await this.resolveScope(user));
   }
 
   @Get('gps-review')
   @Roles(UserRole.admin, UserRole.supervisor)
   async gpsReviewQueue(@CurrentUser() user: JwtUserPayload) {
-    return this.adminService.gpsReviewQueue(await this.resolveOrganizationId(user));
+    return this.adminService.gpsReviewQueue(await this.resolveScope(user));
   }
 
   @Get('sync-conflicts')
   @Roles(UserRole.admin, UserRole.supervisor)
   async syncConflictQueue(@CurrentUser() user: JwtUserPayload) {
-    return this.adminService.syncConflictQueue(await this.resolveOrganizationId(user));
+    return this.adminService.syncConflictQueue(await this.resolveScope(user));
   }
 
   @Post('gps-review/:visitLogId/override')
@@ -114,7 +116,7 @@ export class AdminController {
     return this.adminService.overrideGpsResult({
       visitLogId,
       actorUserId: user.sub,
-      organizationId: await this.resolveOrganizationId(user),
+      scope: await this.resolveScope(user),
       reason: body.reason
     });
   }
@@ -129,7 +131,7 @@ export class AdminController {
     return this.adminService.resolveSyncConflict({
       visitLogId,
       actorUserId: user.sub,
-      organizationId: await this.resolveOrganizationId(user),
+      scope: await this.resolveScope(user),
       reason: body.reason
     });
   }
@@ -137,21 +139,25 @@ export class AdminController {
   @Post('canvassers')
   async createCanvasser(
     @Body()
-    body: { firstName: string; lastName: string; email: string; password: string; role?: UserRole },
+    body: { firstName: string; lastName: string; email: string; password: string; role?: UserRole; campaignId?: string | null },
     @CurrentUser() user: JwtUserPayload
   ) {
+    const scope = await this.resolveScope(user);
     return this.usersService.createCanvasser({
       ...body,
-      organizationId: await this.resolveOrganizationId(user)
+      organizationId: scope.organizationId,
+      campaignId: body.campaignId ?? scope.campaignId ?? null
     });
   }
 
   @Post('canvassers/invite')
   async inviteCanvasser(@Body() body: InviteCanvasserDto, @CurrentUser() user: JwtUserPayload) {
+    const scope = await this.resolveScope(user);
     return this.authService.inviteCanvasser({
       ...body,
       actorUserId: user.sub,
-      organizationId: await this.resolveOrganizationId(user)
+      organizationId: scope.organizationId,
+      campaignId: body.campaignId ?? scope.campaignId ?? null
     });
   }
 
@@ -159,12 +165,13 @@ export class AdminController {
   async updateCanvasser(
     @Param('id') id: string,
     @Body()
-    body: Partial<{ firstName: string; lastName: string; email: string; password: string; isActive: boolean }>,
+    body: Partial<{ firstName: string; lastName: string; email: string; password: string; role: UserRole; isActive: boolean; campaignId: string | null }>,
     @CurrentUser() user: JwtUserPayload
   ) {
+    const scope = await this.resolveScope(user);
     return this.usersService.updateCanvasser(id, {
       ...body,
-      organizationId: await this.resolveOrganizationId(user)
+      organizationId: scope.organizationId
     });
   }
 
@@ -180,7 +187,7 @@ export class AdminController {
       body.canvasserId,
       user.sub,
       body.reason,
-      await this.resolveOrganizationId(user)
+      await this.resolveScope(user)
     );
   }
 
@@ -191,6 +198,6 @@ export class AdminController {
     @Body() body: { reason?: string },
     @CurrentUser() user: JwtUserPayload
   ) {
-    return this.turfsService.reopenTurf(turfId, user.sub, body.reason, await this.resolveOrganizationId(user));
+    return this.turfsService.reopenTurf(turfId, user.sub, body.reason, await this.resolveScope(user));
   }
 }

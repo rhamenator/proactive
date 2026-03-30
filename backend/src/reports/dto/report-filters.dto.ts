@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsDateString, IsIn, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 const syncStatuses = ['pending', 'syncing', 'synced', 'failed', 'conflict'] as const;
 const gpsStatuses = ['verified', 'flagged', 'missing', 'low_accuracy'] as const;
@@ -49,6 +49,11 @@ export class ReportFiltersDto {
   canvasserId?: string;
 
   @IsOptional()
+  @Transform(({ value, obj }) => emptyToUndefined(fromAliases(value, obj, 'campaign_id')))
+  @IsUUID()
+  campaignId?: string;
+
+  @IsOptional()
   @Transform(({ value, obj }) => emptyToUndefined(fromAliases(value, obj, 'sync_status')))
   @IsIn(syncStatuses)
   syncStatus?: (typeof syncStatuses)[number];
@@ -57,6 +62,25 @@ export class ReportFiltersDto {
   @Transform(({ value, obj }) => emptyToUndefined(fromAliases(value, obj, 'gps_status')))
   @IsIn(gpsStatuses)
   gpsStatus?: (typeof gpsStatuses)[number];
+
+  @IsOptional()
+  @Transform(({ value, obj }) => emptyToUndefined(fromAliases(value, obj, 'outcome_code')))
+  @IsString()
+  outcomeCode?: string;
+
+  @IsOptional()
+  @Transform(({ value, obj }) => {
+    const resolved = emptyToUndefined(fromAliases(value, obj, 'override_flag'));
+    if (resolved === undefined) {
+      return undefined;
+    }
+    if (typeof resolved === 'boolean') {
+      return resolved;
+    }
+    return String(resolved).toLowerCase() === 'true';
+  })
+  @IsBoolean()
+  overrideFlag?: boolean;
 
   @IsOptional()
   @Transform(({ value, obj }) => {

@@ -22,6 +22,8 @@ function buildUser(overrides: Partial<Record<string, unknown>> = {}) {
     email: 'morgan@example.com',
     passwordHash: 'stored-password-hash',
     role: UserRole.canvasser,
+    organizationId: null,
+    campaignId: null,
     isActive: true,
     status: 'active',
     mfaEnabled: false,

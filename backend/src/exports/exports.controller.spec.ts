@@ -2,10 +2,12 @@ import type { Response } from 'express';
 import { ExportsController } from './exports.controller';
 
 describe('ExportsController', () => {
+  const scope = { organizationId: 'org-1', campaignId: null };
   const exportsService = {
     vanResultsCsv: jest.fn(),
     internalMasterCsv: jest.fn(),
-    exportHistory: jest.fn()
+    exportHistory: jest.fn(),
+    downloadExportBatch: jest.fn()
   };
   const usersService = {
     findById: jest.fn()
@@ -32,7 +34,8 @@ describe('ExportsController', () => {
       turfId: 'turf-1',
       markExported: true,
       actorUserId: 'admin-1',
-      organizationId: null
+      organizationId: null,
+      campaignId: null
     });
   });
 
@@ -61,7 +64,8 @@ describe('ExportsController', () => {
       turfId: 'turf-1',
       markExported: false,
       actorUserId: 'admin-1',
-      organizationId: 'org-1'
+      organizationId: 'org-1',
+      campaignId: null
     });
   });
 
@@ -93,15 +97,40 @@ describe('ExportsController', () => {
       )
     ).resolves.toBe('sent-internal');
 
-    expect(exportsService.exportHistory).toHaveBeenCalledWith('org-1');
+    expect(exportsService.exportHistory).toHaveBeenCalledWith(scope);
     expect(exportsService.internalMasterCsv).toHaveBeenCalledWith({
       turfId: 'turf-1',
       actorUserId: 'admin-1',
-      organizationId: 'org-1'
+      organizationId: 'org-1',
+      campaignId: null
     });
     expect(response.setHeader).toHaveBeenCalledWith(
       'Content-Disposition',
       'attachment; filename="internal-master.csv"'
     );
+  });
+
+  it('downloads a historical export artifact', async () => {
+    const response = {
+      setHeader: jest.fn(),
+      send: jest.fn().mockReturnValue('sent-history')
+    } as unknown as Response;
+    exportsService.downloadExportBatch.mockResolvedValue({
+      csv: 'historical-csv',
+      filename: 'historical.csv',
+      checksum: 'abc123'
+    });
+
+    await expect(
+      controller.downloadExportBatch(
+        'batch-1',
+        { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never, organizationId: 'org-1' },
+        response
+      )
+    ).resolves.toBe('sent-history');
+
+    expect(exportsService.downloadExportBatch).toHaveBeenCalledWith('batch-1', scope);
+    expect(response.setHeader).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="historical.csv"');
+    expect(response.send).toHaveBeenCalledWith('historical-csv');
   });
 });
