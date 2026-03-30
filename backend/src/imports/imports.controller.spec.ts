@@ -4,7 +4,9 @@ describe('ImportsController', () => {
   const importsService = {
     importCsv: jest.fn(),
     importHistory: jest.fn(),
-    downloadImportBatch: jest.fn()
+    downloadImportBatch: jest.fn(),
+    importReviewQueue: jest.fn(),
+    resolveImportReview: jest.fn()
   };
   const usersService = {
     findById: jest.fn()
@@ -73,5 +75,46 @@ describe('ImportsController', () => {
     expect(history).toEqual([{ id: 'batch-1' }]);
     expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
     expect(response.send).toHaveBeenCalledWith('address,city,state\n100 Main,Detroit,MI\n');
+  });
+
+  it('lists and resolves pending import duplicate reviews within caller scope', async () => {
+    importsService.importReviewQueue.mockResolvedValue([{ id: 'row-1' }]);
+    importsService.resolveImportReview.mockResolvedValue({
+      id: 'row-1',
+      status: 'merged',
+      resolutionAction: 'merge'
+    });
+    const user = { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never };
+
+    const queue = await controller.importReviewQueue(user, { take: 25 });
+    const resolution = await controller.resolveImportReview(
+      'row-1',
+      { action: 'merge', reason: 'Reviewed imported duplicate row' },
+      user
+    );
+
+    expect(importsService.importReviewQueue).toHaveBeenCalledWith({
+      scope: {
+        organizationId: 'org-1',
+        campaignId: null
+      },
+      take: 25
+    });
+    expect(importsService.resolveImportReview).toHaveBeenCalledWith({
+      rowId: 'row-1',
+      scope: {
+        organizationId: 'org-1',
+        campaignId: null
+      },
+      actorUserId: 'admin-1',
+      action: 'merge',
+      reason: 'Reviewed imported duplicate row'
+    });
+    expect(queue).toEqual([{ id: 'row-1' }]);
+    expect(resolution).toEqual({
+      id: 'row-1',
+      status: 'merged',
+      resolutionAction: 'merge'
+    });
   });
 });

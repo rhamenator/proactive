@@ -15,7 +15,7 @@ The application suite has been built and brought to a review-ready state across 
   - Sync-conflict review and resolution workflow
   - Configurable visit outcomes
   - Requested-address submission and review workflow
-  - Dedicated CSV import service with create-only, upsert, and replace-membership modes; duplicate skip/error/merge handling; expanded VAN/person/household/unit mapping; batch history; downloadable source artifacts; and row-level import tracing
+  - Dedicated CSV import service with create-only, upsert, and replace-membership modes; duplicate skip/error/merge/review handling; expanded VAN/person/household/unit mapping; batch history; downloadable source artifacts; row-level import tracing; and reviewer resolution for deferred duplicate rows
   - Reporting endpoints for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
   - VAN export, internal master export, export batch history, historical CSV re-download, and row-traceable export artifacts
 
@@ -34,7 +34,7 @@ The application suite has been built and brought to a review-ready state across 
   - Campaign-aware report filtering
   - Requested-address review
   - Visit correction workflow
-  - Import-history visibility and source CSV download for recent batches, including removed-membership counts for replace-membership imports
+  - Import-history visibility and source CSV download for recent batches, including removed-membership counts for replace-membership imports and a dedicated duplicate-review queue for deferred import decisions
   - Impersonation-aware admin experience with visible banner
   - Field-preview mode for impersonated canvasser support sessions
 
@@ -91,7 +91,7 @@ Please review:
 
 Please confirm whether you want any of the following added before release:
 
-- Any additional CSV/VAN import rules beyond the current review-ready baseline with replace-membership imports, expanded VAN field mapping, and duplicate handling
+- Any additional CSV/VAN import rules beyond the current review-ready baseline with replace-membership imports, expanded VAN field mapping, deferred duplicate review, and duplicate handling
 - Deeper team/geography scoping beyond the current organization-and-campaign scope
 - Whether you want archive/delete workflows expanded beyond field users and turfs, plus retention-job automation on top of the new retention metadata
 - Any changes to impersonation policy, correction windows, or review permissions
@@ -125,5 +125,5 @@ The system is now ready for client review and ready for controlled internal/pilo
 The only major items still outside the repository are:
 
 - Final release credentials for signed mobile binaries
-- Additional CSV/VAN import workflow depth if you want the richer import policy beyond the current baseline
+- Additional CSV/VAN import workflow depth if you want richer source-specific policy beyond the current baseline, expanded mapping, and duplicate-review workflow
 - Any additional scope decisions you want included before production rollout

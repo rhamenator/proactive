@@ -41,7 +41,7 @@ export interface OperationalPolicyRecord {
   explicitRecord: boolean;
   inheritedFromOrganization: boolean;
   defaultImportMode: 'create_only' | 'upsert' | 'replace_turf_membership';
-  defaultDuplicateStrategy: 'skip' | 'error' | 'merge';
+  defaultDuplicateStrategy: 'skip' | 'error' | 'merge' | 'review';
   sensitiveMfaWindowMinutes: number;
   retentionArchiveDays?: number | null;
   retentionPurgeDays?: number | null;
@@ -519,13 +519,14 @@ export interface TurfAddressImportResult {
   importBatchId: string;
   filename: string;
   mode: 'create_only' | 'upsert' | 'replace_turf_membership';
-  duplicateStrategy: 'skip' | 'error' | 'merge';
+  duplicateStrategy: 'skip' | 'error' | 'merge' | 'review';
   turfsCreated: number;
   addressesImported: number;
   replacedMembershipsRemoved?: number;
   invalidRowsSkipped?: number;
   duplicateRowsSkipped?: number;
   duplicateRowsMerged?: number;
+  pendingDuplicateReviews?: number;
   turfs: TurfListItem[];
 }
 
@@ -538,6 +539,7 @@ export interface ImportBatchRecord {
   importedCount: number;
   mergedCount: number;
   removedCount?: number;
+  pendingReviewCount?: number;
   invalidCount: number;
   duplicateSkippedCount: number;
   createdAt: string;
@@ -551,6 +553,44 @@ export interface ImportBatchRecord {
   _count?: {
     rows: number;
   };
+}
+
+export interface ImportDuplicateReviewRecord {
+  id: string;
+  rowIndex: number;
+  turfName?: string | null;
+  status: 'pending_review' | 'merged' | 'skipped_duplicate';
+  reasonCode?: string | null;
+  createdAt: string;
+  rawRow: Record<string, unknown>;
+  importBatch: {
+    id: string;
+    filename: string;
+    createdAt: string;
+    mode: string;
+    duplicateStrategy: string;
+  };
+  candidateAddress?: {
+    id: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+    vanId?: string | null;
+    turf?: {
+      id: string;
+      name: string;
+    } | null;
+  } | null;
+  household?: {
+    id: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+    vanHouseholdId?: string | null;
+    vanPersonId?: string | null;
+  } | null;
 }
 
 export interface TurfSessionSnapshot {

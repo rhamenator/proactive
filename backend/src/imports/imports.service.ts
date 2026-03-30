@@ -11,8 +11,8 @@ import { UsersService } from '../users/users.service';
 
 type ImportRow = Record<string, unknown>;
 type ImportMode = 'create_only' | 'upsert' | 'replace_turf_membership';
-type DuplicateStrategy = 'skip' | 'error' | 'merge';
-type RowImportStatus = 'created' | 'merged' | 'skipped_invalid' | 'skipped_duplicate';
+type DuplicateStrategy = 'skip' | 'error' | 'merge' | 'review';
+type RowImportStatus = 'created' | 'merged' | 'skipped_invalid' | 'skipped_duplicate' | 'pending_review';
 
 @Injectable()
 export class ImportsService {
@@ -45,6 +45,53 @@ export class ImportsService {
     }
 
     return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  }
+
+  private parseMapping(mappingJson: unknown): CsvMapping | undefined {
+    if (!mappingJson || typeof mappingJson !== 'object' || Array.isArray(mappingJson)) {
+      return undefined;
+    }
+
+    return mappingJson as CsvMapping;
+  }
+
+  private parseRow(rawRowJson: unknown): ImportRow {
+    if (!rawRowJson || typeof rawRowJson !== 'object' || Array.isArray(rawRowJson)) {
+      throw new BadRequestException('Import review row is missing raw CSV data');
+    }
+
+    return rawRowJson as ImportRow;
+  }
+
+  private extractRowAddress(input: { row: ImportRow; mapping?: CsvMapping }) {
+    const addressLine1 = resolveMappedValue(input.row, 'addressLine1', input.mapping);
+    const addressLine2 = resolveMappedValue(input.row, 'addressLine2', input.mapping);
+    const unit = resolveMappedValue(input.row, 'unit', input.mapping);
+    const city = resolveMappedValue(input.row, 'city', input.mapping);
+    const state = resolveMappedValue(input.row, 'state', input.mapping);
+    const zip = resolveMappedValue(input.row, 'zip', input.mapping);
+    const vanPersonId =
+      resolveMappedValue(input.row, 'vanPersonId', input.mapping) ??
+      resolveMappedValue(input.row, 'vanId', input.mapping);
+    const vanHouseholdId =
+      resolveMappedValue(input.row, 'vanHouseholdId', input.mapping) ??
+      resolveMappedValue(input.row, 'vanId', input.mapping);
+    const latitude = toOptionalNumber(resolveMappedValue(input.row, 'latitude', input.mapping));
+    const longitude = toOptionalNumber(resolveMappedValue(input.row, 'longitude', input.mapping));
+
+    return {
+      addressLine1,
+      addressLine2,
+      unit,
+      city,
+      state,
+      zip,
+      vanPersonId,
+      vanHouseholdId,
+      latitude,
+      longitude,
+      combinedAddressLine1: [addressLine1, addressLine2, unit].filter(Boolean).join(', ')
+    };
   }
 
   private findDuplicateAddress(input: {
@@ -195,6 +242,7 @@ export class ImportsService {
     let duplicateRowsSkipped = 0;
     let duplicateRowsMerged = 0;
     let replacedMembershipsRemoved = 0;
+    let pendingDuplicateReviews = 0;
     const rowResults: Array<{
       rowIndex: number;
       turfName: string;
@@ -202,6 +250,7 @@ export class ImportsService {
       reasonCode: string | null;
       rawRowJson: ImportRow;
       addressId: string | null;
+      candidateAddressId: string | null;
       householdId: string | null;
     }> = [];
 
@@ -237,20 +286,17 @@ export class ImportsService {
       const importedHouseholdIds = new Set<string>();
 
       for (const { row, rowIndex } of rows) {
-        const addressLine1 = resolveMappedValue(row, 'addressLine1', input.mapping);
-        const addressLine2 = resolveMappedValue(row, 'addressLine2', input.mapping);
-        const unit = resolveMappedValue(row, 'unit', input.mapping);
-        const city = resolveMappedValue(row, 'city', input.mapping);
-        const state = resolveMappedValue(row, 'state', input.mapping);
-        const zip = resolveMappedValue(row, 'zip', input.mapping);
-        const vanPersonId =
-          resolveMappedValue(row, 'vanPersonId', input.mapping) ??
-          resolveMappedValue(row, 'vanId', input.mapping);
-        const vanHouseholdId =
-          resolveMappedValue(row, 'vanHouseholdId', input.mapping) ??
-          resolveMappedValue(row, 'vanId', input.mapping);
-        const latitude = toOptionalNumber(resolveMappedValue(row, 'latitude', input.mapping));
-        const longitude = toOptionalNumber(resolveMappedValue(row, 'longitude', input.mapping));
+        const {
+          addressLine1,
+          city,
+          state,
+          zip,
+          vanPersonId,
+          vanHouseholdId,
+          latitude,
+          longitude,
+          combinedAddressLine1
+        } = this.extractRowAddress({ row, mapping: input.mapping });
 
         if (!addressLine1 || !city || !state) {
           invalidRowsSkipped += 1;
@@ -261,12 +307,11 @@ export class ImportsService {
             reasonCode: 'missing_required_fields',
             rawRowJson: row,
             addressId: null,
+            candidateAddressId: null,
             householdId: null
           });
           continue;
         }
-
-        const combinedAddressLine1 = [addressLine1, addressLine2, unit].filter(Boolean).join(', ');
         const household = await this.ensureHousehold({
           organizationId: creator.organizationId,
           addressLine1: combinedAddressLine1,
@@ -287,6 +332,21 @@ export class ImportsService {
         if (duplicate) {
           if (duplicateStrategy === 'error') {
             throw new BadRequestException(`Duplicate address detected for turf "${turfName}"`);
+          }
+
+          if (duplicateStrategy === 'review') {
+            pendingDuplicateReviews += 1;
+            rowResults.push({
+              rowIndex,
+              turfName,
+              status: 'pending_review',
+              reasonCode: 'duplicate_household_pending_review',
+              rawRowJson: row,
+              addressId: null,
+              candidateAddressId: duplicate.id,
+              householdId: household.id
+            });
+            continue;
           }
 
           if (duplicateStrategy === 'merge') {
@@ -310,6 +370,7 @@ export class ImportsService {
               reasonCode: 'duplicate_household',
               rawRowJson: row,
               addressId: duplicate.id,
+              candidateAddressId: duplicate.id,
               householdId: household.id
             });
             continue;
@@ -322,7 +383,8 @@ export class ImportsService {
             status: 'skipped_duplicate',
             reasonCode: 'duplicate_household',
             rawRowJson: row,
-            addressId: duplicate.id,
+            addressId: null,
+            candidateAddressId: duplicate.id,
             householdId: household.id
           });
           continue;
@@ -351,6 +413,7 @@ export class ImportsService {
           reasonCode: null,
           rawRowJson: row,
           addressId: createdAddress.id,
+          candidateAddressId: null,
           householdId: household.id
         });
       }
@@ -389,6 +452,7 @@ export class ImportsService {
         importedCount: addressesImported,
         mergedCount: duplicateRowsMerged,
         removedCount: replacedMembershipsRemoved,
+        pendingReviewCount: pendingDuplicateReviews,
         invalidCount: invalidRowsSkipped,
         duplicateSkippedCount: duplicateRowsSkipped,
         mappingJson: (input.mapping ?? null) as never,
@@ -402,6 +466,7 @@ export class ImportsService {
             reasonCode: row.reasonCode,
             rawRowJson: row.rawRowJson as never,
             addressId: row.addressId,
+            candidateAddressId: row.candidateAddressId,
             householdId: row.householdId
           }))
         }
@@ -418,6 +483,7 @@ export class ImportsService {
       invalidRowsSkipped,
       duplicateRowsSkipped,
       duplicateRowsMerged,
+      pendingDuplicateReviews,
       replacedMembershipsRemoved,
       turfs
     };
@@ -482,6 +548,230 @@ export class ImportsService {
       csv: batch.csvContent,
       filename: batch.filename,
       checksum: batch.sha256Checksum
+    };
+  }
+
+  async importReviewQueue(input: {
+    scope: AccessScope;
+    take?: number;
+  }) {
+    const rows = await this.prisma.importBatchRow.findMany({
+      where: {
+        status: 'pending_review',
+        importBatch: this.buildScope(input.scope)
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      take: input.take ?? 50,
+      include: {
+        importBatch: {
+          select: {
+            id: true,
+            filename: true,
+            createdAt: true,
+            mode: true,
+            duplicateStrategy: true
+          }
+        },
+        candidateAddress: {
+          select: {
+            id: true,
+            addressLine1: true,
+            city: true,
+            state: true,
+            zip: true,
+            vanId: true,
+            turf: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        household: {
+          select: {
+            id: true,
+            addressLine1: true,
+            city: true,
+            state: true,
+            zip: true,
+            vanHouseholdId: true,
+            vanPersonId: true
+          }
+        }
+      }
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      rowIndex: row.rowIndex,
+      turfName: row.turfName,
+      status: row.status,
+      reasonCode: row.reasonCode,
+      createdAt: row.createdAt,
+      rawRow: row.rawRowJson,
+      importBatch: row.importBatch,
+      candidateAddress: row.candidateAddress,
+      household: row.household
+    }));
+  }
+
+  async resolveImportReview(input: {
+    rowId: string;
+    scope: AccessScope;
+    actorUserId: string;
+    action: 'merge' | 'skip';
+    reason?: string;
+  }) {
+    const row = await this.prisma.importBatchRow.findFirst({
+      where: {
+        id: input.rowId,
+        status: 'pending_review',
+        importBatch: this.buildScope(input.scope)
+      },
+      include: {
+        importBatch: {
+          select: {
+            id: true,
+            filename: true,
+            createdAt: true,
+            mode: true,
+            duplicateStrategy: true,
+            mappingJson: true
+          }
+        },
+        candidateAddress: true
+      }
+    });
+
+    if (!row) {
+      throw new BadRequestException('Import review row not found');
+    }
+
+    const resolvedAt = new Date();
+    const resolutionReason = input.reason?.trim() || null;
+
+    if (input.action === 'skip') {
+      const updated = await this.prisma.importBatchRow.update({
+        where: { id: row.id },
+        data: {
+          status: 'skipped_duplicate',
+          reasonCode: 'duplicate_household_reviewed_skip',
+          resolutionAction: 'skip',
+          resolutionReason,
+          resolvedAt,
+          resolvedByUserId: input.actorUserId
+        }
+      });
+
+      await this.prisma.importBatch.update({
+        where: { id: row.importBatchId },
+        data: {
+          pendingReviewCount: {
+            decrement: 1
+          },
+          duplicateSkippedCount: {
+            increment: 1
+          }
+        }
+      });
+
+      await this.auditService.log({
+        actorUserId: input.actorUserId,
+        actionType: 'import_duplicate_review_resolved',
+        entityType: 'import_batch_row',
+        entityId: row.id,
+        reasonCode: 'skip',
+        reasonText: resolutionReason ?? undefined,
+        newValuesJson: {
+          status: updated.status,
+          importBatchId: row.importBatchId
+        }
+      });
+
+      return {
+        id: updated.id,
+        status: updated.status,
+        resolutionAction: updated.resolutionAction,
+        resolvedAt: updated.resolvedAt
+      };
+    }
+
+    if (!row.candidateAddress) {
+      throw new BadRequestException('Duplicate candidate address is missing');
+    }
+
+    const mapping = this.parseMapping(row.importBatch.mappingJson);
+    const rawRow = this.parseRow(row.rawRowJson);
+    const {
+      city,
+      state,
+      zip,
+      vanPersonId,
+      vanHouseholdId,
+      latitude,
+      longitude,
+      combinedAddressLine1
+    } = this.extractRowAddress({ row: rawRow, mapping });
+
+    const updatedAddress = await this.prisma.address.update({
+      where: { id: row.candidateAddress.id },
+      data: {
+        addressLine1: combinedAddressLine1 || row.candidateAddress.addressLine1,
+        city: city || row.candidateAddress.city,
+        state: state || row.candidateAddress.state,
+        zip: zip ?? row.candidateAddress.zip,
+        vanId: vanHouseholdId ?? vanPersonId ?? row.candidateAddress.vanId,
+        latitude: latitude ?? row.candidateAddress.latitude,
+        longitude: longitude ?? row.candidateAddress.longitude
+      }
+    });
+
+    const updatedRow = await this.prisma.importBatchRow.update({
+      where: { id: row.id },
+      data: {
+        status: 'merged',
+        reasonCode: 'duplicate_household_reviewed_merge',
+        addressId: updatedAddress.id,
+        resolutionAction: 'merge',
+        resolutionReason,
+        resolvedAt,
+        resolvedByUserId: input.actorUserId
+      }
+    });
+
+    await this.prisma.importBatch.update({
+      where: { id: row.importBatchId },
+      data: {
+        pendingReviewCount: {
+          decrement: 1
+        },
+        mergedCount: {
+          increment: 1
+        }
+      }
+    });
+
+    await this.auditService.log({
+      actorUserId: input.actorUserId,
+      actionType: 'import_duplicate_review_resolved',
+      entityType: 'import_batch_row',
+      entityId: row.id,
+      reasonCode: 'merge',
+      reasonText: resolutionReason ?? undefined,
+      newValuesJson: {
+        status: updatedRow.status,
+        importBatchId: row.importBatchId,
+        addressId: updatedAddress.id
+      }
+    });
+
+    return {
+      id: updatedRow.id,
+      status: updatedRow.status,
+      resolutionAction: updatedRow.resolutionAction,
+      resolvedAt: updatedRow.resolvedAt,
+      addressId: updatedAddress.id
     };
   }
 }

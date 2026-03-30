@@ -15,6 +15,6 @@ export class ImportCsvDto {
   mode?: 'create_only' | 'upsert' | 'replace_turf_membership';
 
   @IsOptional()
-  @IsIn(['skip', 'error', 'merge'])
-  duplicateStrategy?: 'skip' | 'error' | 'merge';
+  @IsIn(['skip', 'error', 'merge', 'review'])
+  duplicateStrategy?: 'skip' | 'error' | 'merge' | 'review';
 }

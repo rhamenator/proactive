@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
   { href: '/visit-corrections', label: 'Visit Corrections', roles: ['admin', 'supervisor'] },
   { href: '/gps-review', label: 'GPS Review', roles: ['admin', 'supervisor'] },
   { href: '/sync-conflicts', label: 'Sync Conflicts', roles: ['admin', 'supervisor'] },
+  { href: '/import-reviews', label: 'Import Reviews', roles: ['admin'] },
   { href: '/outcomes', label: 'Outcomes', roles: ['admin', 'supervisor'] },
   { href: '/policies', label: 'Policies', roles: ['admin', 'supervisor'] },
   { href: '/canvassers', label: 'Field Users', roles: ['admin', 'supervisor'] },

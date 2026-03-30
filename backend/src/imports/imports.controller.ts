@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import multer from 'multer';
@@ -11,6 +11,8 @@ import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface'
 import { resolveAccessScope } from '../common/utils/access-scope.util';
 import { ImportCsvDto } from '../turfs/dto/import-csv.dto';
 import { UsersService } from '../users/users.service';
+import { ListImportReviewQueueDto } from './dto/list-import-review-queue.dto';
+import { ResolveImportReviewDto } from './dto/resolve-import-review.dto';
 import { ImportsService } from './imports.service';
 
 @Controller('imports')
@@ -25,6 +27,18 @@ export class ImportsController {
   @Roles(UserRole.admin)
   async importHistory(@CurrentUser() user: JwtUserPayload) {
     return this.importsService.importHistory(await resolveAccessScope(user, this.usersService));
+  }
+
+  @Get('review-queue')
+  @Roles(UserRole.admin)
+  async importReviewQueue(
+    @CurrentUser() user: JwtUserPayload,
+    @Query() query: ListImportReviewQueueDto
+  ) {
+    return this.importsService.importReviewQueue({
+      scope: await resolveAccessScope(user, this.usersService),
+      take: query.take
+    });
   }
 
   @Get('history/:id/download')
@@ -71,6 +85,22 @@ export class ImportsController {
       mapping,
       mode: body.mode,
       duplicateStrategy: body.duplicateStrategy
+    });
+  }
+
+  @Post('review-queue/:id/resolve')
+  @Roles(UserRole.admin)
+  async resolveImportReview(
+    @Param('id') id: string,
+    @Body() body: ResolveImportReviewDto,
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.importsService.resolveImportReview({
+      rowId: id,
+      scope: await resolveAccessScope(user, this.usersService),
+      actorUserId: user.sub,
+      action: body.action,
+      reason: body.reason
     });
   }
 }

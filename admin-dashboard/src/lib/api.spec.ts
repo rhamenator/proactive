@@ -322,6 +322,70 @@ describe('admin api client', () => {
     expect(download.filename).toBe('import-batch-2026-03-30.csv');
   });
 
+  it('lists and resolves import duplicate reviews', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              id: 'row-1',
+              rowIndex: 4,
+              turfName: 'North Turf',
+              status: 'pending_review',
+              createdAt: '2026-03-30T04:00:00.000Z',
+              rawRow: { address_line1: '10 Main St' },
+              importBatch: {
+                id: 'batch-1',
+                filename: 'import-batch-2026-03-30.csv',
+                createdAt: '2026-03-30T04:00:00.000Z',
+                mode: 'upsert',
+                duplicateStrategy: 'review'
+              },
+              candidateAddress: {
+                id: 'address-1',
+                addressLine1: '10 Main St',
+                city: 'Grand Rapids',
+                state: 'MI',
+                zip: '49503'
+              }
+            }
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 'row-1',
+            status: 'merged',
+            resolutionAction: 'merge'
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      );
+
+    const client = createApiClient('token-123');
+    const queue = await client.listImportReviewQueue({ take: 25 });
+    const resolved = await client.resolveImportReview('row-1', 'merge', 'Reviewed duplicate import row');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/imports/review-queue?take=25', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3001/imports/review-queue/row-1/resolve', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'merge', reason: 'Reviewed duplicate import row' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(queue[0].id).toBe('row-1');
+    expect(resolved.status).toBe('merged');
+  });
+
   it('supports outcome, GPS review, and sync conflict admin requests', async () => {
     fetchMock
       .mockResolvedValueOnce(

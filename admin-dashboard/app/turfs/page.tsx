@@ -42,7 +42,7 @@ export default function TurfsPage() {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [fallbackTurfName, setFallbackTurfName] = useState('');
   const [importMode, setImportMode] = useState<'create_only' | 'upsert' | 'replace_turf_membership'>('replace_turf_membership');
-  const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'error' | 'merge'>('skip');
+  const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'error' | 'merge' | 'review'>('skip');
 
   const [assignmentSelection, setAssignmentSelection] = useState<Record<string, string>>({});
 
@@ -147,6 +147,7 @@ export default function TurfsPage() {
       setMessage(
         `Imported ${result.addressesImported} addresses across ${result.turfsCreated} turf(s)` +
         `${result.duplicateRowsMerged ? `, merged ${result.duplicateRowsMerged}` : ''}` +
+        `${result.pendingDuplicateReviews ? `, queued ${result.pendingDuplicateReviews} duplicate review${result.pendingDuplicateReviews === 1 ? '' : 's'}` : ''}` +
         `${result.replacedMembershipsRemoved ? `, removed ${result.replacedMembershipsRemoved} prior memberships` : ''}.`
       );
       setSelectedFile(null);
@@ -338,6 +339,7 @@ export default function TurfsPage() {
                   >
                     <option value="skip">Skip duplicate household</option>
                     <option value="merge">Merge duplicate household</option>
+                    <option value="review">Queue duplicate for review</option>
                     <option value="error">Stop on duplicate household</option>
                   </select>
                 </div>
@@ -398,7 +400,7 @@ export default function TurfsPage() {
                       <div className="stack-tight">
                         <strong>{batch.filename}</strong>
                         <p className="muted margin-bottom-reset">
-                          {batch.importedCount} imported, {batch.mergedCount} merged, {batch.removedCount ?? 0} removed, {batch.invalidCount} invalid, {batch.duplicateSkippedCount} skipped
+                          {batch.importedCount} imported, {batch.mergedCount} merged, {batch.pendingReviewCount ?? 0} pending review, {batch.removedCount ?? 0} removed, {batch.invalidCount} invalid, {batch.duplicateSkippedCount} skipped
                         </p>
                         <p className="muted margin-bottom-reset">
                           {new Date(batch.createdAt).toLocaleString()} • {batch.mode} • {batch.duplicateStrategy}

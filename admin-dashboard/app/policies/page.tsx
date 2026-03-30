@@ -217,6 +217,7 @@ export default function PoliciesPage() {
                     <option value="skip">Skip duplicates</option>
                     <option value="error">Error on duplicate</option>
                     <option value="merge">Merge duplicate rows</option>
+                    <option value="review">Queue duplicate rows for review</option>
                   </Select>
                 </div>
 

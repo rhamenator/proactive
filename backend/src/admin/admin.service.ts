@@ -245,7 +245,7 @@ export class AdminService {
     input: {
       campaignId?: string | null;
       defaultImportMode?: 'create_only' | 'upsert' | 'replace_turf_membership';
-      defaultDuplicateStrategy?: 'skip' | 'error' | 'merge';
+      defaultDuplicateStrategy?: 'skip' | 'error' | 'merge' | 'review';
       sensitiveMfaWindowMinutes?: number;
       retentionArchiveDays?: number | null;
       retentionPurgeDays?: number | null;

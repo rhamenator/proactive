@@ -10,8 +10,8 @@ export class UpsertOperationalPolicyDto {
   defaultImportMode?: 'create_only' | 'upsert' | 'replace_turf_membership';
 
   @IsOptional()
-  @IsIn(['skip', 'error', 'merge'])
-  defaultDuplicateStrategy?: 'skip' | 'error' | 'merge';
+  @IsIn(['skip', 'error', 'merge', 'review'])
+  defaultDuplicateStrategy?: 'skip' | 'error' | 'merge' | 'review';
 
   @IsOptional()
   @IsInt()

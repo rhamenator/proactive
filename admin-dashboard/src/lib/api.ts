@@ -12,6 +12,7 @@ import type {
   GpsReviewItem,
   GpsExceptionsReport,
   ImportBatchRecord,
+  ImportDuplicateReviewRecord,
   ImpersonationStartResponse,
   LoginResponse,
   RecentVisitRecord,
@@ -373,8 +374,29 @@ export function createApiClient(token?: string | null) {
     listImportHistory() {
       return requestJson<ImportBatchRecord[]>('/imports/history', {}, token);
     },
+    listImportReviewQueue(payload?: { take?: number }) {
+      const params = new URLSearchParams();
+      if (payload?.take) {
+        params.set('take', String(payload.take));
+      }
+      return requestJson<ImportDuplicateReviewRecord[]>(
+        `/imports/review-queue${params.toString() ? `?${params.toString()}` : ''}`,
+        {},
+        token
+      );
+    },
     downloadImportBatch(batchId: string) {
       return requestBlob(`/imports/history/${batchId}/download`, token);
+    },
+    resolveImportReview(rowId: string, action: 'merge' | 'skip', reason?: string) {
+      return requestJson<{ id: string; status: string; resolutionAction?: string | null }>(
+        `/imports/review-queue/${rowId}/resolve`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ action, reason })
+        },
+        token
+      );
     },
     overrideGpsResult(visitLogId: string, reason: string) {
       return requestJson(`/admin/gps-review/${visitLogId}/override`, {

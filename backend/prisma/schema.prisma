@@ -119,6 +119,7 @@ model User {
   submittedAddressRequests      AddressRequest[]       @relation("AddressRequestSubmitter")
   reviewedAddressRequests       AddressRequest[]       @relation("AddressRequestReviewer")
   visitCorrections              VisitCorrection[]      @relation("VisitCorrectionActor")
+  resolvedImportBatchRows       ImportBatchRow[]
   refreshTokens                 AuthRefreshToken[]
   activationTokens              ActivationToken[]
   resetTokens                   PasswordResetToken[]
@@ -291,8 +292,9 @@ model Address {
   household       Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
   visitLogs       VisitLog[]
   geofenceResults VisitGeofenceResult[]
-  requestedFrom   AddressRequest[]      @relation("AddressRequestApprovedAddress")
-  importRows      ImportBatchRow[]
+  requestedFrom       AddressRequest[]  @relation("AddressRequestApprovedAddress")
+  resolvedImportRows  ImportBatchRow[]  @relation("ResolvedImportBatchRowAddress")
+  candidateImportRows ImportBatchRow[]  @relation("CandidateImportBatchRowAddress")
 
   @@index([turfId])
   @@index([householdId])
@@ -541,6 +543,7 @@ model ImportBatch {
   importedCount         Int              @default(0) @map("imported_count")
   mergedCount           Int              @default(0) @map("merged_count")
   removedCount          Int              @default(0) @map("removed_count")
+  pendingReviewCount    Int              @default(0) @map("pending_review_count")
   invalidCount          Int              @default(0) @map("invalid_count")
   duplicateSkippedCount Int              @default(0) @map("duplicate_skipped_count")
   mappingJson           Json?            @map("mapping_json")
@@ -568,15 +571,24 @@ model ImportBatchRow {
   reasonCode    String?     @map("reason_code")
   rawRowJson    Json?       @map("raw_row_json")
   addressId     String?     @map("address_id") @db.Uuid
+  candidateAddressId String? @map("candidate_address_id") @db.Uuid
   householdId   String?     @map("household_id") @db.Uuid
+  resolvedByUserId String?  @map("resolved_by_user_id") @db.Uuid
+  resolutionAction String?  @map("resolution_action")
+  resolutionReason String?  @map("resolution_reason")
+  resolvedAt     DateTime?  @map("resolved_at")
   createdAt     DateTime    @default(now()) @map("created_at")
   importBatch   ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
-  address       Address?    @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  address       Address?    @relation("ResolvedImportBatchRowAddress", fields: [addressId], references: [id], onDelete: SetNull)
+  candidateAddress Address? @relation("CandidateImportBatchRowAddress", fields: [candidateAddressId], references: [id], onDelete: SetNull)
   household     Household?  @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  resolvedByUser User?      @relation(fields: [resolvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([importBatchId])
   @@index([addressId])
+  @@index([candidateAddressId])
   @@index([householdId])
+  @@index([resolvedByUserId])
   @@map("import_batch_rows")
 }
 

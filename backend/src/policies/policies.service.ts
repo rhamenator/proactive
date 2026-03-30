@@ -5,7 +5,7 @@ import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type ImportMode = 'create_only' | 'upsert' | 'replace_turf_membership';
-export type DuplicateStrategy = 'skip' | 'error' | 'merge';
+export type DuplicateStrategy = 'skip' | 'error' | 'merge' | 'review';
 export type PolicySourceScope = 'default' | 'organization' | 'campaign';
 
 export type EffectiveOperationalPolicy = {
@@ -54,7 +54,7 @@ export class PoliciesService {
   }
 
   private normalizeDuplicateStrategy(value: unknown): DuplicateStrategy {
-    return value === 'error' || value === 'merge' ? value : 'skip';
+    return value === 'error' || value === 'merge' || value === 'review' ? value : 'skip';
   }
 
   private normalizeImportMode(value: unknown): ImportMode {
