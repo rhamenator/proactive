@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify/sync';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
+import { attachVisitAttemptMetrics } from '../common/utils/visit-analytics.util';
 import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -47,14 +48,21 @@ export class ExportsService {
       where: {
         ...this.buildScope(options ?? { organizationId: null }),
         deletedAt: null,
+        syncStatus: { not: 'conflict' },
+        syncConflictFlag: false,
         ...(options?.turfId ? { turfId: options.turfId } : {}),
         ...(options?.markExported === false ? {} : { vanExported: false })
       },
       orderBy: { visitTime: 'asc' },
       include: {
-        address: true,
+        address: {
+          include: {
+            household: true
+          }
+        },
         canvasser: true,
         geofenceResult: true,
+        outcomeDefinition: true,
         turf: true
       }
     });
@@ -234,10 +242,15 @@ export class ExportsService {
       campaignId: scope.campaignId ?? null
     });
     const profileSettings = this.profileSettings(profile.settingsJson);
-    const visits = await this.fetchVisits(options);
+    const visits = attachVisitAttemptMetrics(await this.fetchVisits(options));
     const baseRows = visits.map((visit) => ({
       van_id: visit.address.vanId ?? '',
       address_line1: visit.address.addressLine1,
+      address_line2: visit.address.addressLine2 ?? '',
+      unit: visit.address.unit ?? '',
+      city: visit.address.city,
+      state: visit.address.state,
+      zip: visit.address.zip ?? '',
       visit_time: visit.visitTime.toISOString(),
       result: visit.result,
       contact_made: visit.contactMade ? 'true' : 'false',
@@ -341,26 +354,40 @@ export class ExportsService {
       campaignId: scope.campaignId ?? null
     });
     const profileSettings = this.profileSettings(profile.settingsJson);
-    const visits = await this.fetchVisits({
+    const visits = attachVisitAttemptMetrics(await this.fetchVisits({
       ...options,
       markExported: false
-    });
+    }));
     const baseRows = visits.map((visit) => ({
       visit_id: visit.id,
+      organization_id: visit.organizationId ?? '',
+      campaign_id: visit.campaignId ?? '',
+      team_id: visit.teamId ?? '',
+      region_code: visit.regionCode ?? '',
       turf_id: visit.turfId,
       turf_name: visit.turf.name,
       address_id: visit.addressId,
+      household_id: visit.address.householdId,
+      household_van_household_id: visit.address.household?.vanHouseholdId ?? '',
+      household_van_person_id: visit.address.household?.vanPersonId ?? '',
       van_id: visit.address.vanId ?? '',
       address_line1: visit.address.addressLine1,
+      address_line2: visit.address.addressLine2 ?? '',
+      unit: visit.address.unit ?? '',
       city: visit.address.city,
       state: visit.address.state,
       zip: visit.address.zip ?? '',
+      session_id: visit.sessionId ?? '',
       visit_time: visit.visitTime.toISOString(),
       client_created_at: visit.clientCreatedAt?.toISOString() ?? '',
       server_received_at: visit.serverReceivedAt.toISOString(),
+      outcome_definition_id: visit.outcomeDefinitionId ?? '',
       outcome_code: visit.outcomeCode,
       outcome_label: visit.outcomeLabel,
+      is_final_disposition: visit.outcomeDefinition?.isFinalDisposition ? 'true' : 'false',
       legacy_result: visit.result,
+      attempt_number: String(visit.attemptNumber),
+      is_revisit: visit.isRevisit ? 'true' : 'false',
       contact_made: visit.contactMade ? 'true' : 'false',
       notes: visit.notes ?? '',
       sync_status: visit.syncStatus,
@@ -370,8 +397,11 @@ export class ExportsService {
       geofence_validated: visit.geofenceValidated ? 'true' : 'false',
       geofence_distance_meters: visit.geofenceDistanceMeters?.toString() ?? '',
       distance_from_target_feet: visit.geofenceResult?.distanceFromTargetFeet?.toString() ?? '',
+      geofence_failure_reason: visit.geofenceResult?.failureReason ?? '',
       override_flag: visit.geofenceResult?.overrideFlag ? 'true' : 'false',
       override_reason: visit.geofenceResult?.overrideReason ?? '',
+      override_by_user_id: visit.geofenceResult?.overrideByUserId ?? '',
+      override_at: visit.geofenceResult?.overrideAt?.toISOString() ?? '',
       latitude: visit.latitude?.toString() ?? '',
       longitude: visit.longitude?.toString() ?? '',
       accuracy_meters: visit.accuracyMeters?.toString() ?? '',

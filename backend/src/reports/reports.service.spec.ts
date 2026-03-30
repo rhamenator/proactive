@@ -12,11 +12,20 @@ describe('ReportsService', () => {
       findMany: jest.fn()
     },
     user: {
+      findFirst: jest.fn(),
+      findMany: jest.fn()
+    },
+    exportBatch: {
       findMany: jest.fn()
     }
   };
+  const policiesService = {
+    getEffectivePolicy: jest.fn().mockResolvedValue({
+      supervisorScopeMode: 'campaign'
+    })
+  };
 
-  const service = new ReportsService(prisma as never);
+  const service = new ReportsService(prisma as never, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -38,6 +47,7 @@ describe('ReportsService', () => {
         outcomeCode: 'contact',
         outcomeLabel: 'Contact Made',
         result: 'contacted',
+        outcomeDefinition: { isFinalDisposition: true },
         canvasser: {
           id: 'user-1',
           firstName: 'Taylor',
@@ -49,6 +59,8 @@ describe('ReportsService', () => {
         address: {
           id: 'address-1',
           addressLine1: '100 Main St',
+          addressLine2: null,
+          unit: null,
           city: 'Detroit',
           state: 'MI',
           zip: '48201'
@@ -79,6 +91,7 @@ describe('ReportsService', () => {
         outcomeCode: 'not_home',
         outcomeLabel: 'Not Home',
         result: 'not_home',
+        outcomeDefinition: { isFinalDisposition: false },
         canvasser: {
           id: 'user-1',
           firstName: 'Taylor',
@@ -90,6 +103,8 @@ describe('ReportsService', () => {
         address: {
           id: 'address-2',
           addressLine1: '102 Main St',
+          addressLine2: null,
+          unit: null,
           city: 'Detroit',
           state: 'MI',
           zip: '48201'
@@ -163,7 +178,12 @@ describe('ReportsService', () => {
         missing: 0,
         lowAccuracy: 0,
         overrides: 1
-      }
+      },
+      outcomes: {
+        finalDisposition: 1,
+        attemptsOnly: 1
+      },
+      revisitVisits: 0
     });
     expect(result.dataFreshness).toEqual({
       reflectsSyncedDataOnly: false,
@@ -181,6 +201,10 @@ describe('ReportsService', () => {
         contactsMade: 1
       }
     ]);
+    expect(result.supervisorSlice).toEqual({
+      filterApplied: false,
+      supervisorId: null
+    });
     expect(result.recentAuditActivity).toHaveLength(1);
   });
 
@@ -200,6 +224,7 @@ describe('ReportsService', () => {
         outcomeCode: 'contact',
         outcomeLabel: 'Contact Made',
         result: 'contacted',
+        outcomeDefinition: { isFinalDisposition: true },
         canvasser: {
           id: 'user-1',
           firstName: 'Taylor',
@@ -211,6 +236,8 @@ describe('ReportsService', () => {
         address: {
           id: 'address-1',
           addressLine1: '100 Main St',
+          addressLine2: null,
+          unit: null,
           city: 'Detroit',
           state: 'MI',
           zip: '48201'
@@ -231,6 +258,7 @@ describe('ReportsService', () => {
         outcomeCode: 'not_home',
         outcomeLabel: 'Not Home',
         result: 'not_home',
+        outcomeDefinition: { isFinalDisposition: false },
         canvasser: {
           id: 'user-1',
           firstName: 'Taylor',
@@ -242,6 +270,8 @@ describe('ReportsService', () => {
         address: {
           id: 'address-2',
           addressLine1: '102 Main St',
+          addressLine2: null,
+          unit: null,
           city: 'Detroit',
           state: 'MI',
           zip: '48201'
@@ -278,6 +308,8 @@ describe('ReportsService', () => {
       totalVisits: 2,
       uniqueAddressesVisited: 2,
       contactsMade: 1,
+      finalDispositionVisits: 1,
+      revisitVisits: 0,
       sessionsCount: 1,
       totalSessionMinutes: 60,
       averageSessionMinutes: 60,
@@ -303,6 +335,7 @@ describe('ReportsService', () => {
         outcomeCode: 'contact',
         outcomeLabel: 'Contact Made',
         result: 'contacted',
+        outcomeDefinition: { isFinalDisposition: true },
         canvasser: {
           id: 'user-1',
           firstName: 'Taylor',
@@ -314,6 +347,8 @@ describe('ReportsService', () => {
         address: {
           id: 'address-1',
           addressLine1: '100 Main St',
+          addressLine2: null,
+          unit: null,
           city: 'Detroit',
           state: 'MI',
           zip: '48201'
@@ -364,6 +399,9 @@ describe('ReportsService', () => {
         email: 'alex@example.com'
       }
     });
+    expect(result.rows[0].attemptNumber).toBe(1);
+    expect(result.rows[0].isRevisit).toBe(false);
+    expect(result.rows[0].outcome.isFinalDisposition).toBe(true);
   });
 
   it('builds audit activity summaries with org-scoped filters', async () => {

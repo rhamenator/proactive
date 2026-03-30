@@ -17,10 +17,11 @@ The application suite has been built and brought to a review-ready state across 
   - Configurable visit outcomes
   - Requested-address submission and review workflow
   - Dedicated CSV import service with create-only, upsert, and replace-membership modes; duplicate skip/error/merge/review handling; expanded VAN/person/household/unit mapping; batch history; downloadable source artifacts; row-level import tracing; reviewer resolution for deferred duplicate rows; and configurable import profiles with organization/campaign overrides
-  - Pre-import CSV preview that validates the selected profile, headers, fallback turf usage, and sample row readiness before data is committed
+  - Pre-import CSV preview that validates the selected profile, effective header mapping, headers, fallback turf usage, and sample row readiness before data is committed
+  - Structured address fidelity for `addressLine2` and `unit`, plus deterministic normalized-address duplicate detection for non-VAN imports
   - Downloadable CSV templates generated from the active import/export profiles so operators can get the current expected file shape directly from the system
-  - Reporting endpoints for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
-  - VAN export, internal master export, export batch history, historical CSV re-download, row-traceable export artifacts, and configurable export profiles with policy-driven default profile selection
+  - Reporting endpoints for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics, including supervisor filtering, final-disposition filtering, revisit/attempt semantics, and time-of-day/day-of-week trend slices where supported by the current schema
+  - VAN export, internal master export, export batch history, historical CSV re-download, row-traceable export artifacts, and configurable export profiles with policy-driven default profile selection, with richer operational/audit export columns where the schema already supports them
 
 - **Admin Dashboard**
   - Dashboard and operational summary views
@@ -53,6 +54,7 @@ The application suite has been built and brought to a review-ready state across 
   - Canvasser login and turf workflow
   - Address list and visit submission
   - Offline queueing and retry behavior
+  - Conflict-aware sync status handling so true reviewable sync conflicts are surfaced distinctly from generic failed retries
   - GPS capture and warning handling
   - Missing-address request submission
   - Recent-visit correction support within policy limits

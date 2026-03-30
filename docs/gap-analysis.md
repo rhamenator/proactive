@@ -28,11 +28,17 @@ The system now covers the main operational v1 workflow:
 - VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
 - CSV import batch history, downloadable source artifacts, and row-level import outcome tracing
 - richer CSV import handling with `replace_turf_membership` mode, duplicate skip/error/merge/review handling, and expanded VAN/person/household/unit mapping support
+- deterministic normalized-address duplicate matching for non-VAN imports, so harmless case/spacing/punctuation differences do not create duplicate households
+- structured `addressLine2` / `unit` preservation across import, duplicate review, and export flows instead of flattening apartment/unit data into `addressLine1`
 - import duplicate-review queue with per-row pending review tracking, reviewer resolution, and audit-backed merge/skip outcomes
+- import preview now evaluates readiness from the same effective mapping that will be used for the actual import, including inferred header mappings and stale-profile-header cleanup
 - scoped operational policy records plus admin dashboard policy management for import defaults, field visit/GPS thresholds, auth/recovery timing, sensitive MFA freshness, retention defaults, and outcome fallback behavior
 - policy-driven supervisor scope management across campaign, team, and region modes, plus admin team management for campaign/region assignments
 - global system settings for deployment-wide auth rate-limiting and retention automation timing, with MFA-protected save/reset workflow
 - retention summary and cleanup workflow for purgeable artifacts and expired auth/security records, with configurable system-wide automation and metadata-preserving artifact redaction for import/export history
+- sync conflict detection now distinguishes true duplicate-payload mismatches from generic retry failures and preserves the conflict reason through backend events and the mobile queue state
+- reporting now supports supervisor filtering, final-disposition filtering, revisit/attempt semantics, and time-of-day/day-of-week trend slices using the existing visit data model
+- internal and VAN exports now preserve more of the supported operational/audit data already present in the schema, including structured address fields and visit-attempt metadata
 - CI, build verification, regression tests, and GitHub release-build automation
 
 The remaining gaps are now mostly in the remaining edges of import-policy breadth, deeper optional lifecycle automation, and release inputs rather than missing operational screens. Canonical household modeling, retention metadata, on-device SQLite persistence, import/export audit history, deferred duplicate import review, and team/region scope policy are now in place.
@@ -56,13 +62,15 @@ The remaining gaps are now mostly in the remaining edges of import-policy breadt
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
 - import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
 - a dedicated `ImportsService` and `/imports/csv` path with import modes including replace-membership behavior, duplicate skip/error/merge/review handling, expanded source-field mapping support, a review queue tied directly to import-batch rows, and configurable import/export profiles with organization/campaign overrides
-- pre-import CSV preview that validates the chosen profile, required field coverage, fallback turf usage, and sample row readiness before the admin commits the import
+- pre-import CSV preview that validates the chosen profile, effective header mapping, required field coverage, fallback turf usage, and sample row readiness before the admin commits the import
 - downloadable CSV templates derived from the active import/export profiles, so operators can pull the expected file shape directly from the system
+- normalized address-key matching for non-VAN household imports, backed by persisted address fidelity fields for `addressLine2` and `unit`
 - operational policy records with organization/campaign fallback for import defaults, field visit/GPS thresholds, auth/recovery timing, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
 - configurable supervisor scope policy that can enforce campaign, team, or region-based access, backed by first-class teams and region codes across users, turfs, assignments, sessions, visits, address requests, imports, exports, and reports
 - deployment-wide system settings for auth rate-limit thresholds and retention automation schedule, with admin dashboard management and reset-to-env-default behavior
 - explicit admin archive/delete workflows for field users and turfs, protected by fresh MFA and backed by audit logging
 - admin retention summary and manual cleanup workflow for due address requests, import/export artifacts, and expired credential records
+- conflict-state visit ingest that can classify duplicate-payload mismatches as reviewable sync conflicts instead of generic failed retries, with conflict reason carried back to the mobile queue state
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, teams, and field-user management
 - mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
 - repo-wide `verify` command and GitHub Actions CI

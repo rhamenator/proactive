@@ -106,6 +106,7 @@ function normalizeQueuedVisit(item: unknown): QueuedVisit | null {
     localRecordUuid,
     createdAt,
     syncStatus: normalizeVisitSyncStatus(raw.syncStatus, false),
+    syncConflictReason: typeof raw.syncConflictReason === 'string' ? raw.syncConflictReason : null,
     payload: {
       localRecordUuid: payloadLocalRecordUuid,
       idempotencyKey:
@@ -156,6 +157,7 @@ function normalizeAddressState(item: unknown): AddressState | null {
     submittedAt: typeof raw.submittedAt === 'string' ? raw.submittedAt : null,
     synced: syncStatus === 'synced',
     syncStatus,
+    syncConflictReason: typeof raw.syncConflictReason === 'string' ? raw.syncConflictReason : null,
     localRecordUuid: typeof raw.localRecordUuid === 'string' ? raw.localRecordUuid : null,
     clientCreatedAt: typeof raw.clientCreatedAt === 'string' ? raw.clientCreatedAt : null,
     sessionId: typeof raw.sessionId === 'string' ? raw.sessionId : null,

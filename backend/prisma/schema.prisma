@@ -188,9 +188,12 @@ model Household {
   id              String           @id @default(uuid()) @db.Uuid
   organizationId  String?          @map("organization_id") @db.Uuid
   addressLine1    String           @map("address_line1")
+  addressLine2    String?          @map("address_line2")
+  unit            String?
   city            String
   state           String
   zip             String?
+  normalizedAddressKey String      @map("normalized_address_key")
   latitude        Decimal?         @db.Decimal(9, 6)
   longitude       Decimal?         @db.Decimal(9, 6)
   vanHouseholdId  String?          @map("van_household_id")
@@ -209,6 +212,7 @@ model Household {
 
   @@index([organizationId])
   @@index([organizationId, addressLine1, city, state, zip])
+  @@index([organizationId, normalizedAddressKey])
   @@index([organizationId, vanHouseholdId])
   @@index([organizationId, vanPersonId])
   @@map("households")
@@ -341,9 +345,12 @@ model Address {
   teamId          String?               @map("team_id") @db.Uuid
   regionCode      String?               @map("region_code")
   addressLine1    String                @map("address_line1")
+  addressLine2    String?               @map("address_line2")
+  unit            String?
   city            String
   state           String
   zip             String?
+  normalizedAddressKey String           @map("normalized_address_key")
   latitude        Decimal?              @db.Decimal(9, 6)
   longitude       Decimal?              @db.Decimal(9, 6)
   vanId           String?               @map("van_id")
@@ -371,6 +378,7 @@ model Address {
   @@index([teamId])
   @@index([regionCode])
   @@index([turfId, householdId])
+  @@index([turfId, normalizedAddressKey])
   @@map("addresses")
 }
 

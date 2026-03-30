@@ -4,6 +4,7 @@ import { TurfStatus } from '@prisma/client';
 import { parse } from 'csv-parse/sync';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
+import { buildNormalizedAddressKey, composeDisplayAddressLine1 } from '../common/utils/address-normalization.util';
 import { CsvMapping, inferMappingFromHeaders, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
 import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
 import { PoliciesService } from '../policies/policies.service';
@@ -95,6 +96,21 @@ export class ImportsService {
     return mappingJson as CsvMapping;
   }
 
+  private buildEffectiveMapping(headers: string[], mapping?: CsvMapping) {
+    const headerSet = new Set(headers);
+    const inferredMapping = inferMappingFromHeaders(headers);
+    const validExplicitMapping = Object.fromEntries(
+      Object.entries(mapping ?? {}).filter(
+        ([, header]) => typeof header === 'string' && header.trim().length > 0 && headerSet.has(header)
+      )
+    ) as CsvMapping;
+
+    return {
+      ...inferredMapping,
+      ...validExplicitMapping
+    } as CsvMapping;
+  }
+
   private normalizeImportMode(value: unknown): ImportMode | undefined {
     if (value === 'create_only' || value === 'upsert' || value === 'replace_turf_membership') {
       return value;
@@ -141,13 +157,13 @@ export class ImportsService {
       throw new BadRequestException('CSV imports require an organization-scoped admin account');
     }
 
-    const policy = await this.policiesService.getEffectivePolicy({
-      organizationId: creator.organizationId,
-      campaignId: creator.campaignId ?? null
-    });
     const team = await this.validateTeamScope(creator.organizationId ?? null, creator.campaignId ?? null, input.teamId);
     const regionCode = input.regionCode?.trim() || team?.regionCode || null;
     const effectiveCampaignId = creator.campaignId ?? team?.campaignId ?? null;
+    const policy = await this.policiesService.getEffectivePolicy({
+      organizationId: creator.organizationId,
+      campaignId: effectiveCampaignId
+    });
     const profileCode = input.profileCode?.trim() || policy.defaultImportProfileCode;
     const profile = await this.csvProfilesService.resolveProfile({
       direction: 'import',
@@ -204,7 +220,17 @@ export class ImportsService {
       vanHouseholdId,
       latitude,
       longitude,
-      combinedAddressLine1: [addressLine1, addressLine2, unit].filter(Boolean).join(', ')
+      normalizedAddressKey:
+        addressLine1 && city && state
+          ? buildNormalizedAddressKey({
+              addressLine1,
+              addressLine2,
+              unit,
+              city,
+              state,
+              zip
+            })
+          : null
     };
   }
 
@@ -224,9 +250,12 @@ export class ImportsService {
   private findMatchingHousehold(input: {
     organizationId: string;
     addressLine1: string;
+    addressLine2?: string | null;
+    unit?: string | null;
     city: string;
     state: string;
     zip?: string | null;
+    normalizedAddressKey: string;
     vanHouseholdId?: string | null;
     vanPersonId?: string | null;
   }) {
@@ -253,10 +282,7 @@ export class ImportsService {
     return this.prisma.household.findFirst({
       where: {
         organizationId: input.organizationId,
-        addressLine1: input.addressLine1,
-        city: input.city,
-        state: input.state,
-        zip: input.zip ?? null,
+        normalizedAddressKey: input.normalizedAddressKey,
         deletedAt: null
       }
     });
@@ -265,9 +291,12 @@ export class ImportsService {
   private async ensureHousehold(input: {
     organizationId: string;
     addressLine1: string;
+    addressLine2?: string | null;
+    unit?: string | null;
     city: string;
     state: string;
     zip?: string | null;
+    normalizedAddressKey: string;
     latitude?: number | null;
     longitude?: number | null;
     vanHouseholdId?: string | null;
@@ -284,6 +313,9 @@ export class ImportsService {
         return this.prisma.household.update({
           where: { id: existing.id },
           data: {
+            addressLine2: input.addressLine2 ?? existing.addressLine2,
+            unit: input.unit ?? existing.unit,
+            normalizedAddressKey: input.normalizedAddressKey,
             latitude: input.latitude ?? existing.latitude,
             longitude: input.longitude ?? existing.longitude,
             vanHouseholdId: input.vanHouseholdId ?? existing.vanHouseholdId,
@@ -299,9 +331,12 @@ export class ImportsService {
       data: {
         organizationId: input.organizationId,
         addressLine1: input.addressLine1,
+        addressLine2: input.addressLine2 ?? null,
+        unit: input.unit ?? null,
         city: input.city,
         state: input.state,
         zip: input.zip,
+        normalizedAddressKey: input.normalizedAddressKey,
         latitude: input.latitude,
         longitude: input.longitude,
         vanHouseholdId: input.vanHouseholdId,
@@ -345,9 +380,12 @@ export class ImportsService {
       throw new BadRequestException('CSV file contains no rows');
     }
 
+    const headers = Object.keys(records[0] ?? {});
+    const effectiveMapping = this.buildEffectiveMapping(headers, mapping);
+
     const groupedRows = new Map<string, Array<{ row: ImportRow; rowIndex: number }>>();
     for (const [index, row] of records.entries()) {
-      const resolvedTurfName = resolveMappedValue(row, 'turfName', mapping) ?? input.turfName ?? 'Imported Turf';
+      const resolvedTurfName = resolveMappedValue(row, 'turfName', effectiveMapping) ?? input.turfName ?? 'Imported Turf';
       if (!groupedRows.has(resolvedTurfName)) {
         groupedRows.set(resolvedTurfName, []);
       }
@@ -380,8 +418,10 @@ export class ImportsService {
               where: {
                 name: turfName,
                 organizationId: creator.organizationId ?? null,
-                campaignId: creator.campaignId ?? null,
-                ...(input.teamId ? { teamId: input.teamId } : {})
+                campaignId: effectiveCampaignId,
+                deletedAt: null,
+                ...(team?.id ? { teamId: team.id } : {}),
+                ...(regionCode ? { regionCode } : {})
               }
             })
           : null;
@@ -394,8 +434,8 @@ export class ImportsService {
             description: `Imported from CSV on ${new Date().toISOString()}`,
             createdById: input.createdById,
             organizationId: creator.organizationId ?? null,
-            campaignId: creator.campaignId ?? team?.campaignId ?? null,
-            teamId: input.teamId ?? null,
+            campaignId: effectiveCampaignId,
+            teamId: team?.id ?? null,
             regionCode,
             status: TurfStatus.unassigned
           }
@@ -417,8 +457,10 @@ export class ImportsService {
           vanHouseholdId,
           latitude,
           longitude,
-          combinedAddressLine1
-        } = this.extractRowAddress({ row, mapping });
+          addressLine2,
+          unit,
+          normalizedAddressKey
+        } = this.extractRowAddress({ row, mapping: effectiveMapping });
 
         if (!addressLine1 || !city || !state) {
           invalidRowsSkipped += 1;
@@ -436,10 +478,13 @@ export class ImportsService {
         }
         const household = await this.ensureHousehold({
           organizationId: creator.organizationId!,
-          addressLine1: combinedAddressLine1,
+          addressLine1,
+          addressLine2,
+          unit,
           city,
           state,
           zip,
+          normalizedAddressKey: normalizedAddressKey!,
           latitude,
           longitude,
           vanHouseholdId,
@@ -475,10 +520,13 @@ export class ImportsService {
             await this.prisma.address.update({
               where: { id: duplicate.id },
               data: {
-                addressLine1: combinedAddressLine1,
+                addressLine1,
+                addressLine2: addressLine2 ?? duplicate.addressLine2,
+                unit: unit ?? duplicate.unit,
                 city,
                 state,
                 zip: zip ?? duplicate.zip,
+                normalizedAddressKey: normalizedAddressKey ?? duplicate.normalizedAddressKey,
                 vanId: vanHouseholdId ?? vanPersonId ?? duplicate.vanId,
                 latitude: latitude ?? duplicate.latitude,
                 longitude: longitude ?? duplicate.longitude
@@ -520,10 +568,13 @@ export class ImportsService {
             campaignId: turf.campaignId,
             teamId: turf.teamId,
             regionCode: turf.regionCode,
-            addressLine1: combinedAddressLine1,
+            addressLine1,
+            addressLine2: addressLine2 ?? null,
+            unit: unit ?? null,
             city,
             state,
             zip,
+            normalizedAddressKey: normalizedAddressKey!,
             vanId: vanHouseholdId ?? vanPersonId,
             latitude,
             longitude
@@ -574,7 +625,7 @@ export class ImportsService {
         filename,
         organizationId: creator.organizationId ?? null,
         campaignId: effectiveCampaignId,
-        teamId: input.teamId ?? null,
+        teamId: team?.id ?? null,
         regionCode,
         initiatedByUserId: input.createdById,
         mode,
@@ -587,7 +638,7 @@ export class ImportsService {
         pendingReviewCount: pendingDuplicateReviews,
         invalidCount: invalidRowsSkipped,
         duplicateSkippedCount: duplicateRowsSkipped,
-        mappingJson: (mapping ?? null) as never,
+        mappingJson: (effectiveMapping ?? null) as never,
         csvContent: input.csv,
         sha256Checksum: this.checksum(input.csv),
         purgeAt: this.buildPurgeAt(policy.retentionPurgeDays),
@@ -659,10 +710,7 @@ export class ImportsService {
 
     const headers = Object.keys(records[0] ?? {});
     const headerSet = new Set(headers);
-    const effectiveMapping = {
-      ...inferMappingFromHeaders(headers),
-      ...(mapping ?? {})
-    };
+    const effectiveMapping = this.buildEffectiveMapping(headers, mapping);
     const requiredMappedFields: Array<keyof CsvMapping> = ['addressLine1', 'city', 'state'];
     const profileMappingEntries = Object.entries(mapping ?? {});
     const missingHeaders = profileMappingEntries
@@ -683,11 +731,12 @@ export class ImportsService {
       const rowIndex = index + 1;
       const {
         addressLine1,
+        addressLine2,
+        unit,
         city,
-        state,
-        combinedAddressLine1
-      } = this.extractRowAddress({ row, mapping });
-      const mappedTurfName = resolveMappedValue(row, 'turfName', mapping);
+        state
+      } = this.extractRowAddress({ row, mapping: effectiveMapping });
+      const mappedTurfName = resolveMappedValue(row, 'turfName', effectiveMapping);
       const turfName = mappedTurfName ?? input.turfName ?? 'Imported Turf';
       const status = addressLine1 && city && state ? 'ready' : 'missing_required_fields';
       if (status === 'ready') {
@@ -703,7 +752,13 @@ export class ImportsService {
       return {
         rowIndex,
         turfName,
-        addressLine1: combinedAddressLine1 || '',
+        addressLine1: addressLine1
+          ? composeDisplayAddressLine1({
+              addressLine1,
+              addressLine2,
+              unit
+            })
+          : '',
         city: city ?? '',
         state: state ?? '',
         status
@@ -711,8 +766,8 @@ export class ImportsService {
     });
 
     for (const row of records.slice(10)) {
-      const { addressLine1, city, state } = this.extractRowAddress({ row, mapping });
-      const mappedTurfName = resolveMappedValue(row, 'turfName', mapping);
+      const { addressLine1, city, state } = this.extractRowAddress({ row, mapping: effectiveMapping });
+      const mappedTurfName = resolveMappedValue(row, 'turfName', effectiveMapping);
       const turfName = mappedTurfName ?? input.turfName ?? 'Imported Turf';
       if (addressLine1 && city && state) {
         rowsReady += 1;
@@ -956,6 +1011,7 @@ export class ImportsService {
     const mapping = this.parseMapping(row.importBatch.mappingJson);
     const rawRow = this.parseRow(row.rawRowJson);
     const {
+      addressLine1,
       city,
       state,
       zip,
@@ -963,16 +1019,21 @@ export class ImportsService {
       vanHouseholdId,
       latitude,
       longitude,
-      combinedAddressLine1
+      addressLine2,
+      unit,
+      normalizedAddressKey
     } = this.extractRowAddress({ row: rawRow, mapping });
 
     const updatedAddress = await this.prisma.address.update({
       where: { id: row.candidateAddress.id },
       data: {
-        addressLine1: combinedAddressLine1 || row.candidateAddress.addressLine1,
+        addressLine1: addressLine1 || row.candidateAddress.addressLine1,
+        addressLine2: addressLine2 ?? row.candidateAddress.addressLine2,
+        unit: unit ?? row.candidateAddress.unit,
         city: city || row.candidateAddress.city,
         state: state || row.candidateAddress.state,
         zip: zip ?? row.candidateAddress.zip,
+        normalizedAddressKey: normalizedAddressKey ?? row.candidateAddress.normalizedAddressKey,
         vanId: vanHouseholdId ?? vanPersonId ?? row.candidateAddress.vanId,
         latitude: latitude ?? row.candidateAddress.latitude,
         longitude: longitude ?? row.candidateAddress.longitude

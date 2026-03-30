@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { api, getApiBaseUrl, getErrorMessage, isApiError } from './client';
+import { api, getApiBaseUrl, getConflictReason, getErrorMessage, getSyncStatusForError, isApiError } from './client';
 
 describe('mobile api client', () => {
   const fetchMock = vi.fn<typeof fetch>();
@@ -119,5 +119,26 @@ describe('mobile api client', () => {
 
     expect(isApiError(error)).toBe(true);
     expect(getErrorMessage(error)).toBe('Unauthorized');
+  });
+
+  it('classifies conflict responses and exposes sync conflict reasons', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: 'Conflict',
+          syncConflictReason: 'assignment_changed'
+        }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    );
+
+    const error = await api.me('token-123').catch((value) => value);
+
+    expect(isApiError(error)).toBe(true);
+    expect(getSyncStatusForError(error)).toBe('conflict');
+    expect(getConflictReason(error)).toBe('assignment_changed');
   });
 });

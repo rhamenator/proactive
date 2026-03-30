@@ -7,6 +7,7 @@ import {
   UserRole
 } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { buildNormalizedAddressKey } from '../common/utils/address-normalization.util';
 import { PrismaService } from '../prisma/prisma.service';
 
 type RequestViewer = {
@@ -254,19 +255,7 @@ export class AddressRequestsService {
       organizationId: input.organizationId,
       turfId: input.turfId,
       deletedAt: null,
-      addressLine1: {
-        equals: input.addressLine1,
-        mode: 'insensitive'
-      },
-      city: {
-        equals: input.city,
-        mode: 'insensitive'
-      },
-      state: {
-        equals: input.state,
-        mode: 'insensitive'
-      },
-      zip: input.zip
+      normalizedAddressKey: buildNormalizedAddressKey(input)
     };
   }
 
@@ -284,19 +273,7 @@ export class AddressRequestsService {
     return this.prisma.household.findFirst({
       where: {
         organizationId: input.organizationId,
-        addressLine1: {
-          equals: input.addressLine1,
-          mode: 'insensitive'
-        },
-        city: {
-          equals: input.city,
-          mode: 'insensitive'
-        },
-        state: {
-          equals: input.state,
-          mode: 'insensitive'
-        },
-        zip: input.zip,
+        normalizedAddressKey: buildNormalizedAddressKey(input),
         deletedAt: null
       }
     });
@@ -320,6 +297,7 @@ export class AddressRequestsService {
         return this.prisma.household.update({
           where: { id: existing.id },
           data: {
+            normalizedAddressKey: buildNormalizedAddressKey(input),
             latitude: input.latitude ?? existing.latitude,
             longitude: input.longitude ?? existing.longitude
           }
@@ -336,6 +314,7 @@ export class AddressRequestsService {
         city: input.city,
         state: input.state,
         zip: input.zip,
+        normalizedAddressKey: buildNormalizedAddressKey(input),
         latitude: input.latitude ?? null,
         longitude: input.longitude ?? null,
         source: 'field_request',
@@ -565,6 +544,7 @@ export class AddressRequestsService {
           city: normalized.city,
           state: normalized.state,
           zip: normalized.zip,
+          normalizedAddressKey: buildNormalizedAddressKey(normalized),
           latitude: request.latitude,
           longitude: request.longitude,
           addedInField: true

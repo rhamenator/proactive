@@ -10,13 +10,15 @@ import type {
 
 const baseUrl = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
+  payload: unknown;
 
-  constructor(message: string, status = 0) {
+  constructor(message: string, status = 0, payload: unknown = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.payload = payload;
   }
 }
 
@@ -34,7 +36,15 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   const payload = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
-    throw new ApiError(payload?.message || `Request failed (${response.status})`, response.status);
+    const message =
+      typeof payload?.message === 'string'
+        ? payload.message
+        : typeof payload?.message?.message === 'string'
+          ? payload.message.message
+          : typeof payload?.error === 'string'
+            ? payload.error
+            : `Request failed (${response.status})`;
+    throw new ApiError(message, response.status, payload);
   }
 
   return payload as T;
@@ -174,6 +184,42 @@ export function getApiBaseUrl() {
 
 export function isApiError(error: unknown) {
   return error instanceof ApiError;
+}
+
+export function getSyncStatusForError(error: unknown) {
+  if (isApiError(error) && error.status === 409) {
+    return 'conflict' as const;
+  }
+
+  return 'failed' as const;
+}
+
+export function getConflictReason(error: unknown) {
+  if (!(error instanceof ApiError) || error.status !== 409) {
+    return null;
+  }
+
+  const payload = error.payload as
+    | {
+        message?: { syncConflictReason?: string | null } | string;
+        syncConflictReason?: string | null;
+      }
+    | null;
+
+  if (typeof payload?.syncConflictReason === 'string' && payload.syncConflictReason.trim()) {
+    return payload.syncConflictReason;
+  }
+
+  if (
+    payload?.message &&
+    typeof payload.message === 'object' &&
+    typeof payload.message.syncConflictReason === 'string' &&
+    payload.message.syncConflictReason.trim()
+  ) {
+    return payload.message.syncConflictReason;
+  }
+
+  return 'conflict';
 }
 
 export function getErrorMessage(error: unknown) {

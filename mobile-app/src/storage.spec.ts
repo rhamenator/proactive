@@ -143,6 +143,7 @@ describe('mobile storage helpers', () => {
         submittedAt: '2026-03-28T10:00:00.000Z',
         synced: false,
         syncStatus: 'failed',
+        syncConflictReason: null,
         localRecordUuid: 'local-1',
         clientCreatedAt: '2026-03-28T10:00:00.000Z',
         sessionId: 'session-1',

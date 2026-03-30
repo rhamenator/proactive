@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, SyncStatus, GpsStatus } from '@prisma/client';
+import { getDayOfWeekBucket, getTimeOfDayBucket, attachVisitAttemptMetrics } from '../common/utils/visit-analytics.util';
+import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type ReportFilters = {
@@ -7,11 +9,13 @@ export type ReportFilters = {
   campaignId?: string;
   teamId?: string;
   regionCode?: string;
+  supervisorId?: string;
   dateFrom?: string;
   dateTo?: string;
   turfId?: string;
   canvasserId?: string;
   outcomeCode?: string;
+  finalDisposition?: boolean;
   overrideFlag?: boolean;
   syncStatus?: SyncStatus;
   gpsStatus?: GpsStatus;
@@ -55,6 +59,9 @@ type ReportVisit = {
   outcomeCode: string;
   outcomeLabel: string;
   result: string;
+  outcomeDefinition: {
+    isFinalDisposition: boolean;
+  } | null;
   canvasser: ReportUser;
   turf: {
     id: string;
@@ -63,6 +70,8 @@ type ReportVisit = {
   address: {
     id: string;
     addressLine1: string;
+    addressLine2: string | null;
+    unit: string | null;
     city: string;
     state: string;
     zip: string | null;
@@ -116,7 +125,10 @@ function safeRatio(numerator: number, denominator: number) {
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly policiesService: PoliciesService
+  ) {}
 
   private getRange(filters: ReportFilters) {
     const from = filters.dateFrom ? new Date(filters.dateFrom) : null;
@@ -130,11 +142,13 @@ export class ReportsService {
       campaignId: filters.campaignId ?? null,
       teamId: filters.teamId ?? null,
       regionCode: filters.regionCode ?? null,
+      supervisorId: filters.supervisorId ?? null,
       dateFrom: filters.dateFrom ?? null,
       dateTo: filters.dateTo ?? null,
       turfId: filters.turfId ?? null,
       canvasserId: filters.canvasserId ?? null,
       outcomeCode: filters.outcomeCode ?? null,
+      finalDisposition: filters.finalDisposition ?? null,
       overrideFlag: filters.overrideFlag ?? null,
       syncStatus: filters.syncStatus ?? null,
       gpsStatus: filters.gpsStatus ?? null,
@@ -142,7 +156,78 @@ export class ReportsService {
     };
   }
 
-  private buildVisitWhere(filters: ReportFilters): Prisma.VisitLogWhereInput {
+  private async resolveSupervisorConstraints(filters: ReportFilters) {
+    if (!filters.supervisorId || !filters.organizationId) {
+      return {};
+    }
+
+    const supervisor = await this.prisma.user.findFirst({
+      where: {
+        id: filters.supervisorId,
+        organizationId: filters.organizationId,
+        role: 'supervisor',
+        deletedAt: null
+      }
+    });
+
+    if (!supervisor) {
+      return { impossible: true as const };
+    }
+
+    const policy = await this.policiesService.getEffectivePolicy({
+      organizationId: supervisor.organizationId,
+      campaignId: supervisor.campaignId
+    });
+
+    if (policy.supervisorScopeMode === 'team' && supervisor.teamId) {
+      return { teamId: supervisor.teamId };
+    }
+    if (policy.supervisorScopeMode === 'region' && supervisor.regionCode) {
+      return { regionCode: supervisor.regionCode };
+    }
+    if (supervisor.campaignId) {
+      return { campaignId: supervisor.campaignId };
+    }
+
+    return {};
+  }
+
+  private applySupervisorConstraints(
+    where: Prisma.VisitLogWhereInput | Prisma.TurfSessionWhereInput | Prisma.AuditLogWhereInput | Prisma.ExportBatchWhereInput,
+    constraints: Awaited<ReturnType<ReportsService['resolveSupervisorConstraints']>>,
+    filters: ReportFilters
+  ) {
+    if ('impossible' in constraints) {
+      (where as Prisma.VisitLogWhereInput).id = '__no_matching_supervisor_scope__';
+      return where;
+    }
+
+    if (constraints.campaignId) {
+      if (filters.campaignId && filters.campaignId !== constraints.campaignId) {
+        (where as Prisma.VisitLogWhereInput).id = '__no_matching_supervisor_scope__';
+        return where;
+      }
+      (where as Prisma.VisitLogWhereInput).campaignId = constraints.campaignId;
+    }
+    if (constraints.teamId) {
+      if (filters.teamId && filters.teamId !== constraints.teamId) {
+        (where as Prisma.VisitLogWhereInput).id = '__no_matching_supervisor_scope__';
+        return where;
+      }
+      (where as Prisma.VisitLogWhereInput).teamId = constraints.teamId;
+    }
+    if (constraints.regionCode) {
+      if (filters.regionCode && filters.regionCode !== constraints.regionCode) {
+        (where as Prisma.VisitLogWhereInput).id = '__no_matching_supervisor_scope__';
+        return where;
+      }
+      (where as Prisma.VisitLogWhereInput).regionCode = constraints.regionCode;
+    }
+
+    return where;
+  }
+
+  private async buildVisitWhere(filters: ReportFilters): Promise<Prisma.VisitLogWhereInput> {
     const where: Prisma.VisitLogWhereInput = {
       organizationId: filters.organizationId,
       deletedAt: null
@@ -177,6 +262,13 @@ export class ReportsService {
     if (filters.outcomeCode) {
       where.outcomeCode = filters.outcomeCode;
     }
+    if (filters.finalDisposition !== undefined) {
+      where.outcomeDefinition = {
+        is: {
+          isFinalDisposition: filters.finalDisposition
+        }
+      };
+    }
     if (filters.syncStatus) {
       where.syncStatus = filters.syncStatus;
     }
@@ -191,10 +283,10 @@ export class ReportsService {
       };
     }
 
-    return where;
+    return this.applySupervisorConstraints(where, await this.resolveSupervisorConstraints(filters), filters) as Prisma.VisitLogWhereInput;
   }
 
-  private buildSessionWhere(filters: ReportFilters): Prisma.TurfSessionWhereInput {
+  private async buildSessionWhere(filters: ReportFilters): Promise<Prisma.TurfSessionWhereInput> {
     const where: Prisma.TurfSessionWhereInput = {
       organizationId: filters.organizationId
     };
@@ -230,10 +322,10 @@ export class ReportsService {
       where.AND = andConditions;
     }
 
-    return where;
+    return this.applySupervisorConstraints(where, await this.resolveSupervisorConstraints(filters), filters) as Prisma.TurfSessionWhereInput;
   }
 
-  private buildAuditWhere(filters: ReportFilters): Prisma.AuditLogWhereInput {
+  private async buildAuditWhere(filters: ReportFilters): Promise<Prisma.AuditLogWhereInput> {
     const where: Prisma.AuditLogWhereInput = {
       organizationId: filters.organizationId
     };
@@ -262,12 +354,12 @@ export class ReportsService {
       };
     }
 
-    return where;
+    return this.applySupervisorConstraints(where, await this.resolveSupervisorConstraints(filters), filters) as Prisma.AuditLogWhereInput;
   }
 
   private async loadVisits(filters: ReportFilters): Promise<ReportVisit[]> {
     return this.prisma.visitLog.findMany({
-      where: this.buildVisitWhere(filters),
+      where: await this.buildVisitWhere(filters),
       orderBy: { visitTime: 'desc' },
       select: {
         id: true,
@@ -283,6 +375,11 @@ export class ReportsService {
         outcomeCode: true,
         outcomeLabel: true,
         result: true,
+        outcomeDefinition: {
+          select: {
+            isFinalDisposition: true
+          }
+        },
         canvasser: {
           select: safeUserSelect
         },
@@ -296,6 +393,8 @@ export class ReportsService {
           select: {
             id: true,
             addressLine1: true,
+            addressLine2: true,
+            unit: true,
             city: true,
             state: true,
             zip: true
@@ -320,7 +419,7 @@ export class ReportsService {
 
   private async loadSessions(filters: ReportFilters): Promise<ReportSession[]> {
     return this.prisma.turfSession.findMany({
-      where: this.buildSessionWhere(filters),
+      where: await this.buildSessionWhere(filters),
       select: {
         id: true,
         canvasserId: true,
@@ -368,11 +467,11 @@ export class ReportsService {
   }
 
   async getOverview(filters: ReportFilters) {
-    const [visits, sessions, recentAudit] = await Promise.all([
+    const [loadedVisits, sessions, recentAudit] = await Promise.all([
       this.loadVisits(filters),
       this.prisma.turfSession.findMany({
         where: {
-          ...this.buildSessionWhere(filters),
+          ...(await this.buildSessionWhere(filters)),
           endTime: null
         },
         select: {
@@ -381,7 +480,7 @@ export class ReportsService {
         }
       }),
       this.prisma.auditLog.findMany({
-        where: this.buildAuditWhere(filters),
+        where: await this.buildAuditWhere(filters),
         orderBy: { createdAt: 'desc' },
         take: Math.min(filters.limit ?? 10, 25),
         include: {
@@ -391,6 +490,7 @@ export class ReportsService {
         }
       })
     ]);
+    const visits = attachVisitAttemptMetrics(loadedVisits);
 
     const productivitySummary = new Map<
       string,
@@ -411,6 +511,9 @@ export class ReportsService {
     let missingGps = 0;
     let lowAccuracyGps = 0;
     let overrideCount = 0;
+    let finalDispositionVisits = 0;
+    let attemptOnlyVisits = 0;
+    let revisitVisits = 0;
     let pendingSync = 0;
     let syncing = 0;
     let synced = 0;
@@ -459,6 +562,14 @@ export class ReportsService {
       if (visit.geofenceResult?.overrideFlag) {
         overrideCount += 1;
       }
+      if (visit.outcomeDefinition?.isFinalDisposition) {
+        finalDispositionVisits += 1;
+      } else {
+        attemptOnlyVisits += 1;
+      }
+      if (visit.isRevisit) {
+        revisitVisits += 1;
+      }
 
       const current =
         productivitySummary.get(visit.canvasserId) ??
@@ -505,7 +616,16 @@ export class ReportsService {
           missing: missingGps,
           lowAccuracy: lowAccuracyGps,
           overrides: overrideCount
-        }
+        },
+        outcomes: {
+          finalDisposition: finalDispositionVisits,
+          attemptsOnly: attemptOnlyVisits
+        },
+        revisitVisits
+      },
+      supervisorSlice: {
+        filterApplied: Boolean(filters.supervisorId),
+        supervisorId: filters.supervisorId ?? null
       },
       productivityPreview: Array.from(productivitySummary.values())
         .map((entry) => ({
@@ -532,7 +652,8 @@ export class ReportsService {
   }
 
   async getProductivity(filters: ReportFilters) {
-    const [visits, sessions] = await Promise.all([this.loadVisits(filters), this.loadSessions(filters)]);
+    const [loadedVisits, sessions] = await Promise.all([this.loadVisits(filters), this.loadSessions(filters)]);
+    const visits = attachVisitAttemptMetrics(loadedVisits);
     const rows = new Map<
       string,
       {
@@ -542,6 +663,8 @@ export class ReportsService {
         totalVisits: number;
         uniqueAddresses: Set<string>;
         contactsMade: number;
+        finalDispositionVisits: number;
+        revisitVisits: number;
         gpsVerifiedVisits: number;
         gpsFlaggedVisits: number;
         sessionIds: Set<string>;
@@ -559,6 +682,8 @@ export class ReportsService {
           totalVisits: 0,
           uniqueAddresses: new Set<string>(),
           contactsMade: 0,
+          finalDispositionVisits: 0,
+          revisitVisits: 0,
           gpsVerifiedVisits: 0,
           gpsFlaggedVisits: 0,
           sessionIds: new Set<string>(),
@@ -569,6 +694,12 @@ export class ReportsService {
       current.uniqueAddresses.add(visit.addressId);
       if (visit.contactMade) {
         current.contactsMade += 1;
+      }
+      if (visit.outcomeDefinition?.isFinalDisposition) {
+        current.finalDispositionVisits += 1;
+      }
+      if (visit.isRevisit) {
+        current.revisitVisits += 1;
       }
       if (visit.gpsStatus === 'verified') {
         current.gpsVerifiedVisits += 1;
@@ -608,6 +739,8 @@ export class ReportsService {
           totalVisits: entry.totalVisits,
           uniqueAddressesVisited: entry.uniqueAddresses.size,
           contactsMade: entry.contactsMade,
+          finalDispositionVisits: entry.finalDispositionVisits,
+          revisitVisits: entry.revisitVisits,
           sessionsCount: entry.sessionIds.size,
           totalSessionMinutes: Number(entry.totalSessionMinutes.toFixed(2)),
           averageSessionMinutes: Number(averageSessionMinutes.toFixed(2)),
@@ -633,7 +766,7 @@ export class ReportsService {
   }
 
   async getGpsExceptions(filters: ReportFilters) {
-    const visits = await this.loadVisits(filters);
+    const visits = attachVisitAttemptMetrics(await this.loadVisits(filters));
     const exceptionVisits = visits.filter(
       (visit) =>
         visit.gpsStatus === 'flagged' ||
@@ -705,8 +838,11 @@ export class ReportsService {
         outcome: {
           code: visit.outcomeCode,
           label: visit.outcomeLabel,
-          result: visit.result
+          result: visit.result,
+          isFinalDisposition: visit.outcomeDefinition?.isFinalDisposition ?? false
         },
+        attemptNumber: visit.attemptNumber,
+        isRevisit: visit.isRevisit,
         syncStatus: visit.syncStatus,
         gpsStatus: visit.gpsStatus,
         geofence: {
@@ -747,7 +883,7 @@ export class ReportsService {
 
   async getAuditActivity(filters: ReportFilters) {
     const audit = await this.prisma.auditLog.findMany({
-      where: this.buildAuditWhere(filters),
+      where: await this.buildAuditWhere(filters),
       orderBy: { createdAt: 'desc' },
       take: Math.min(filters.limit ?? 100, 250),
       include: {
@@ -792,9 +928,14 @@ export class ReportsService {
   }
 
   async getTrendSummary(filters: ReportFilters) {
-    const visits = await this.loadVisits(filters);
+    const visits = attachVisitAttemptMetrics(await this.loadVisits(filters));
     const byDay = new Map<string, { visits: number; contactsMade: number; addresses: Set<string> }>();
     const byOutcome = new Map<string, { outcomeCode: string; outcomeLabel: string; total: number }>();
+    const byTimeOfDay = new Map<string, number>();
+    const byDayOfWeek = new Map<string, number>();
+    let finalDispositionVisits = 0;
+    let attemptOnlyVisits = 0;
+    let revisitVisits = 0;
 
     for (const visit of visits) {
       const day = visit.visitTime.toISOString().slice(0, 10);
@@ -813,6 +954,21 @@ export class ReportsService {
       };
       outcomeBucket.total += 1;
       byOutcome.set(visit.outcomeCode, outcomeBucket);
+
+      const timeOfDayBucket = getTimeOfDayBucket(visit.visitTime);
+      byTimeOfDay.set(timeOfDayBucket, (byTimeOfDay.get(timeOfDayBucket) ?? 0) + 1);
+
+      const dayOfWeekBucket = getDayOfWeekBucket(visit.visitTime);
+      byDayOfWeek.set(dayOfWeekBucket, (byDayOfWeek.get(dayOfWeekBucket) ?? 0) + 1);
+
+      if (visit.outcomeDefinition?.isFinalDisposition) {
+        finalDispositionVisits += 1;
+      } else {
+        attemptOnlyVisits += 1;
+      }
+      if (visit.isRevisit) {
+        revisitVisits += 1;
+      }
     }
 
     return {
@@ -820,7 +976,10 @@ export class ReportsService {
       summary: {
         days: byDay.size,
         totalVisits: visits.length,
-        averageVisitsPerDay: byDay.size ? Number((visits.length / byDay.size).toFixed(2)) : 0
+        averageVisitsPerDay: byDay.size ? Number((visits.length / byDay.size).toFixed(2)) : 0,
+        finalDispositionVisits,
+        attemptOnlyVisits,
+        revisitVisits
       },
       byDay: Array.from(byDay.entries())
         .map(([day, bucket]) => ({
@@ -830,14 +989,16 @@ export class ReportsService {
           uniqueAddressesVisited: bucket.addresses.size
         }))
         .sort((left, right) => left.day.localeCompare(right.day)),
-      byOutcome: Array.from(byOutcome.values()).sort((left, right) => right.total - left.total)
+      byOutcome: Array.from(byOutcome.values()).sort((left, right) => right.total - left.total),
+      byTimeOfDay: Array.from(byTimeOfDay.entries()).map(([bucket, total]) => ({ bucket, total })),
+      byDayOfWeek: Array.from(byDayOfWeek.entries()).map(([bucket, total]) => ({ bucket, total }))
     };
   }
 
   async getResolvedConflicts(filters: ReportFilters) {
     const rows = await this.prisma.auditLog.findMany({
       where: {
-        ...this.buildAuditWhere(filters),
+        ...(await this.buildAuditWhere(filters)),
         actionType: 'sync_conflict_resolved'
       },
       orderBy: { createdAt: 'desc' },
@@ -867,12 +1028,17 @@ export class ReportsService {
   }
 
   async getExportBatchAnalytics(filters: ReportFilters) {
-    const rows = await this.prisma.exportBatch.findMany({
-      where: {
+    const where = this.applySupervisorConstraints(
+      {
         organizationId: filters.organizationId,
         ...(filters.campaignId ? { campaignId: filters.campaignId } : {}),
         ...(filters.turfId ? { turfId: filters.turfId } : {})
       },
+      await this.resolveSupervisorConstraints(filters),
+      filters
+    ) as Prisma.ExportBatchWhereInput;
+    const rows = await this.prisma.exportBatch.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       take: Math.min(filters.limit ?? 100, 250),
       include: {

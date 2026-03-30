@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { buildNormalizedAddressKey } from '../src/common/utils/address-normalization.util';
 
 const prisma = new PrismaClient();
 
@@ -135,6 +136,12 @@ async function main() {
         city: 'Grand Rapids',
         state: 'MI',
         zip: '49503',
+        normalizedAddressKey: buildNormalizedAddressKey({
+          addressLine1: '100 Main St',
+          city: 'Grand Rapids',
+          state: 'MI',
+          zip: '49503'
+        }),
         latitude: 42.9634,
         longitude: -85.6681,
         vanHouseholdId: 'VAN-1001',
@@ -149,6 +156,12 @@ async function main() {
         city: 'Grand Rapids',
         state: 'MI',
         zip: '49503',
+        normalizedAddressKey: buildNormalizedAddressKey({
+          addressLine1: '102 Main St',
+          city: 'Grand Rapids',
+          state: 'MI',
+          zip: '49503'
+        }),
         latitude: 42.9635,
         longitude: -85.6682,
         vanHouseholdId: 'VAN-1002',
@@ -169,6 +182,12 @@ async function main() {
         city: 'Grand Rapids',
         state: 'MI',
         zip: '49503',
+        normalizedAddressKey: buildNormalizedAddressKey({
+          addressLine1: '100 Main St',
+          city: 'Grand Rapids',
+          state: 'MI',
+          zip: '49503'
+        }),
         latitude: 42.9634,
         longitude: -85.6681,
         vanId: 'VAN-1001'
@@ -182,6 +201,12 @@ async function main() {
         city: 'Grand Rapids',
         state: 'MI',
         zip: '49503',
+        normalizedAddressKey: buildNormalizedAddressKey({
+          addressLine1: '102 Main St',
+          city: 'Grand Rapids',
+          state: 'MI',
+          zip: '49503'
+        }),
         latitude: 42.9635,
         longitude: -85.6682,
         vanId: 'VAN-1002'

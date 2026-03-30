@@ -46,7 +46,15 @@ describe('VisitsService', () => {
   const service = new VisitsService(prisma as never, auditService as never, policiesService as never);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    policiesService.getEffectivePolicy.mockResolvedValue({
+      allowOrgOutcomeFallback: true,
+      canvasserCorrectionWindowMinutes: 10,
+      maxAttemptsPerHousehold: 3,
+      minMinutesBetweenAttempts: 5,
+      geofenceRadiusFeet: 75,
+      gpsLowAccuracyMeters: 30
+    });
     prisma.visitLog.findMany.mockResolvedValue([]);
     prisma.visitLog.update.mockResolvedValue({ id: 'visit-1', outcomeCode: 'talked_to_voter' });
     prisma.visitCorrection.create.mockResolvedValue({ id: 'correction-1' });
@@ -136,7 +144,18 @@ describe('VisitsService', () => {
   }
 
   it('returns an existing visit when the local record UUID was already ingested', async () => {
-    const existingVisit = { id: 'visit-1', localRecordUuid: 'local-1' };
+    mockAssignedAddress();
+    const existingVisit = {
+      id: 'visit-1',
+      localRecordUuid: 'local-1',
+      canvasserId: 'canvasser-1',
+      turfId: 'turf-1',
+      addressId: 'address-1',
+      sessionId: null,
+      outcomeCode: VisitResult.knocked,
+      notes: null,
+      clientCreatedAt: null
+    };
     prisma.visitLog.findUnique.mockResolvedValue(existingVisit);
 
     const result = await service.logVisit({
@@ -149,7 +168,10 @@ describe('VisitsService', () => {
     expect(prisma.visitLog.findUnique).toHaveBeenCalledWith({
       where: { localRecordUuid: 'local-1' }
     });
-    expect(prisma.address.findUnique).not.toHaveBeenCalled();
+    expect(prisma.address.findUnique).toHaveBeenCalledWith({
+      where: { id: 'address-1' },
+      include: { turf: true }
+    });
     expect(result).toBe(existingVisit);
   });
 
@@ -245,7 +267,18 @@ describe('VisitsService', () => {
   });
 
   it('returns an existing visit when the idempotency key was already ingested', async () => {
-    const existingVisit = { id: 'visit-2', idempotencyKey: 'idem-1' };
+    mockAssignedAddress();
+    const existingVisit = {
+      id: 'visit-2',
+      idempotencyKey: 'idem-1',
+      canvasserId: 'canvasser-1',
+      turfId: 'turf-1',
+      addressId: 'address-1',
+      sessionId: null,
+      outcomeCode: VisitResult.knocked,
+      notes: null,
+      clientCreatedAt: null
+    };
     prisma.visitLog.findUnique.mockResolvedValue(existingVisit);
 
     const result = await service.logVisit({
@@ -255,11 +288,78 @@ describe('VisitsService', () => {
       idempotencyKey: 'idem-1'
     });
 
-    expect(prisma.visitLog.findUnique).toHaveBeenCalledWith({
+    expect(prisma.visitLog.findUnique).toHaveBeenNthCalledWith(1, {
       where: { idempotencyKey: 'idem-1' }
     });
-    expect(prisma.address.findUnique).not.toHaveBeenCalled();
+    expect(prisma.address.findUnique).toHaveBeenCalledWith({
+      where: { id: 'address-1' },
+      include: { turf: true }
+    });
     expect(result).toBe(existingVisit);
+  });
+
+  it('flags a conflict when a duplicate local record UUID replays different visit data', async () => {
+    mockAssignedAddress();
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-2',
+      code: VisitResult.refused,
+      label: 'Refused',
+      requiresNote: false
+    });
+    const tx = {
+      visitLog: {
+        update: jest.fn().mockResolvedValue({
+          id: 'visit-1',
+          syncStatus: SyncStatus.conflict,
+          syncConflictFlag: true,
+          syncConflictReason: 'local_record_uuid_payload_mismatch'
+        })
+      },
+      syncEvent: {
+        create: jest.fn().mockResolvedValue({ id: 'sync-1' })
+      }
+    };
+    prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+    auditService.log.mockResolvedValue(undefined);
+    prisma.visitLog.findUnique.mockResolvedValue({
+      id: 'visit-1',
+      localRecordUuid: 'local-1',
+      canvasserId: 'canvasser-1',
+      turfId: 'turf-1',
+      addressId: 'address-1',
+      sessionId: null,
+      outcomeCode: VisitResult.knocked,
+      notes: null,
+      clientCreatedAt: null
+    });
+
+    await expect(
+      service.logVisit({
+        canvasserId: 'canvasser-1',
+        addressId: 'address-1',
+        outcomeCode: VisitResult.refused,
+        localRecordUuid: 'local-1'
+      })
+    ).rejects.toThrow('This queued visit does not match the previously synced submission with the same local identifier.');
+
+    expect(tx.visitLog.update).toHaveBeenCalledWith({
+      where: { id: 'visit-1' },
+      data: {
+        syncStatus: SyncStatus.conflict,
+        syncConflictFlag: true,
+        syncConflictReason: 'local_record_uuid_payload_mismatch'
+      }
+    });
+    expect(tx.syncEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entityType: 'visit_log',
+        entityId: 'visit-1',
+        syncStatus: SyncStatus.conflict,
+        eventType: 'duplicate_payload_conflict',
+        errorCode: 'local_record_uuid_payload_mismatch',
+        localRecordUuid: 'local-1'
+      })
+    });
   });
 
   it('rejects visits when the address cannot be found', async () => {
@@ -342,6 +442,7 @@ describe('VisitsService', () => {
   });
 
   it('rejects visits when the canvasser is not assigned to the turf', async () => {
+    mockSuccessfulTransaction();
     prisma.address.findUnique.mockResolvedValue({
       id: 'address-1',
       turfId: 'turf-1',
@@ -365,11 +466,12 @@ describe('VisitsService', () => {
         addressId: 'address-1',
         outcomeCode: VisitResult.knocked
       })
-    ).rejects.toThrow('Canvasser is not assigned to this turf');
+    ).rejects.toThrow('The turf assignment changed before this offline visit could sync');
   });
 
   it('rejects visits when the provided session is invalid for the turf', async () => {
     mockAssignedAddress();
+    mockSuccessfulTransaction();
     prisma.turfSession.findFirst.mockResolvedValue(null);
 
     await expect(
@@ -379,7 +481,7 @@ describe('VisitsService', () => {
         sessionId: 'session-1',
         outcomeCode: VisitResult.knocked
       })
-    ).rejects.toThrow('Visit session is invalid for this turf');
+    ).rejects.toThrow('The recorded turf session is no longer valid for this visit');
   });
 
   it('rejects visits after the household reaches the maximum attempts', async () => {

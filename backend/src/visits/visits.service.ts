@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { AssignmentStatus, GpsStatus, Prisma, SyncStatus, UserRole, VisitResult, VisitSource } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
@@ -87,6 +87,232 @@ export class VisitsService {
     }
 
     return where;
+  }
+
+  private normalizeOptionalText(value: string | undefined | null) {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private buildConflictError(input: {
+    message: string;
+    reason: string;
+    visitId?: string;
+    localRecordUuid?: string;
+    idempotencyKey?: string;
+  }) {
+    return new ConflictException({
+      message: input.message,
+      syncStatus: SyncStatus.conflict,
+      syncConflictFlag: true,
+      syncConflictReason: input.reason,
+      visitId: input.visitId ?? null,
+      localRecordUuid: input.localRecordUuid ?? null,
+      idempotencyKey: input.idempotencyKey ?? null
+    });
+  }
+
+  private visitMatchesIncomingSubmission(input: {
+    existing: {
+      canvasserId: string;
+      turfId: string;
+      addressId: string;
+      sessionId: string | null;
+      outcomeCode: string;
+      notes: string | null;
+      clientCreatedAt: Date | null;
+    };
+    next: {
+      canvasserId: string;
+      turfId: string;
+      addressId: string;
+      sessionId: string | null;
+      outcomeCode: string;
+      notes?: string;
+      clientCreatedAt?: string;
+    };
+  }) {
+    return (
+      input.existing.canvasserId === input.next.canvasserId &&
+      input.existing.turfId === input.next.turfId &&
+      input.existing.addressId === input.next.addressId &&
+      (input.existing.sessionId ?? null) === input.next.sessionId &&
+      input.existing.outcomeCode === input.next.outcomeCode &&
+      (input.existing.notes ?? null) === this.normalizeOptionalText(input.next.notes) &&
+      (input.existing.clientCreatedAt?.toISOString() ?? null) ===
+        (input.next.clientCreatedAt ? new Date(input.next.clientCreatedAt).toISOString() : null)
+    );
+  }
+
+  private async markExistingVisitConflict(input: {
+    existingVisitId: string;
+    actorUserId: string;
+    conflictReason: string;
+    reasonMessage: string;
+    localRecordUuid?: string;
+    idempotencyKey?: string;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.visitLog.update({
+        where: { id: input.existingVisitId },
+        data: {
+          syncStatus: SyncStatus.conflict,
+          syncConflictFlag: true,
+          syncConflictReason: input.conflictReason
+        }
+      });
+
+      await tx.syncEvent.create({
+        data: {
+          entityType: 'visit_log',
+          entityId: updated.id,
+          localRecordUuid: input.localRecordUuid,
+          idempotencyKey: input.idempotencyKey,
+          eventType: 'duplicate_payload_conflict',
+          syncStatus: SyncStatus.conflict,
+          attemptCount: 1,
+          errorCode: input.conflictReason,
+          errorMessage: input.reasonMessage,
+          attemptedAt: new Date(),
+          completedAt: new Date()
+        }
+      });
+
+      await this.auditService.log(
+        {
+          actorUserId: input.actorUserId,
+          actionType: 'visit_sync_conflict_detected',
+          entityType: 'visit_log',
+          entityId: updated.id,
+          reasonCode: input.conflictReason,
+          reasonText: input.reasonMessage,
+          newValuesJson: {
+            syncStatus: updated.syncStatus,
+            syncConflictFlag: updated.syncConflictFlag,
+            syncConflictReason: updated.syncConflictReason,
+            localRecordUuid: input.localRecordUuid ?? null,
+            idempotencyKey: input.idempotencyKey ?? null
+          }
+        },
+        tx
+      );
+
+      return updated;
+    });
+  }
+
+  private async createConflictVisit(input: {
+    address: Awaited<ReturnType<PrismaService['address']['findUnique']>> & { turf: { id: string; organizationId: string | null; campaignId: string | null; teamId?: string | null; regionCode?: string | null } };
+    outcomeDefinition: { id: string; code: string; label: string };
+    canvasserId: string;
+    sessionId?: string;
+    notes?: string;
+    latitude?: number;
+    longitude?: number;
+    accuracyMeters?: number;
+    localRecordUuid?: string;
+    idempotencyKey?: string;
+    clientCreatedAt?: string;
+    gpsStatus: GpsStatus;
+    geofenceValidated: boolean;
+    geofenceDistanceMeters?: number;
+    distanceFromTargetFeet?: number;
+    validationRadiusFeet: number;
+    failureReason?: string;
+    reason: string;
+    reasonMessage: string;
+  }) {
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const visit = await tx.visitLog.create({
+        data: {
+          turfId: input.address.turfId,
+          addressId: input.address.id,
+          sessionId: input.sessionId,
+          canvasserId: input.canvasserId,
+          organizationId: input.address.organizationId ?? input.address.turf.organizationId,
+          campaignId: input.address.campaignId ?? input.address.turf.campaignId,
+          teamId: input.address.teamId ?? input.address.turf.teamId ?? null,
+          regionCode: input.address.regionCode ?? input.address.turf.regionCode ?? null,
+          outcomeDefinitionId: input.outcomeDefinition.id,
+          result: this.normalizeLegacyResult(input.outcomeDefinition.code),
+          outcomeCode: input.outcomeDefinition.code,
+          outcomeLabel: input.outcomeDefinition.label,
+          contactMade: input.outcomeDefinition.code === 'talked_to_voter',
+          notes: input.notes,
+          latitude: input.latitude,
+          longitude: input.longitude,
+          accuracyMeters: input.accuracyMeters,
+          gpsStatus: input.gpsStatus,
+          geofenceValidated: input.geofenceValidated,
+          geofenceDistanceMeters: input.geofenceDistanceMeters ? Math.round(input.geofenceDistanceMeters) : undefined,
+          syncStatus: SyncStatus.conflict,
+          syncConflictFlag: true,
+          syncConflictReason: input.reason,
+          localRecordUuid: input.localRecordUuid,
+          idempotencyKey: input.idempotencyKey,
+          clientCreatedAt: input.clientCreatedAt ? new Date(input.clientCreatedAt) : undefined,
+          serverReceivedAt: now,
+          source: VisitSource.mobile_app
+        }
+      });
+
+      await tx.visitGeofenceResult.create({
+        data: {
+          visitLogId: visit.id,
+          addressId: input.address.id,
+          targetLatitude: input.address.latitude,
+          targetLongitude: input.address.longitude,
+          capturedLatitude: input.latitude,
+          capturedLongitude: input.longitude,
+          accuracyMeters: input.accuracyMeters,
+          distanceFromTargetFeet: input.distanceFromTargetFeet,
+          validationRadiusFeet: input.validationRadiusFeet,
+          gpsStatus: input.gpsStatus,
+          failureReason: input.failureReason ?? input.reason,
+          capturedAt: input.clientCreatedAt ? new Date(input.clientCreatedAt) : now
+        }
+      });
+
+      await tx.syncEvent.create({
+        data: {
+          entityType: 'visit_log',
+          entityId: visit.id,
+          localRecordUuid: input.localRecordUuid,
+          idempotencyKey: input.idempotencyKey,
+          eventType: 'ingest_conflict',
+          syncStatus: SyncStatus.conflict,
+          attemptCount: 1,
+          errorCode: input.reason,
+          errorMessage: input.reasonMessage,
+          attemptedAt: now,
+          completedAt: now
+        }
+      });
+
+      await this.auditService.log(
+        {
+          actorUserId: input.canvasserId,
+          actionType: 'visit_sync_conflict_detected',
+          entityType: 'visit_log',
+          entityId: visit.id,
+          reasonCode: input.reason,
+          reasonText: input.reasonMessage,
+          newValuesJson: {
+            addressId: input.address.id,
+            turfId: input.address.turfId,
+            localRecordUuid: input.localRecordUuid ?? null,
+            idempotencyKey: input.idempotencyKey ?? null,
+            syncStatus: SyncStatus.conflict,
+            syncConflictReason: input.reason
+          }
+        },
+        tx
+      );
+
+      return visit;
+    });
   }
 
   private async findScopedOutcomeDefinition(input: {
@@ -332,21 +558,44 @@ export class VisitsService {
     idempotencyKey?: string;
     clientCreatedAt?: string;
   }) {
+    const existingByLocalRecordUuid = input.localRecordUuid
+      ? await this.prisma.visitLog.findUnique({
+          where: { localRecordUuid: input.localRecordUuid }
+        })
+      : null;
+    const existingByIdempotencyKey = input.idempotencyKey
+      ? await this.prisma.visitLog.findUnique({
+          where: { idempotencyKey: input.idempotencyKey }
+        })
+      : null;
+
     if (input.localRecordUuid) {
-      const existing = await this.prisma.visitLog.findUnique({
-        where: { localRecordUuid: input.localRecordUuid }
-      });
+      const existing = existingByLocalRecordUuid;
       if (existing) {
-        return existing;
+        if (existing.syncStatus === SyncStatus.conflict || existing.syncConflictFlag) {
+          throw this.buildConflictError({
+            message: existing.syncConflictReason ?? 'This visit requires admin review before it can sync',
+            reason: existing.syncConflictReason ?? 'existing_conflict',
+            visitId: existing.id,
+            localRecordUuid: existing.localRecordUuid ?? input.localRecordUuid,
+            idempotencyKey: existing.idempotencyKey ?? input.idempotencyKey
+          });
+        }
       }
     }
 
     if (input.idempotencyKey) {
-      const existing = await this.prisma.visitLog.findUnique({
-        where: { idempotencyKey: input.idempotencyKey }
-      });
+      const existing = existingByIdempotencyKey;
       if (existing) {
-        return existing;
+        if (existing.syncStatus === SyncStatus.conflict || existing.syncConflictFlag) {
+          throw this.buildConflictError({
+            message: existing.syncConflictReason ?? 'This visit requires admin review before it can sync',
+            reason: existing.syncConflictReason ?? 'existing_conflict',
+            visitId: existing.id,
+            localRecordUuid: existing.localRecordUuid ?? input.localRecordUuid,
+            idempotencyKey: existing.idempotencyKey ?? input.idempotencyKey
+          });
+        }
       }
     }
 
@@ -373,44 +622,6 @@ export class VisitsService {
       throw new BadRequestException('Notes are required for the selected visit outcome');
     }
 
-    const assignment = await this.prisma.turfAssignment.findFirst({
-      where: {
-        canvasserId: input.canvasserId,
-        turfId: address.turfId,
-        status: { in: [AssignmentStatus.assigned, AssignmentStatus.active] }
-      }
-    });
-    if (!assignment) {
-      throw new BadRequestException('Canvasser is not assigned to this turf');
-    }
-
-    if (input.sessionId) {
-      const session = await this.prisma.turfSession.findFirst({
-        where: {
-          id: input.sessionId,
-          canvasserId: input.canvasserId,
-          turfId: address.turfId
-        }
-      });
-
-      if (!session) {
-        throw new BadRequestException('Visit session is invalid for this turf');
-      }
-    }
-
-    const visitSession =
-      input.sessionId ??
-      (
-        await this.prisma.turfSession.findFirst({
-          where: {
-            canvasserId: input.canvasserId,
-            turfId: address.turfId,
-            endTime: null
-          },
-          orderBy: { startTime: 'desc' }
-        })
-      )?.id;
-
     const policy = await this.policiesService.getEffectivePolicy({
       organizationId: address.organizationId ?? address.turf.organizationId,
       campaignId: address.campaignId ?? address.turf.campaignId ?? null
@@ -421,7 +632,8 @@ export class VisitsService {
       where: {
         turfId: address.turfId,
         addressId: address.id,
-        deletedAt: null
+        deletedAt: null,
+        syncStatus: { not: SyncStatus.conflict }
       }
     });
 
@@ -434,7 +646,8 @@ export class VisitsService {
         turfId: address.turfId,
         addressId: address.id,
         canvasserId: input.canvasserId,
-        deletedAt: null
+        deletedAt: null,
+        syncStatus: { not: SyncStatus.conflict }
       },
       orderBy: { visitTime: 'desc' }
     });
@@ -489,6 +702,144 @@ export class VisitsService {
       geofenceValidated = false;
     }
 
+    const assignment = await this.prisma.turfAssignment.findFirst({
+      where: {
+        canvasserId: input.canvasserId,
+        turfId: address.turfId,
+        status: { in: [AssignmentStatus.assigned, AssignmentStatus.active] }
+      }
+    });
+    if (!assignment) {
+      const conflictVisit = await this.createConflictVisit({
+        address,
+        outcomeDefinition,
+        canvasserId: input.canvasserId,
+        sessionId: input.sessionId,
+        notes: input.notes,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        accuracyMeters: input.accuracyMeters,
+        localRecordUuid: input.localRecordUuid,
+        idempotencyKey: input.idempotencyKey,
+        clientCreatedAt: input.clientCreatedAt,
+        gpsStatus,
+        geofenceValidated,
+        geofenceDistanceMeters,
+        distanceFromTargetFeet,
+        validationRadiusFeet: radiusFeet,
+        failureReason,
+        reason: 'assignment_changed',
+        reasonMessage: 'The turf assignment changed before this offline visit could sync'
+      });
+      throw this.buildConflictError({
+        message: 'The turf assignment changed before this offline visit could sync',
+        reason: 'assignment_changed',
+        visitId: conflictVisit.id,
+        localRecordUuid: input.localRecordUuid,
+        idempotencyKey: input.idempotencyKey
+      });
+    }
+
+    let validatedSessionId: string | undefined;
+    if (input.sessionId) {
+      const session = await this.prisma.turfSession.findFirst({
+        where: {
+          id: input.sessionId,
+          canvasserId: input.canvasserId,
+          turfId: address.turfId
+        }
+      });
+
+      if (!session) {
+        const conflictVisit = await this.createConflictVisit({
+          address,
+          outcomeDefinition,
+          canvasserId: input.canvasserId,
+          sessionId: input.sessionId,
+          notes: input.notes,
+          latitude: input.latitude,
+          longitude: input.longitude,
+          accuracyMeters: input.accuracyMeters,
+          localRecordUuid: input.localRecordUuid,
+          idempotencyKey: input.idempotencyKey,
+          clientCreatedAt: input.clientCreatedAt,
+          gpsStatus,
+          geofenceValidated,
+          geofenceDistanceMeters,
+          distanceFromTargetFeet,
+          validationRadiusFeet: radiusFeet,
+          failureReason,
+          reason: 'session_invalid',
+          reasonMessage: 'The recorded turf session is no longer valid for this visit'
+        });
+        throw this.buildConflictError({
+          message: 'The recorded turf session is no longer valid for this visit',
+          reason: 'session_invalid',
+          visitId: conflictVisit.id,
+          localRecordUuid: input.localRecordUuid,
+          idempotencyKey: input.idempotencyKey
+        });
+      }
+
+      validatedSessionId = session.id;
+    }
+
+    const visitSession =
+      validatedSessionId ??
+      (
+        await this.prisma.turfSession.findFirst({
+          where: {
+            canvasserId: input.canvasserId,
+            turfId: address.turfId,
+            endTime: null
+          },
+          orderBy: { startTime: 'desc' }
+        })
+      )?.id;
+
+    const duplicateVisit = existingByLocalRecordUuid ?? existingByIdempotencyKey;
+    if (duplicateVisit) {
+      const isSameSubmission = this.visitMatchesIncomingSubmission({
+        existing: duplicateVisit,
+        next: {
+          canvasserId: input.canvasserId,
+          turfId: address.turfId,
+          addressId: address.id,
+          sessionId: visitSession ?? null,
+          outcomeCode: outcomeDefinition.code,
+          notes: input.notes,
+          clientCreatedAt: input.clientCreatedAt
+        }
+      });
+
+      if (isSameSubmission) {
+        return duplicateVisit;
+      }
+
+      const conflictReason = existingByLocalRecordUuid
+        ? 'local_record_uuid_payload_mismatch'
+        : 'idempotency_key_payload_mismatch';
+      const reasonMessage =
+        'This queued visit does not match the previously synced submission with the same local identifier.';
+
+      await this.markExistingVisitConflict({
+        existingVisitId: duplicateVisit.id,
+        actorUserId: input.canvasserId,
+        conflictReason,
+        reasonMessage,
+        localRecordUuid: input.localRecordUuid,
+        idempotencyKey: input.idempotencyKey
+      });
+
+      throw this.buildConflictError({
+        message: reasonMessage,
+        reason: conflictReason,
+        visitId: duplicateVisit.id,
+        localRecordUuid: input.localRecordUuid,
+        idempotencyKey: input.idempotencyKey
+      });
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const visit = await tx.visitLog.create({
         data: {
@@ -505,7 +856,7 @@ export class VisitsService {
           outcomeCode: outcomeDefinition.code,
           outcomeLabel: outcomeDefinition.label,
           contactMade: outcomeDefinition.code === 'talked_to_voter',
-          notes: input.notes,
+          notes: this.normalizeOptionalText(input.notes),
           latitude: input.latitude,
           longitude: input.longitude,
           accuracyMeters: input.accuracyMeters,

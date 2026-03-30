@@ -2,7 +2,7 @@ import * as Location from 'expo-location';
 import NetInfo from '@react-native-community/netinfo';
 import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 
-import { api, getErrorMessage } from '../api/client';
+import { api, getConflictReason, getErrorMessage } from '../api/client';
 import { clearAppCache, clearSession, loadSession, saveAddressState, saveQueue, saveSession } from '../storage';
 import type {
   Address,
@@ -598,10 +598,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }));
         } catch (error) {
           failedCount += 1;
+          const conflictReason = getConflictReason(error);
+          const nextSyncStatus: VisitSyncStatus = conflictReason ? 'conflict' : 'failed';
           setQueue((current) =>
             current.map((queuedItem) =>
               queuedItem.localRecordUuid === item.localRecordUuid
-                ? { ...queuedItem, syncStatus: 'failed' }
+                ? {
+                    ...queuedItem,
+                    syncStatus: nextSyncStatus,
+                    syncConflictReason: conflictReason
+                  }
                 : queuedItem
             )
           );
@@ -612,15 +618,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
               outcomeCode: item.payload.outcomeCode,
               submittedAt: item.payload.clientCreatedAt,
               synced: false,
-              syncStatus: 'failed',
+              syncStatus: nextSyncStatus,
               localRecordUuid: item.localRecordUuid,
               clientCreatedAt: item.payload.clientCreatedAt,
               sessionId: item.payload.sessionId,
               gpsStatus: item.payload.gpsStatus,
               accuracyMeters: item.payload.accuracyMeters ?? null,
+              syncConflictReason: conflictReason
             },
           }));
-          setErrorMessage(getErrorMessage(error));
+          setErrorMessage(
+            conflictReason
+              ? 'A queued visit now needs admin review before it can sync.'
+              : getErrorMessage(error)
+          );
         }
       }
 

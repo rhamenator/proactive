@@ -120,6 +120,7 @@ export interface QueuedVisit {
   localRecordUuid: string;
   createdAt: string;
   syncStatus: VisitSyncStatus;
+  syncConflictReason?: string | null;
   payload: VisitSubmission;
   addressMeta: {
     addressLine1: string;
@@ -156,6 +157,7 @@ export interface AddressState {
   submittedAt: string | null;
   synced: boolean;
   syncStatus: VisitSyncStatus;
+  syncConflictReason?: string | null;
   localRecordUuid?: string | null;
   clientCreatedAt?: string | null;
   sessionId?: string | null;

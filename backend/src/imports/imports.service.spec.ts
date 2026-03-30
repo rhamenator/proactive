@@ -7,6 +7,9 @@ describe('ImportsService', () => {
       findFirst: jest.fn(),
       create: jest.fn()
     },
+    team: {
+      findFirst: jest.fn()
+    },
     importBatch: {
       create: jest.fn(),
       update: jest.fn(),
@@ -67,6 +70,7 @@ describe('ImportsService', () => {
       organizationId: 'org-1',
       campaignId: 'campaign-1'
     });
+    prisma.team.findFirst.mockResolvedValue(null);
     prisma.turf.findFirst.mockResolvedValue(null);
     prisma.turf.create
       .mockResolvedValueOnce({
@@ -110,7 +114,7 @@ describe('ImportsService', () => {
     auditService.log.mockResolvedValue(undefined);
   });
 
-  it('imports grouped CSV rows, combines extra address fields, and skips incomplete rows', async () => {
+  it('imports grouped CSV rows, preserves structured address fields, and skips incomplete rows', async () => {
     const result = await service.importCsv({
       createdById: 'admin-1',
       csv: [
@@ -128,7 +132,10 @@ describe('ImportsService', () => {
         data: expect.objectContaining({
           turfId: 'turf-1',
           householdId: 'household-1',
-          addressLine1: '10 Main St, Floor 2, Suite A',
+          addressLine1: '10 Main St',
+          addressLine2: 'Floor 2',
+          unit: 'Suite A',
+          normalizedAddressKey: '10 main st|floor 2|suite a|grand rapids|mi|49503',
           vanId: 'HH-1'
         })
       })
@@ -150,6 +157,113 @@ describe('ImportsService', () => {
         { id: 'turf-1', name: 'North Turf' },
         { id: 'turf-2', name: 'South Turf' }
       ]
+    });
+  });
+
+  it('uses normalized address matching for non-VAN duplicates', async () => {
+    prisma.household.findFirst.mockResolvedValue({
+      id: 'household-1',
+      latitude: null,
+      longitude: null,
+      vanHouseholdId: null,
+      vanPersonId: null,
+      addressLine2: null,
+      unit: null
+    });
+    prisma.address.findFirst.mockResolvedValue({
+      id: 'address-1',
+      turfId: 'turf-1',
+      householdId: 'household-1',
+      addressLine1: '10 Main St',
+      addressLine2: null,
+      unit: null,
+      normalizedAddressKey: '10 main st|||grand rapids|mi|49503'
+    });
+
+    const result = await service.importCsv({
+      createdById: 'admin-1',
+      duplicateStrategy: 'skip',
+      csv: [
+        'turf_name,address_line1,city,state,zip',
+        'North Turf,10 MAIN ST.,Grand Rapids,MI,49503'
+      ].join('\n')
+    });
+
+    expect(prisma.household.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          normalizedAddressKey: '10 main st|||grand rapids|mi|49503'
+        })
+      })
+    );
+    expect(result.duplicateRowsSkipped).toBe(1);
+    expect(prisma.address.create).not.toHaveBeenCalled();
+  });
+
+  it('uses the effective team campaign scope when upserting an existing turf', async () => {
+    usersService.findById.mockResolvedValue({
+      id: 'admin-1',
+      organizationId: 'org-1',
+      campaignId: null
+    });
+    prisma.team.findFirst.mockResolvedValue({
+      id: 'team-1',
+      organizationId: 'org-1',
+      campaignId: 'campaign-2',
+      regionCode: 'R-9',
+      isActive: true
+    });
+    prisma.turf.findFirst.mockResolvedValue({
+      id: 'turf-9',
+      name: 'North Turf',
+      organizationId: 'org-1',
+      campaignId: 'campaign-2',
+      teamId: 'team-1',
+      regionCode: 'R-9'
+    });
+    prisma.household.findFirst.mockResolvedValue({
+      id: 'household-1',
+      latitude: null,
+      longitude: null,
+      vanHouseholdId: null,
+      vanPersonId: null,
+      addressLine2: null,
+      unit: null
+    });
+    prisma.address.findFirst.mockResolvedValue({
+      id: 'address-1',
+      turfId: 'turf-9',
+      householdId: 'household-1',
+      addressLine1: '10 Main St',
+      addressLine2: null,
+      unit: null,
+      normalizedAddressKey: '10 main st|||grand rapids|mi|49503'
+    });
+
+    await service.importCsv({
+      createdById: 'admin-1',
+      teamId: 'team-1',
+      mode: 'upsert',
+      duplicateStrategy: 'merge',
+      csv: [
+        'turf_name,address_line1,city,state,zip',
+        'North Turf,10 Main St,Grand Rapids,MI,49503'
+      ].join('\n')
+    });
+
+    expect(policiesService.getEffectivePolicy).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      campaignId: 'campaign-2'
+    });
+    expect(prisma.turf.findFirst).toHaveBeenCalledWith({
+      where: {
+        name: 'North Turf',
+        organizationId: 'org-1',
+        campaignId: 'campaign-2',
+        teamId: 'team-1',
+        regionCode: 'R-9',
+        deletedAt: null
+      }
     });
   });
 
@@ -202,6 +316,29 @@ describe('ImportsService', () => {
         }
       ]
     });
+  });
+
+  it('uses inferred mappings during preview even when a stale explicit mapping is supplied', async () => {
+    const result = await service.previewCsv({
+      createdById: 'admin-1',
+      mapping: {
+        addressLine1: 'street_address_old'
+      },
+      csv: [
+        'address_line1,city,state',
+        '10 Main St,Grand Rapids,MI'
+      ].join('\n')
+    });
+
+    expect(result.missingRequiredMappings).toEqual([]);
+    expect(result.rowsReady).toBe(1);
+    expect(result.rowsMissingRequired).toBe(0);
+    expect(result.sampleRows[0]).toEqual(
+      expect.objectContaining({
+        addressLine1: '10 Main St',
+        status: 'ready'
+      })
+    );
   });
 
   it('upserts into an existing turf and merges duplicate addresses when configured', async () => {

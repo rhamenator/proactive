@@ -60,12 +60,26 @@ describe('ExportsService', () => {
         accuracyMeters: 5,
         syncStatus: SyncStatus.synced,
         address: {
+          household: null,
           vanId: 'VAN-123',
-          addressLine1: '100 Main St'
+          addressLine1: '100 Main St',
+          addressLine2: 'Apt 2',
+          unit: '2',
+          city: 'Grand Rapids',
+          state: 'MI',
+          zip: '49503'
         },
         canvasser: {
           firstName: 'Pat',
           lastName: 'Field'
+        },
+        outcomeDefinition: {
+          id: 'outcome-1',
+          isFinalDisposition: true
+        },
+        turf: {
+          id: 'turf-1',
+          name: 'North'
         },
         geofenceResult: {
           distanceFromTargetFeet: 12.3
@@ -85,14 +99,21 @@ describe('ExportsService', () => {
       where: {
         deletedAt: null,
         organizationId: 'org-1',
+        syncStatus: { not: 'conflict' },
+        syncConflictFlag: false,
         turfId: 'turf-1',
         vanExported: false
       },
       orderBy: { visitTime: 'asc' },
       include: {
-        address: true,
+        address: {
+          include: {
+            household: true
+          }
+        },
         canvasser: true,
         geofenceResult: true,
+        outcomeDefinition: true,
         turf: true
       }
     });
@@ -103,6 +124,8 @@ describe('ExportsService', () => {
     expect(result.count).toBe(1);
     expect(result.csv).toContain('VAN-123');
     expect(result.csv).toContain('Pat Field');
+    expect(result.csv).toContain('address_line2');
+    expect(result.csv).toContain('unit');
     expect(result.filename).toContain('van-results-');
     expect(prisma.exportBatch.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -146,12 +169,22 @@ describe('ExportsService', () => {
     });
 
     expect(prisma.visitLog.findMany).toHaveBeenCalledWith({
-      where: { deletedAt: null, organizationId: 'org-1' },
+      where: {
+        deletedAt: null,
+        organizationId: 'org-1',
+        syncStatus: { not: 'conflict' },
+        syncConflictFlag: false
+      },
       orderBy: { visitTime: 'asc' },
       include: {
-        address: true,
+        address: {
+          include: {
+            household: true
+          }
+        },
         canvasser: true,
         geofenceResult: true,
+        outcomeDefinition: true,
         turf: true
       }
     });
@@ -196,8 +229,15 @@ describe('ExportsService', () => {
         syncConflictReason: null,
         vanExported: false,
         address: {
+          household: {
+            id: 'household-1',
+            vanHouseholdId: 'VHH-123',
+            vanPersonId: 'VP-9'
+          },
           vanId: 'VAN-123',
           addressLine1: '100 Main St',
+          addressLine2: 'Floor 2',
+          unit: 'Suite A',
           city: 'Grand Rapids',
           state: 'MI',
           zip: '49503'
@@ -209,6 +249,10 @@ describe('ExportsService', () => {
         canvasser: {
           firstName: 'Pat',
           lastName: 'Field'
+        },
+        outcomeDefinition: {
+          id: 'outcome-1',
+          isFinalDisposition: true
         },
         geofenceResult: {
           distanceFromTargetFeet: 12.3,
@@ -228,6 +272,10 @@ describe('ExportsService', () => {
 
     expect(prisma.visitLog.updateMany).not.toHaveBeenCalled();
     expect(result.csv).toContain('outcome_code');
+    expect(result.csv).toContain('organization_id');
+    expect(result.csv).toContain('household_id');
+    expect(result.csv).toContain('attempt_number');
+    expect(result.csv).toContain('is_final_disposition');
     expect(result.csv).toContain('Knocked');
     expect(result.filename).toContain('internal-master-');
     expect(prisma.exportBatch.create).toHaveBeenCalledWith(

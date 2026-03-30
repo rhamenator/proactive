@@ -49,6 +49,11 @@ export class ReportFiltersDto {
   canvasserId?: string;
 
   @IsOptional()
+  @Transform(({ value, obj }) => emptyToUndefined(fromAliases(value, obj, 'supervisor_id')))
+  @IsUUID()
+  supervisorId?: string;
+
+  @IsOptional()
   @Transform(({ value, obj }) => emptyToUndefined(fromAliases(value, obj, 'campaign_id')))
   @IsUUID()
   campaignId?: string;
@@ -77,6 +82,20 @@ export class ReportFiltersDto {
   @Transform(({ value, obj }) => emptyToUndefined(fromAliases(value, obj, 'outcome_code')))
   @IsString()
   outcomeCode?: string;
+
+  @IsOptional()
+  @Transform(({ value, obj }) => {
+    const resolved = emptyToUndefined(fromAliases(value, obj, 'final_disposition'));
+    if (resolved === undefined) {
+      return undefined;
+    }
+    if (typeof resolved === 'boolean') {
+      return resolved;
+    }
+    return String(resolved).toLowerCase() === 'true';
+  })
+  @IsBoolean()
+  finalDisposition?: boolean;
 
   @IsOptional()
   @Transform(({ value, obj }) => {
