@@ -3,8 +3,10 @@ import type {
   AuditActivityItem,
   AuditActivityReport,
   AuthLoginResponse,
+  CampaignRecord,
   DashboardSummary,
   DisableMfaResponse,
+  ExportBatchAnalyticsReport,
   ExportBatchRecord,
   FieldUserRecord,
   GpsReviewItem,
@@ -12,10 +14,12 @@ import type {
   ImpersonationStartResponse,
   LoginResponse,
   RecentVisitRecord,
+  ResolvedConflictReport,
   ProductivityRow,
   ProductivityReport,
   ReportFilters,
   ReportOverview,
+  TrendReport,
   MfaSetupInitResponse,
   MfaStatusResponse,
   OutcomeDefinitionRecord,
@@ -77,11 +81,20 @@ function buildQueryString(filters?: ReportFilters) {
   if (filters.canvasserId) {
     params.set('canvasserId', filters.canvasserId);
   }
+  if (filters.campaignId) {
+    params.set('campaignId', filters.campaignId);
+  }
+  if (filters.outcomeCode) {
+    params.set('outcomeCode', filters.outcomeCode);
+  }
   if (filters.syncStatus) {
     params.set('syncStatus', filters.syncStatus);
   }
   if (filters.gpsStatus) {
     params.set('gpsStatus', filters.gpsStatus);
+  }
+  if (filters.overrideFlag !== undefined) {
+    params.set('overrideFlag', String(filters.overrideFlag));
   }
 
   const query = params.toString();
@@ -205,6 +218,15 @@ export function createApiClient(token?: string | null) {
     reportsAuditActivity(filters?: ReportFilters) {
       return requestJson<AuditActivityReport>(`/reports/audit-activity${buildQueryString(filters)}`, {}, token);
     },
+    reportsTrends(filters?: ReportFilters) {
+      return requestJson<TrendReport>(`/reports/trends${buildQueryString(filters)}`, {}, token);
+    },
+    reportsResolvedConflicts(filters?: ReportFilters) {
+      return requestJson<ResolvedConflictReport>(`/reports/resolved-conflicts${buildQueryString(filters)}`, {}, token);
+    },
+    reportsExportBatches(filters?: ReportFilters) {
+      return requestJson<ExportBatchAnalyticsReport>(`/reports/export-batches${buildQueryString(filters)}`, {}, token);
+    },
     activeImpersonation() {
       return requestJson<SafeUser['impersonation']>('/auth/impersonation/active', {}, token);
     },
@@ -270,6 +292,9 @@ export function createApiClient(token?: string | null) {
     listCanvassers() {
       return requestJson<FieldUserRecord[]>('/admin/canvassers', {}, token);
     },
+    listCampaigns() {
+      return requestJson<CampaignRecord[]>('/admin/campaigns', {}, token);
+    },
     listOutcomeDefinitions() {
       return requestJson<OutcomeDefinitionRecord[]>('/admin/outcomes', {}, token);
     },
@@ -311,6 +336,9 @@ export function createApiClient(token?: string | null) {
     listExportHistory() {
       return requestJson<ExportBatchRecord[]>('/exports/history', {}, token);
     },
+    downloadExportBatch(batchId: string) {
+      return requestBlob(`/exports/history/${batchId}/download`, token);
+    },
     overrideGpsResult(visitLogId: string, reason: string) {
       return requestJson(`/admin/gps-review/${visitLogId}/override`, {
         method: 'POST',
@@ -329,6 +357,7 @@ export function createApiClient(token?: string | null) {
       email: string;
       password: string;
       role?: FieldUserRecord['role'];
+      campaignId?: string | null;
     }) {
       return requestJson<FieldUserRecord>('/admin/canvassers', {
         method: 'POST',
@@ -344,10 +373,23 @@ export function createApiClient(token?: string | null) {
         password: string;
         role: FieldUserRecord['role'];
         isActive: boolean;
+        campaignId: string | null;
       }>
     ) {
       return requestJson<FieldUserRecord>(`/admin/canvassers/${id}`, {
         method: 'PATCH',
+        body: JSON.stringify(payload)
+      }, token);
+    },
+    inviteCanvasser(payload: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      role?: FieldUserRecord['role'];
+      campaignId?: string | null;
+    }) {
+      return requestJson<{ user: FieldUserRecord }>('/admin/canvassers/invite', {
+        method: 'POST',
         body: JSON.stringify(payload)
       }, token);
     },

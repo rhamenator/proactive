@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Select } from '../../src/components/ui';
@@ -18,20 +18,20 @@ export default function ExportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [historyDownloadId, setHistoryDownloadId] = useState<string | null>(null);
+
+  const loadHistory = useCallback(async () => {
+    const [nextTurfs, nextHistory] = await Promise.all([api.listTurfs(), api.listExportHistory()]);
+    setTurfs(nextTurfs);
+    setHistory(nextHistory);
+  }, [api]);
 
   useEffect(() => {
     if (user?.role !== 'admin') {
       return;
     }
-    void api
-      .listTurfs()
-      .then(setTurfs)
-      .catch((value) => setError(getErrorMessage(value)));
-    void api
-      .listExportHistory()
-      .then(setHistory)
-      .catch((value) => setError(getErrorMessage(value)));
-  }, [api, user?.role]);
+    void loadHistory().catch((value) => setError(getErrorMessage(value)));
+  }, [loadHistory, user?.role]);
 
   if (user?.role !== 'admin') {
     return (
@@ -69,12 +69,32 @@ export default function ExportsPage() {
       link.click();
       URL.revokeObjectURL(url);
       setMessage(`CSV downloaded as ${result.filename}.`);
-      const latestHistory = await api.listExportHistory();
-      setHistory(latestHistory);
+      await loadHistory();
     } catch (value) {
       setError(getErrorMessage(value));
     } finally {
       setDownloading(false);
+    }
+  }
+
+  async function handleDownloadHistory(batchId: string) {
+    setHistoryDownloadId(batchId);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const result = await api.downloadExportBatch(batchId);
+      const url = URL.createObjectURL(result.blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = result.filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Historical export downloaded as ${result.filename}.`);
+    } catch (value) {
+      setError(getErrorMessage(value));
+    } finally {
+      setHistoryDownloadId(null);
     }
   }
 
@@ -129,7 +149,9 @@ export default function ExportsPage() {
           <div>
             <p className="section-kicker">Export History</p>
             <h2 className="heading-reset">Recent export batches</h2>
-            <p className="muted">Each export records the profile, file name, row count, turf scope, and initiating user.</p>
+            <p className="muted">
+              Each export records the profile, file name, row count, turf scope, initiating user, checksum, and stored artifact metadata.
+            </p>
           </div>
 
           {history.length === 0 ? (
@@ -148,6 +170,7 @@ export default function ExportsPage() {
                     {batch.rowCount} rows
                     {batch.turf?.name ? ` • ${batch.turf.name}` : ' • All turfs'}
                     {batch.markExported ? ' • marked exported' : ' • export flags unchanged'}
+                    {batch._count ? ` • ${batch._count.exportedVisits} traceable visits` : ''}
                   </p>
                   <p className="muted">
                     {new Date(batch.createdAt).toLocaleString()}
@@ -155,6 +178,21 @@ export default function ExportsPage() {
                       ? ` • ${batch.initiatedByUser.firstName} ${batch.initiatedByUser.lastName}`.trim()
                       : ''}
                   </p>
+                  <p className="muted">
+                    {batch.organizationId ? `Organization: ${batch.organizationId}` : 'Organization: default scope'}
+                    {batch.campaignId ? ` • Campaign: ${batch.campaignId}` : ''}
+                    {batch.sha256Checksum ? ` • Checksum: ${batch.sha256Checksum.slice(0, 12)}...` : ''}
+                    {batch.csvContent ? ' • Artifact stored' : ' • Metadata only'}
+                  </p>
+                  <div className="inline-actions">
+                    <Button
+                      variant="secondary"
+                      onClick={() => void handleDownloadHistory(batch.id)}
+                      disabled={historyDownloadId === batch.id}
+                    >
+                      {historyDownloadId === batch.id ? 'Downloading...' : 'Download Historical CSV'}
+                    </Button>
+                  </div>
                 </Card>
               ))}
             </div>

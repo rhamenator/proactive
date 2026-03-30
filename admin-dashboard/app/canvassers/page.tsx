@@ -1,12 +1,12 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
-import type { FieldUserRecord } from '../../src/lib/types';
+import type { CampaignRecord, FieldUserRecord } from '../../src/lib/types';
 
 const roleLabels: Record<FieldUserRecord['role'], string> = {
   admin: 'Admin',
@@ -19,6 +19,7 @@ export default function CanvassersPage() {
   const api = useAuthedApi();
   const isAdmin = user?.role === 'admin';
   const [users, setUsers] = useState<FieldUserRecord[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -27,14 +28,30 @@ export default function CanvassersPage() {
     lastName: '',
     email: '',
     password: '',
+    campaignId: '',
     role: 'canvasser' as FieldUserRecord['role']
   });
+  const [inviteForm, setInviteForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    campaignId: '',
+    role: 'canvasser' as FieldUserRecord['role']
+  });
+  const [campaignEdits, setCampaignEdits] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setUsers(await api.listCanvassers());
+      const [nextUsers, nextCampaigns] = await Promise.all([api.listCanvassers(), api.listCampaigns()]);
+      setUsers(nextUsers);
+      setCampaigns(nextCampaigns);
+      setCampaignEdits(
+        Object.fromEntries(
+          nextUsers.map((fieldUser) => [fieldUser.id, fieldUser.campaignId ?? ''])
+        )
+      );
     } catch (value) {
       setError(getErrorMessage(value));
     } finally {
@@ -58,6 +75,7 @@ export default function CanvassersPage() {
         lastName: '',
         email: '',
         password: '',
+        campaignId: '',
         role: 'canvasser'
       });
       setMessage(`${roleLabels[form.role]} created.`);
@@ -78,6 +96,65 @@ export default function CanvassersPage() {
       setError(getErrorMessage(value));
     }
   }
+
+  async function handleCampaignUpdate(fieldUser: FieldUserRecord) {
+    setError(null);
+    setMessage(null);
+    try {
+      await api.updateCanvasser(fieldUser.id, {
+        campaignId: campaignEdits[fieldUser.id] || null
+      });
+      setMessage(`${fieldUser.firstName} ${fieldUser.lastName} campaign updated.`);
+      await load();
+    } catch (value) {
+      setError(getErrorMessage(value));
+    }
+  }
+
+  async function handleInvite(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    try {
+      await api.inviteCanvasser({
+        ...inviteForm,
+        campaignId: inviteForm.campaignId || null
+      });
+      setInviteForm({
+        firstName: '',
+        lastName: '',
+        email: '',
+        campaignId: '',
+        role: 'canvasser'
+      });
+      setMessage(`Invite created for ${inviteForm.firstName} ${inviteForm.lastName}.`);
+      await load();
+    } catch (value) {
+      setError(getErrorMessage(value));
+    }
+  }
+
+  const campaignById = useMemo(
+    () => new Map(campaigns.map((campaign) => [campaign.id, campaign])),
+    [campaigns]
+  );
+
+  const campaignOptions = useMemo(
+    () => campaigns.map((campaign) => (
+      <option key={campaign.id} value={campaign.id}>
+        {campaign.name} {campaign.isActive ? '' : '(inactive)'}
+      </option>
+    )),
+    [campaigns]
+  );
+
+  const campaignLabel = (campaignId?: string | null) => {
+    if (!campaignId) {
+      return 'All campaigns';
+    }
+    return campaignById.get(campaignId)?.name ?? campaignId;
+  };
 
   async function handleImpersonate(target: FieldUserRecord) {
     const reason = window.prompt(
@@ -136,6 +213,19 @@ export default function CanvassersPage() {
               </div>
 
               <div className="field-group">
+                <label htmlFor="campaign-id">Campaign scope</label>
+                <select
+                  id="campaign-id"
+                  className="select"
+                  value={form.campaignId}
+                  onChange={(event) => setForm((current) => ({ ...current, campaignId: event.target.value }))}
+                >
+                  <option value="">All campaigns</option>
+                  {campaignOptions}
+                </select>
+              </div>
+
+              <div className="field-group">
                 <label htmlFor="role">Role</label>
                 <select
                   id="role"
@@ -170,6 +260,64 @@ export default function CanvassersPage() {
             </Card>
           )}
 
+          {isAdmin ? (
+            <Card>
+              <form className="stack" onSubmit={handleInvite}>
+                <div>
+                  <p className="section-kicker">Invite Field User</p>
+                  <h2 className="heading-reset">Create an invitation link and scoped account</h2>
+                </div>
+
+                <div className="grid two">
+                  <div className="field-group">
+                    <label htmlFor="invite-first-name">First name</label>
+                    <Input
+                      id="invite-first-name"
+                      value={inviteForm.firstName}
+                      onChange={(event) => setInviteForm((current) => ({ ...current, firstName: event.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label htmlFor="invite-last-name">Last name</label>
+                    <Input
+                      id="invite-last-name"
+                      value={inviteForm.lastName}
+                      onChange={(event) => setInviteForm((current) => ({ ...current, lastName: event.target.value }))}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="field-group">
+                  <label htmlFor="invite-email">Email</label>
+                  <Input
+                    id="invite-email"
+                    type="email"
+                    value={inviteForm.email}
+                    onChange={(event) => setInviteForm((current) => ({ ...current, email: event.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="field-group">
+                  <label htmlFor="invite-campaign-id">Campaign scope</label>
+                  <select
+                    id="invite-campaign-id"
+                    className="select"
+                    value={inviteForm.campaignId}
+                    onChange={(event) => setInviteForm((current) => ({ ...current, campaignId: event.target.value }))}
+                  >
+                    <option value="">All campaigns</option>
+                    {campaignOptions}
+                  </select>
+                </div>
+
+                <Button type="submit">Invite {roleLabels[inviteForm.role]}</Button>
+              </form>
+            </Card>
+          ) : null}
+
           <Card className="stack">
             <div className="inline-actions inline-actions-between">
               <div>
@@ -199,12 +347,32 @@ export default function CanvassersPage() {
                     </div>
                   </div>
                   <div className="muted">
-                    {user.role === 'supervisor'
-                      ? 'Supervisor accounts can be assigned field teams once the backend exposes scoped supervision.'
-                      : 'Canvasser accounts are field-ready for turf work and visit logging.'}
+                    Campaign scope: {campaignLabel(user.campaignId)}
                   </div>
                   {isAdmin ? (
+                    <div className="field-group">
+                      <label htmlFor={`campaign-edit-${user.id}`}>Campaign scope</label>
+                      <select
+                        id={`campaign-edit-${user.id}`}
+                        className="select"
+                        value={campaignEdits[user.id] ?? ''}
+                        onChange={(event) =>
+                          setCampaignEdits((current) => ({
+                            ...current,
+                            [user.id]: event.target.value
+                          }))
+                        }
+                      >
+                        <option value="">All campaigns</option>
+                        {campaignOptions}
+                      </select>
+                    </div>
+                  ) : null}
+                  {isAdmin ? (
                     <div className="inline-actions">
+                      <Button variant="secondary" onClick={() => void handleCampaignUpdate(user)}>
+                        Update Campaign
+                      </Button>
                       <Button
                         variant="ghost"
                         onClick={() => void handleImpersonate(user)}

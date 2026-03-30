@@ -6,6 +6,8 @@ export interface SafeUser {
   lastName: string;
   email: string;
   role: Role;
+  organizationId?: string | null;
+  campaignId?: string | null;
   isActive: boolean;
   createdAt: string;
   impersonation?: {
@@ -93,15 +95,31 @@ export interface ExportBatchRecord {
   id: string;
   profileCode: string;
   filename: string;
+  organizationId?: string | null;
+  campaignId?: string | null;
   turfId?: string | null;
   markExported: boolean;
   rowCount: number;
   createdAt: string;
+  csvContent?: string | null;
+  sha256Checksum?: string | null;
+  _count?: {
+    exportedVisits: number;
+  };
   turf?: {
     id: string;
     name: string;
   } | null;
   initiatedByUser?: SafeUser | null;
+}
+
+export interface CampaignRecord {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+  organizationId?: string | null;
+  createdAt?: string;
 }
 
 export interface LoginResponse {
@@ -139,6 +157,9 @@ export interface ReportFilters {
   dateTo?: string;
   turfId?: string;
   canvasserId?: string;
+  campaignId?: string;
+  outcomeCode?: string;
+  overrideFlag?: boolean;
   syncStatus?: SyncConflictItem['syncStatus'];
   gpsStatus?: GpsReviewItem['gpsStatus'];
 }
@@ -206,6 +227,70 @@ export interface ProductivityReport {
     averageHousesPerHour: number;
   };
   rows: ProductivityRow[];
+}
+
+export interface TrendReport {
+  filters: ReportFilters & { limit?: number | null };
+  summary: {
+    days: number;
+    totalVisits: number;
+    averageVisitsPerDay: number;
+  };
+  byDay: Array<{
+    day: string;
+    visits: number;
+    contactsMade: number;
+    uniqueAddressesVisited: number;
+  }>;
+  byOutcome: Array<{
+    outcomeCode: string;
+    outcomeLabel: string;
+    total: number;
+  }>;
+}
+
+export interface ResolvedConflictItem {
+  id: string;
+  visitLogId: string;
+  resolvedAt: string;
+  reasonText?: string | null;
+  actorUser?: SafeUser | null;
+  oldValuesJson?: unknown;
+  newValuesJson?: unknown;
+}
+
+export interface ResolvedConflictReport {
+  filters: ReportFilters & { limit?: number | null };
+  summary: {
+    totalResolved: number;
+  };
+  rows: ResolvedConflictItem[];
+}
+
+export interface ExportBatchAnalyticsReport {
+  filters: ReportFilters & { limit?: number | null };
+  summary: {
+    totalBatches: number;
+    totalRows: number;
+    artifactBackedBatches: number;
+    byProfile: Array<{ profileCode: string; count: number }>;
+  };
+  rows: Array<{
+    id: string;
+    profileCode: string;
+    filename: string;
+    createdAt: string;
+    rowCount: number;
+    markExported: boolean;
+    hasStoredArtifact: boolean;
+    checksum?: string | null;
+    turf?: {
+      id: string;
+      name: string;
+    } | null;
+    initiatedByUser?: SafeUser | null;
+    traceableVisitCount: number;
+  }>;
 }
 
 export interface GpsExceptionRow {

@@ -288,8 +288,32 @@ describe('admin api client', () => {
     expect(resolved.syncStatus).toBe('synced');
   });
 
-  it('supports internal export downloads and export history lookups', async () => {
+  it('supports campaign-aware reports and export downloads', async () => {
     fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ id: 'camp-1', code: 'spring', name: 'Spring Campaign' }]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ summary: { days: 1, totalVisits: 2, averageVisitsPerDay: 2 }, byDay: [], byOutcome: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ summary: { totalResolved: 1 }, rows: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ summary: { totalBatches: 1, totalRows: 3, artifactBackedBatches: 1, byProfile: [] }, rows: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
       .mockResolvedValueOnce(
         new Response('csv-body', {
           status: 200,
@@ -303,25 +327,78 @@ describe('admin api client', () => {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         })
+      )
+      .mockResolvedValueOnce(
+        new Response('historical-csv', {
+          status: 200,
+          headers: {
+            'content-disposition': 'attachment; filename="export-batch-1.csv"',
+            'X-Export-Checksum': 'abc123'
+          }
+        })
       );
 
     const client = createApiClient('token-123');
+    const campaigns = await client.listCampaigns();
+    const trends = await client.reportsTrends({ campaignId: 'camp-1', outcomeCode: 'knocked', overrideFlag: true });
+    const resolvedConflicts = await client.reportsResolvedConflicts({ campaignId: 'camp-1' });
+    const exportAnalytics = await client.reportsExportBatches({ campaignId: 'camp-1' });
     const exportResult = await client.exportInternalMaster({ turfId: 'turf-1' });
     const history = await client.listExportHistory();
+    const historicalDownload = await client.downloadExportBatch('batch-1');
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/exports/internal-master?turfId=turf-1', {
-      headers: {
-        Authorization: 'Bearer token-123'
-      }
-    });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3001/exports/history', {
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/admin/campaigns', {
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer token-123'
       }
     });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3001/reports/trends?campaignId=camp-1&outcomeCode=knocked&overrideFlag=true',
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer token-123'
+        }
+      }
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(3, 'http://localhost:3001/reports/resolved-conflicts?campaignId=camp-1', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(4, 'http://localhost:3001/reports/export-batches?campaignId=camp-1', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(5, 'http://localhost:3001/exports/internal-master?turfId=turf-1', {
+      headers: {
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(6, 'http://localhost:3001/exports/history', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(7, 'http://localhost:3001/exports/history/batch-1/download', {
+      headers: {
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(campaigns).toEqual([{ id: 'camp-1', code: 'spring', name: 'Spring Campaign' }]);
+    expect(trends.summary.totalVisits).toBe(2);
+    expect(resolvedConflicts.summary.totalResolved).toBe(1);
+    expect(exportAnalytics.summary.totalBatches).toBe(1);
     expect(exportResult.filename).toBe('internal-master-2026-03-28.csv');
     expect(history).toEqual([{ id: 'batch-1', profileCode: 'internal_master' }]);
+    expect(historicalDownload.filename).toBe('export-batch-1.csv');
+    expect(historicalDownload.blob.size).toBe(14);
   });
 
   it('exposes a stable fallback for unknown thrown values', () => {

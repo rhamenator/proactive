@@ -8,11 +8,16 @@ import { getErrorMessage } from '../../src/lib/api';
 import { useAuthedApi } from '../../src/lib/auth-context';
 import type {
   AuditActivityItem,
+  CampaignRecord,
+  ExportBatchAnalyticsReport,
   FieldUserRecord,
   GpsExceptionRow,
+  OutcomeDefinitionRecord,
   ProductivityRow,
   ReportFilters,
   ReportOverview,
+  ResolvedConflictReport,
+  TrendReport,
   TurfListItem
 } from '../../src/lib/types';
 
@@ -45,52 +50,112 @@ function downloadCsv(filename: string, rows: Array<Record<string, string | numbe
   URL.revokeObjectURL(url);
 }
 
+function FilterSelect({
+  id,
+  label,
+  value,
+  onChange,
+  children
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="field-group">
+      <label htmlFor={id}>{label}</label>
+      <select id={id} className="select" value={value} onChange={(event) => onChange(event.target.value)}>
+        {children}
+      </select>
+    </div>
+  );
+}
+
 export default function ReportsPage() {
   const api = useAuthedApi();
   const [overview, setOverview] = useState<ReportOverview | null>(null);
   const [productivity, setProductivity] = useState<ProductivityRow[]>([]);
   const [gpsExceptions, setGpsExceptions] = useState<GpsExceptionRow[]>([]);
   const [auditActivity, setAuditActivity] = useState<AuditActivityItem[]>([]);
+  const [trends, setTrends] = useState<TrendReport | null>(null);
+  const [resolvedConflicts, setResolvedConflicts] = useState<ResolvedConflictReport | null>(null);
+  const [exportBatches, setExportBatches] = useState<ExportBatchAnalyticsReport | null>(null);
   const [turfs, setTurfs] = useState<TurfListItem[]>([]);
   const [canvassers, setCanvassers] = useState<FieldUserRecord[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
+  const [outcomes, setOutcomes] = useState<OutcomeDefinitionRecord[]>([]);
   const [filters, setFilters] = useState<ReportFilters>({
     dateFrom: '',
     dateTo: '',
+    campaignId: '',
     turfId: '',
     canvasserId: '',
+    outcomeCode: '',
+    overrideFlag: undefined,
     syncStatus: undefined,
     gpsStatus: undefined
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const normalizedFilters = useMemo<ReportFilters>(() => ({
-    dateFrom: filters.dateFrom || undefined,
-    dateTo: filters.dateTo || undefined,
-    turfId: filters.turfId || undefined,
-    canvasserId: filters.canvasserId || undefined,
-    syncStatus: filters.syncStatus || undefined,
-    gpsStatus: filters.gpsStatus || undefined
-  }), [filters]);
+  const normalizedFilters = useMemo<ReportFilters>(
+    () => ({
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+      campaignId: filters.campaignId || undefined,
+      turfId: filters.turfId || undefined,
+      canvasserId: filters.canvasserId || undefined,
+      outcomeCode: filters.outcomeCode || undefined,
+      overrideFlag: filters.overrideFlag,
+      syncStatus: filters.syncStatus || undefined,
+      gpsStatus: filters.gpsStatus || undefined
+    }),
+    [filters]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [overviewResult, productivityResult, gpsResult, auditResult, turfResult, canvasserResult] = await Promise.all([
+      const [
+        overviewResult,
+        productivityResult,
+        gpsResult,
+        auditResult,
+        trendResult,
+        resolvedResult,
+        exportResult,
+        turfResult,
+        canvasserResult,
+        campaignResult,
+        outcomeResult
+      ] = await Promise.all([
         api.reportsOverview(normalizedFilters),
         api.reportsProductivity(normalizedFilters),
         api.reportsGpsExceptions(normalizedFilters),
         api.reportsAuditActivity(normalizedFilters),
+        api.reportsTrends(normalizedFilters),
+        api.reportsResolvedConflicts(normalizedFilters),
+        api.reportsExportBatches(normalizedFilters),
         api.listTurfs(),
-        api.listCanvassers()
+        api.listCanvassers(),
+        api.listCampaigns(),
+        api.listOutcomeDefinitions()
       ]);
+
       setOverview(overviewResult);
       setProductivity(productivityResult.rows);
       setGpsExceptions(gpsResult.rows);
       setAuditActivity(auditResult.rows);
+      setTrends(trendResult);
+      setResolvedConflicts(resolvedResult);
+      setExportBatches(exportResult);
       setTurfs(turfResult);
       setCanvassers(canvasserResult);
+      setCampaigns(campaignResult);
+      setOutcomes(outcomeResult);
     } catch (value) {
       setError(getErrorMessage(value));
     } finally {
@@ -137,77 +202,108 @@ export default function ReportsPage() {
                 onChange={(event) => setFilters((current) => ({ ...current, dateTo: event.target.value }))}
               />
             </div>
-            <div className="field-group">
-              <label htmlFor="turf-filter">Turf</label>
-              <select
-                id="turf-filter"
-                className="select"
-                value={filters.turfId ?? ''}
-                onChange={(event) => setFilters((current) => ({ ...current, turfId: event.target.value }))}
-              >
-                <option value="">All turfs</option>
-                {turfs.map((turf) => (
-                  <option key={turf.id} value={turf.id}>{turf.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="field-group">
-              <label htmlFor="canvasser-filter">Canvasser</label>
-              <select
-                id="canvasser-filter"
-                className="select"
-                value={filters.canvasserId ?? ''}
-                onChange={(event) => setFilters((current) => ({ ...current, canvasserId: event.target.value }))}
-              >
-                <option value="">All field users</option>
-                {canvassers.map((canvasser) => (
-                  <option key={canvasser.id} value={canvasser.id}>
-                    {canvasser.firstName} {canvasser.lastName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field-group">
-              <label htmlFor="sync-status-filter">Sync status</label>
-              <select
-                id="sync-status-filter"
-                className="select"
-                value={filters.syncStatus ?? ''}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    syncStatus: event.target.value ? (event.target.value as ReportFilters['syncStatus']) : undefined
-                  }))
-                }
-              >
-                <option value="">All sync states</option>
-                <option value="pending">Pending</option>
-                <option value="syncing">Syncing</option>
-                <option value="synced">Synced</option>
-                <option value="failed">Failed</option>
-                <option value="conflict">Conflict</option>
-              </select>
-            </div>
-            <div className="field-group">
-              <label htmlFor="gps-status-filter">GPS status</label>
-              <select
-                id="gps-status-filter"
-                className="select"
-                value={filters.gpsStatus ?? ''}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    gpsStatus: event.target.value ? (event.target.value as ReportFilters['gpsStatus']) : undefined
-                  }))
-                }
-              >
-                <option value="">All GPS states</option>
-                <option value="verified">Verified</option>
-                <option value="flagged">Flagged</option>
-                <option value="missing">Missing</option>
-                <option value="low_accuracy">Low accuracy</option>
-              </select>
-            </div>
+            <FilterSelect
+              id="campaign-filter"
+              label="Campaign"
+              value={filters.campaignId ?? ''}
+              onChange={(value) => setFilters((current) => ({ ...current, campaignId: value }))}
+            >
+              <option value="">All campaigns</option>
+              {campaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              id="turf-filter"
+              label="Turf"
+              value={filters.turfId ?? ''}
+              onChange={(value) => setFilters((current) => ({ ...current, turfId: value }))}
+            >
+              <option value="">All turfs</option>
+              {turfs.map((turf) => (
+                <option key={turf.id} value={turf.id}>
+                  {turf.name}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              id="canvasser-filter"
+              label="Canvasser"
+              value={filters.canvasserId ?? ''}
+              onChange={(value) => setFilters((current) => ({ ...current, canvasserId: value }))}
+            >
+              <option value="">All field users</option>
+              {canvassers.map((canvasser) => (
+                <option key={canvasser.id} value={canvasser.id}>
+                  {canvasser.firstName} {canvasser.lastName}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              id="outcome-filter"
+              label="Outcome"
+              value={filters.outcomeCode ?? ''}
+              onChange={(value) => setFilters((current) => ({ ...current, outcomeCode: value }))}
+            >
+              <option value="">All outcomes</option>
+              {outcomes.map((outcome) => (
+                <option key={outcome.id} value={outcome.code}>
+                  {outcome.label}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              id="override-filter"
+              label="Override flag"
+              value={filters.overrideFlag === undefined ? '' : String(filters.overrideFlag)}
+              onChange={(value) =>
+                setFilters((current) => ({
+                  ...current,
+                  overrideFlag: value === '' ? undefined : value === 'true'
+                }))
+              }
+            >
+              <option value="">All override states</option>
+              <option value="true">Overrides only</option>
+              <option value="false">Not overridden</option>
+            </FilterSelect>
+            <FilterSelect
+              id="sync-status-filter"
+              label="Sync status"
+              value={filters.syncStatus ?? ''}
+              onChange={(value) =>
+                setFilters((current) => ({
+                  ...current,
+                  syncStatus: value ? (value as ReportFilters['syncStatus']) : undefined
+                }))
+              }
+            >
+              <option value="">All sync states</option>
+              <option value="pending">Pending</option>
+              <option value="syncing">Syncing</option>
+              <option value="synced">Synced</option>
+              <option value="failed">Failed</option>
+              <option value="conflict">Conflict</option>
+            </FilterSelect>
+            <FilterSelect
+              id="gps-status-filter"
+              label="GPS status"
+              value={filters.gpsStatus ?? ''}
+              onChange={(value) =>
+                setFilters((current) => ({
+                  ...current,
+                  gpsStatus: value ? (value as ReportFilters['gpsStatus']) : undefined
+                }))
+              }
+            >
+              <option value="">All GPS states</option>
+              <option value="verified">Verified</option>
+              <option value="flagged">Flagged</option>
+              <option value="missing">Missing</option>
+              <option value="low_accuracy">Low accuracy</option>
+            </FilterSelect>
           </div>
         </Card>
 
@@ -221,9 +317,56 @@ export default function ReportsPage() {
         <section className="grid four">
           <StatCard label="Pending Sync" value={(overview?.kpis.syncStatus.pending ?? 0) + (overview?.kpis.syncStatus.syncing ?? 0)} />
           <StatCard label="Conflicts" value={overview?.kpis.syncStatus.conflict ?? 0} tone="warning" />
-          <StatCard label="GPS Exceptions" value={(overview?.kpis.gpsStatus.flagged ?? 0) + (overview?.kpis.gpsStatus.missing ?? 0) + (overview?.kpis.gpsStatus.lowAccuracy ?? 0)} tone="warning" />
+          <StatCard
+            label="GPS Exceptions"
+            value={(overview?.kpis.gpsStatus.flagged ?? 0) + (overview?.kpis.gpsStatus.missing ?? 0) + (overview?.kpis.gpsStatus.lowAccuracy ?? 0)}
+            tone="warning"
+          />
           <StatCard label="Active Canvassers" value={overview?.kpis.activeCanvassers ?? 0} />
         </section>
+
+        <Card className="stack">
+          <div className="inline-actions inline-actions-between">
+            <div>
+              <p className="section-kicker">Trends</p>
+              <h2 className="heading-reset">Daily work output and outcome mix</h2>
+            </div>
+            <Badge tone="default">{trends?.summary.days ?? 0} days</Badge>
+          </div>
+          <section className="grid three">
+            <StatCard label="Total Visits" value={trends?.summary.totalVisits ?? 0} />
+            <StatCard label="Avg Visits/Day" value={trends?.summary.averageVisitsPerDay ?? 0} tone="gold" />
+            <StatCard label="Outcome Types" value={trends?.byOutcome.length ?? 0} />
+          </section>
+          <div className="grid two">
+            <Card className="stack card-subtle">
+              <strong>By Day</strong>
+              <div className="stack">
+                {trends?.byDay.map((row) => (
+                  <div key={row.day} className="inline-actions inline-actions-between">
+                    <span>{row.day}</span>
+                    <span className="muted">
+                      {row.visits} visits, {row.contactsMade} contacts, {row.uniqueAddressesVisited} homes
+                    </span>
+                  </div>
+                ))}
+                {!trends?.byDay.length ? <div className="muted">No trend data for the selected filters.</div> : null}
+              </div>
+            </Card>
+            <Card className="stack card-subtle">
+              <strong>By Outcome</strong>
+              <div className="stack">
+                {trends?.byOutcome.map((row) => (
+                  <div key={row.outcomeCode} className="inline-actions inline-actions-between">
+                    <span>{row.outcomeLabel}</span>
+                    <Badge tone="default">{row.total}</Badge>
+                  </div>
+                ))}
+                {!trends?.byOutcome.length ? <div className="muted">No outcome trends for the selected filters.</div> : null}
+              </div>
+            </Card>
+          </div>
+        </Card>
 
         <div className="split">
           <Card className="stack">
@@ -327,47 +470,91 @@ export default function ReportsPage() {
         <Card className="stack">
           <div className="inline-actions inline-actions-between">
             <div>
-              <p className="section-kicker">Audit Activity</p>
-              <h2 className="heading-reset">Recent operational actions</h2>
+              <p className="section-kicker">Resolved Conflicts</p>
+              <h2 className="heading-reset">Recently resolved sync issues</h2>
             </div>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                downloadCsv(
-                  'audit-activity.csv',
-                  auditActivity.map((item) => ({
-                    action_type: item.actionType,
-                    entity_type: item.entityType,
-                    entity_id: item.entityId,
-                    actor: item.actorUser ? `${item.actorUser.firstName} ${item.actorUser.lastName}` : '',
-                    actor_email: item.actorUser?.email ?? '',
-                    reason_code: item.reasonCode ?? '',
-                    created_at: item.createdAt
-                  }))
-                )
-              }
-              disabled={!auditActivity.length}
-            >
-              Export CSV
-            </Button>
+            <Badge tone="warning">{resolvedConflicts?.summary.totalResolved ?? 0}</Badge>
           </div>
           <div className="stack">
-            {auditActivity.slice(0, 25).map((item) => (
-              <div key={item.id} className="card card-subtle">
+            {resolvedConflicts?.rows.map((item) => (
+              <Card key={item.id} className="stack card-subtle">
                 <div className="inline-actions inline-actions-between">
-                  <strong>{item.actionType}</strong>
-                  <Badge tone="default">{new Date(item.createdAt).toLocaleString()}</Badge>
+                  <strong>{item.visitLogId}</strong>
+                  <span className="muted">{new Date(item.resolvedAt).toLocaleString()}</span>
                 </div>
                 <div className="muted">
-                  {item.entityType} / {item.entityId}
+                  {item.reasonText ?? 'No reason recorded'}
+                  {item.actorUser ? ` • resolved by ${item.actorUser.firstName} ${item.actorUser.lastName}` : ''}
+                </div>
+              </Card>
+            ))}
+            {!resolvedConflicts?.rows.length ? <div className="empty-state muted">No resolved conflicts for the selected filters.</div> : null}
+          </div>
+        </Card>
+
+        <Card className="stack">
+          <div className="inline-actions inline-actions-between">
+            <div>
+              <p className="section-kicker">Export Analytics</p>
+              <h2 className="heading-reset">Traceable export batches</h2>
+            </div>
+            <Badge tone="default">{exportBatches?.summary.totalBatches ?? 0} batches</Badge>
+          </div>
+          <section className="grid three">
+            <StatCard label="Rows" value={exportBatches?.summary.totalRows ?? 0} />
+            <StatCard label="Artifact-backed" value={exportBatches?.summary.artifactBackedBatches ?? 0} tone="success" />
+            <StatCard label="Profiles" value={exportBatches?.summary.byProfile.length ?? 0} tone="gold" />
+          </section>
+          <div className="stack">
+            {exportBatches?.rows.map((batch) => (
+              <Card key={batch.id} className="stack card-subtle">
+                <div className="inline-actions inline-actions-between">
+                  <strong>{batch.filename}</strong>
+                  <div className="inline-actions">
+                    <Badge tone={batch.hasStoredArtifact ? 'success' : 'warning'}>
+                      {batch.hasStoredArtifact ? 'Artifact stored' : 'Metadata only'}
+                    </Badge>
+                    <Badge tone="default">{batch.rowCount} rows</Badge>
+                  </div>
                 </div>
                 <div className="muted">
-                  {item.actorUser ? `${item.actorUser.firstName} ${item.actorUser.lastName}` : 'System'}
-                  {item.reasonCode ? ` • ${item.reasonCode}` : ''}
+                  {batch.profileCode}
+                  {batch.turf?.name ? ` • ${batch.turf.name}` : ' • All turfs'}
+                  {batch.initiatedByUser ? ` • ${batch.initiatedByUser.firstName} ${batch.initiatedByUser.lastName}` : ''}
+                </div>
+                <div className="muted">
+                  {new Date(batch.createdAt).toLocaleString()}
+                  {batch.checksum ? ` • checksum ${batch.checksum.slice(0, 12)}...` : ''}
+                  {batch.traceableVisitCount ? ` • ${batch.traceableVisitCount} traceable visits` : ''}
+                </div>
+              </Card>
+            ))}
+            {!exportBatches?.rows.length ? <div className="empty-state muted">No export batch analytics for the selected filters.</div> : null}
+          </div>
+        </Card>
+
+        <Card className="stack">
+          <div className="inline-actions inline-actions-between">
+            <div>
+              <p className="section-kicker">Audit Activity</p>
+              <h2 className="heading-reset">Recent operational changes</h2>
+            </div>
+            <Badge tone="default">{auditActivity.length}</Badge>
+          </div>
+          <div className="stack">
+            {auditActivity.slice(0, 10).map((entry) => (
+              <div key={entry.id} className="card card-subtle">
+                <div className="inline-actions inline-actions-between">
+                  <strong>{entry.actionType}</strong>
+                  <span className="muted">{new Date(entry.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="muted">
+                  {entry.entityType} • {entry.entityId}
+                  {entry.actorUser ? ` • ${entry.actorUser.firstName} ${entry.actorUser.lastName}` : ''}
                 </div>
               </div>
             ))}
-            {!auditActivity.length ? <div className="empty-state muted">No audit activity matches the current filter set.</div> : null}
+            {!auditActivity.length ? <div className="empty-state muted">No audit activity for the selected filters.</div> : null}
           </div>
         </Card>
       </div>
@@ -381,13 +568,13 @@ function StatCard({
   tone = 'default'
 }: {
   label: string;
-  value: number;
+  value: number | string;
   tone?: 'default' | 'gold' | 'success' | 'warning';
 }) {
   return (
-    <Card className="stat-card">
+    <Card className="stack card-subtle">
       <Badge tone={tone}>{label}</Badge>
-      <div className="stat-value">{value}</div>
+      <strong className="stat-value">{value}</strong>
     </Card>
   );
 }
