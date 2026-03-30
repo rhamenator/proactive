@@ -2,27 +2,21 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PrismaService } from '../prisma/prisma.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 @Injectable()
 export class RetentionService implements OnModuleInit, OnModuleDestroy {
-  private readonly jobEnabled = process.env.RETENTION_JOB_ENABLED === 'true';
-  private readonly jobIntervalMs = Number(process.env.RETENTION_JOB_INTERVAL_MINUTES ?? 60) * 60 * 1000;
   private timer: NodeJS.Timeout | null = null;
   private running = false;
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly systemSettingsService: SystemSettingsService
   ) {}
 
-  onModuleInit() {
-    if (!this.jobEnabled) {
-      return;
-    }
-
-    this.timer = setInterval(() => {
-      void this.runCleanup({ scheduled: true });
-    }, this.jobIntervalMs);
+  async onModuleInit() {
+    await this.refreshSchedule();
   }
 
   onModuleDestroy() {
@@ -30,6 +24,22 @@ export class RetentionService implements OnModuleInit, OnModuleDestroy {
       clearInterval(this.timer);
       this.timer = null;
     }
+  }
+
+  async refreshSchedule() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+
+    const settings = await this.systemSettingsService.getEffectiveSettings();
+    if (!settings.retentionJobEnabled) {
+      return;
+    }
+
+    this.timer = setInterval(() => {
+      void this.runCleanup({ scheduled: true });
+    }, settings.retentionJobIntervalMinutes * 60 * 1000);
   }
 
   private buildScope(scope?: AccessScope) {
@@ -57,6 +67,7 @@ export class RetentionService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getSummary(scope?: AccessScope) {
+    const settings = await this.systemSettingsService.getEffectiveSettings();
     const now = new Date();
     const [addressRequests, importBatches, exportBatches, refreshTokens, activationTokens, passwordResetTokens, mfaChallenges, usedBackupCodes, lastRun] = await Promise.all([
       this.prisma.addressRequest.count({
@@ -118,8 +129,8 @@ export class RetentionService implements OnModuleInit, OnModuleDestroy {
 
     return {
       automation: {
-        enabled: this.jobEnabled,
-        intervalMinutes: Math.max(1, Math.floor(this.jobIntervalMs / 60000))
+        enabled: settings.retentionJobEnabled,
+        intervalMinutes: settings.retentionJobIntervalMinutes
       },
       dueNow: {
         addressRequests,

@@ -30,7 +30,8 @@ The system now covers the main operational v1 workflow:
 - richer CSV import handling with `replace_turf_membership` mode, duplicate skip/error/merge/review handling, and expanded VAN/person/household/unit mapping support
 - import duplicate-review queue with per-row pending review tracking, reviewer resolution, and audit-backed merge/skip outcomes
 - scoped operational policy records plus admin dashboard policy management for import defaults, field visit/GPS thresholds, auth/recovery timing, sensitive MFA freshness, retention defaults, and outcome fallback behavior
-- retention summary and cleanup workflow for purgeable artifacts and expired auth/security records, with optional env-driven automation
+- global system settings for deployment-wide auth rate-limiting and retention automation timing, with MFA-protected save/reset workflow
+- retention summary and cleanup workflow for purgeable artifacts and expired auth/security records, with configurable system-wide automation
 - CI, build verification, regression tests, and GitHub release-build automation
 
 The remaining gaps are now mostly in the remaining edges of import-policy breadth, fine-grained authorization policy, and release inputs rather than missing operational screens. Canonical household modeling, retention metadata, on-device SQLite persistence, import/export audit history, and deferred duplicate import review are now in place.
@@ -55,6 +56,7 @@ The remaining gaps are now mostly in the remaining edges of import-policy breadt
 - import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
 - a dedicated `ImportsService` and `/imports/csv` path with import modes including replace-membership behavior, duplicate skip/error/merge/review handling, expanded source-field mapping support, and a review queue tied directly to import-batch rows
 - operational policy records with organization/campaign fallback for import defaults, field visit/GPS thresholds, auth/recovery timing, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
+- deployment-wide system settings for auth rate-limit thresholds and retention automation schedule, with admin dashboard management and reset-to-env-default behavior
 - explicit admin archive/delete workflows for field users and turfs, protected by fresh MFA and backed by audit logging
 - admin retention summary and manual cleanup workflow for due address requests, import/export batches, and expired credential records
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
@@ -106,7 +108,9 @@ Current state:
 - login MFA is enforced for admins and supervisors
 - backup codes exist and account-level MFA management exists
 - sensitive actions such as export generation, GPS overrides, turf reassignment/reopen, and conflict resolution now require a fresh MFA step-up challenge
-- the freshness window, canvasser correction window, attempt limits, GPS/geofence thresholds, auth/recovery timing, import defaults, retention defaults, and org-outcome fallback behavior are now editable through scoped operational policy records and the dashboard policy page, policy edits themselves are protected by fresh MFA and audit logging, and explicit organization/campaign overrides can be cleared cleanly to fall back to inherited defaults
+- the freshness window, canvasser correction window, attempt limits, GPS/geofence thresholds, auth/recovery timing, import defaults, retention defaults, and org-outcome fallback behavior are now editable through scoped operational policy records and the dashboard policy page
+- deployment-wide auth throttling and retention automation settings are now editable through a separate system-settings surface, protected by fresh MFA and audit logging
+- explicit organization/campaign overrides can be cleared cleanly to fall back to inherited defaults, and system-wide settings can be reset back to environment defaults
 
 Why it matters:
 
@@ -116,6 +120,7 @@ Why it matters:
 What remains:
 
 - decide which policy defaults the client wants to ship with at organization level versus campaign-specific override
+- decide which deployment-wide auth throttling and retention automation defaults should remain environment-driven versus admin-managed
 - extend the policy surface further only if the client wants more ambiguous rules exposed for runtime administration
 
 ### 4. Household normalization and retention metadata are now modeled, with first-pass archive/delete workflows in place

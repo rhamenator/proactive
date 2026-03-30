@@ -69,10 +69,22 @@ describe('AdminService', () => {
   };
   const retentionService = {
     getSummary: jest.fn(),
-    runCleanup: jest.fn()
+    runCleanup: jest.fn(),
+    refreshSchedule: jest.fn()
+  };
+  const systemSettingsService = {
+    getEffectiveSettings: jest.fn(),
+    upsertSettings: jest.fn(),
+    clearSettings: jest.fn()
   };
 
-  const service = new AdminService(prisma as never, policiesService as never, auditService as never, retentionService as never);
+  const service = new AdminService(
+    prisma as never,
+    policiesService as never,
+    auditService as never,
+    retentionService as never,
+    systemSettingsService as never
+  );
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -145,6 +157,51 @@ describe('AdminService', () => {
     });
     expect(summary.dueNow.importBatches).toBe(2);
     expect(cleanup.skipped).toBe(false);
+  });
+
+  it('updates global system settings, refreshes retention automation, and audits the change', async () => {
+    const current = {
+      explicitRecord: false,
+      authRateLimitWindowMinutes: 15,
+      authRateLimitMaxAttempts: 10,
+      retentionJobEnabled: false,
+      retentionJobIntervalMinutes: 60
+    };
+    const updated = {
+      id: 'global',
+      explicitRecord: true,
+      authRateLimitWindowMinutes: 20,
+      authRateLimitMaxAttempts: 12,
+      retentionJobEnabled: true,
+      retentionJobIntervalMinutes: 30
+    };
+    systemSettingsService.getEffectiveSettings.mockResolvedValue(current);
+    systemSettingsService.upsertSettings.mockResolvedValue(updated);
+    retentionService.refreshSchedule.mockResolvedValue(undefined);
+
+    const result = await service.upsertSystemSettings({
+      authRateLimitWindowMinutes: 20,
+      authRateLimitMaxAttempts: 12,
+      retentionJobEnabled: true,
+      retentionJobIntervalMinutes: 30
+    }, 'admin-1');
+
+    expect(systemSettingsService.upsertSettings).toHaveBeenCalledWith({
+      authRateLimitWindowMinutes: 20,
+      authRateLimitMaxAttempts: 12,
+      retentionJobEnabled: true,
+      retentionJobIntervalMinutes: 30
+    });
+    expect(retentionService.refreshSchedule).toHaveBeenCalled();
+    expect(auditService.log).toHaveBeenCalledWith({
+      actorUserId: 'admin-1',
+      actionType: 'system_settings_updated',
+      entityType: 'system_settings',
+      entityId: 'global',
+      oldValuesJson: current,
+      newValuesJson: updated
+    });
+    expect(result).toBe(updated);
   });
 
   it('audits operational policy updates with before/after values', async () => {

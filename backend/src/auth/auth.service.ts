@@ -6,13 +6,12 @@ import { MfaChallengePurpose, UserRole } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { UsersService } from '../users/users.service';
 import { buildOtpAuthUri, generateBase32Secret, verifyTotp } from './mfa.util';
 
 @Injectable()
 export class AuthService {
-  private readonly authRateLimitWindowMs = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
-  private readonly authRateLimitMaxAttempts = Number(process.env.AUTH_RATE_LIMIT_MAX_ATTEMPTS ?? 10);
   private readonly authRateLimitState = new Map<string, { count: number; resetAt: number }>();
 
   constructor(
@@ -20,7 +19,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly auditService: AuditService,
-    private readonly policiesService: PoliciesService
+    private readonly policiesService: PoliciesService,
+    private readonly systemSettingsService: SystemSettingsService
   ) {}
 
   private readonly mfaIssuer = process.env.MFA_ISSUER ?? 'PROACTIVE FCS';
@@ -101,20 +101,22 @@ export class AuthService {
     return `${action}:${identifier.trim().toLowerCase()}`;
   }
 
-  private assertWithinRateLimit(action: string, identifier: string) {
+  private async assertWithinRateLimit(action: string, identifier: string) {
+    const settings = await this.systemSettingsService.getEffectiveSettings();
     const key = this.getRateLimitKey(action, identifier);
     const now = Date.now();
     const entry = this.authRateLimitState.get(key);
+    const windowMs = settings.authRateLimitWindowMinutes * 60 * 1000;
 
     if (!entry || entry.resetAt <= now) {
       this.authRateLimitState.set(key, {
         count: 1,
-        resetAt: now + this.authRateLimitWindowMs
+        resetAt: now + windowMs
       });
       return;
     }
 
-    if (entry.count >= this.authRateLimitMaxAttempts) {
+    if (entry.count >= settings.authRateLimitMaxAttempts) {
       throw new HttpException('Too many authentication attempts. Please try again later.', HttpStatus.TOO_MANY_REQUESTS);
     }
 
@@ -285,7 +287,7 @@ export class AuthService {
 
   async validateUser(email: string, password: string) {
     const normalizedEmail = email.trim().toLowerCase();
-    this.assertWithinRateLimit('login', normalizedEmail);
+    await this.assertWithinRateLimit('login', normalizedEmail);
     const user = await this.usersService.findByEmail(normalizedEmail);
     if (!user || !user.isActive || user.status !== 'active') {
       await this.auditService.log({
@@ -821,7 +823,7 @@ export class AuthService {
 
   async requestPasswordReset(email: string) {
     const normalizedEmail = email.trim().toLowerCase();
-    this.assertWithinRateLimit('password-reset', normalizedEmail);
+    await this.assertWithinRateLimit('password-reset', normalizedEmail);
     const user = await this.usersService.findByEmail(normalizedEmail);
     if (!user) {
       return { success: true };

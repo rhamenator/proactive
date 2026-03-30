@@ -14,6 +14,7 @@ import { UsersService } from '../users/users.service';
 import { InviteCanvasserDto } from './dto/invite-canvasser.dto';
 import { ResolveSyncConflictDto } from './dto/resolve-sync-conflict.dto';
 import { UpsertOperationalPolicyDto } from './dto/upsert-operational-policy.dto';
+import { UpsertSystemSettingsDto } from './dto/upsert-system-settings.dto';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
@@ -102,6 +103,11 @@ export class AdminController {
     return this.adminService.retentionSummary(await this.resolveScope(user));
   }
 
+  @Get('system-settings')
+  async getSystemSettings() {
+    return this.adminService.getSystemSettings();
+  }
+
   @Post('retention-run')
   @RequireFreshMfa()
   async runRetentionCleanup(@CurrentUser() user: JwtUserPayload) {
@@ -124,6 +130,21 @@ export class AdminController {
     @Query('campaignId') campaignId?: string
   ) {
     return this.adminService.clearOperationalPolicy(await this.resolveScope(user), campaignId ?? null, user.sub);
+  }
+
+  @Put('system-settings')
+  @RequireFreshMfa()
+  async upsertSystemSettings(
+    @Body() body: UpsertSystemSettingsDto,
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.adminService.upsertSystemSettings(body, user.sub);
+  }
+
+  @Delete('system-settings')
+  @RequireFreshMfa()
+  async clearSystemSettings(@CurrentUser() user: JwtUserPayload) {
+    return this.adminService.clearSystemSettings(user.sub);
   }
 
   @Post('outcomes')

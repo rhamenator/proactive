@@ -10,6 +10,7 @@ describe('AdminController', () => {
     listCampaigns: jest.fn(),
     listOutcomeDefinitions: jest.fn(),
     getOperationalPolicy: jest.fn(),
+    getSystemSettings: jest.fn(),
     retentionSummary: jest.fn(),
     runRetentionCleanup: jest.fn(),
     archiveFieldUser: jest.fn(),
@@ -20,7 +21,9 @@ describe('AdminController', () => {
     resolveSyncConflict: jest.fn(),
     upsertOutcomeDefinition: jest.fn(),
     upsertOperationalPolicy: jest.fn(),
-    clearOperationalPolicy: jest.fn()
+    clearOperationalPolicy: jest.fn(),
+    upsertSystemSettings: jest.fn(),
+    clearSystemSettings: jest.fn()
   };
   const usersService = {
     findById: jest.fn(),
@@ -62,6 +65,7 @@ describe('AdminController', () => {
     await controller.listCampaigns(user);
     await controller.listOutcomeDefinitions(user);
     await controller.getOperationalPolicy(user);
+    await controller.getSystemSettings();
     await controller.retentionSummary(user);
     await controller.gpsReviewQueue(user);
     await controller.syncConflictQueue(user);
@@ -72,6 +76,7 @@ describe('AdminController', () => {
     expect(adminService.listCampaigns).toHaveBeenCalledWith(scope);
     expect(adminService.listOutcomeDefinitions).toHaveBeenCalledWith(scope);
     expect(adminService.getOperationalPolicy).toHaveBeenCalledWith(scope, null);
+    expect(adminService.getSystemSettings).toHaveBeenCalled();
     expect(adminService.retentionSummary).toHaveBeenCalledWith(scope);
     expect(adminService.gpsReviewQueue).toHaveBeenCalledWith(scope);
     expect(adminService.syncConflictQueue).toHaveBeenCalledWith(scope);
@@ -297,5 +302,28 @@ describe('AdminController', () => {
     );
 
     expect(adminService.clearOperationalPolicy).toHaveBeenCalledWith(scope, 'campaign-1', 'admin-1');
+  });
+
+  it('delegates global system settings updates and resets', async () => {
+    const user = { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null };
+
+    await controller.upsertSystemSettings(
+      {
+        authRateLimitWindowMinutes: 20,
+        authRateLimitMaxAttempts: 12,
+        retentionJobEnabled: true,
+        retentionJobIntervalMinutes: 30
+      },
+      user
+    );
+    await controller.clearSystemSettings(user);
+
+    expect(adminService.upsertSystemSettings).toHaveBeenCalledWith({
+      authRateLimitWindowMinutes: 20,
+      authRateLimitMaxAttempts: 12,
+      retentionJobEnabled: true,
+      retentionJobIntervalMinutes: 30
+    }, 'admin-1');
+    expect(adminService.clearSystemSettings).toHaveBeenCalledWith('admin-1');
   });
 });

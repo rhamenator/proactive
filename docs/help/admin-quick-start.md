@@ -8,6 +8,7 @@ Admins use the web dashboard to:
 - create or import turfs
 - manage field users
 - assign or reassign turfs
+- manage organization, campaign, and system-wide operational settings
 - review dashboard progress
 - review flagged GPS submissions and apply overrides
 - review sync conflicts and clear resolved queue items
@@ -99,6 +100,14 @@ Use `Dashboard` to review:
 3. Add or edit outcomes as needed.
 4. Mark an outcome inactive instead of deleting it when historical records already use it.
 
+## Manage Policies And System Settings
+
+1. Open `Policies`.
+2. Use the scoped policy editor to set organization or campaign defaults for field thresholds, auth timing, import behavior, retention defaults, and outcome fallback behavior.
+3. Use the `System-Wide` card for deployment-level settings such as auth rate-limiting and retention automation timing.
+4. Complete the fresh MFA confirmation step before saving sensitive changes.
+5. Use `Reset` when you want a scope to fall back to its inherited settings instead of maintaining a custom override.
+
 ## Export Results
 
 1. Open `Exports`.
@@ -114,4 +123,5 @@ Use `Dashboard` to review:
 3. Assign one canvasser.
 4. Verify the canvasser can see the turf on mobile.
 5. Submit one test visit.
-6. Export results and confirm the row appears.
+6. Review the default values in `Policies`, including the `System-Wide` settings card.
+7. Export results and confirm the row appears.

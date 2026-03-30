@@ -12,6 +12,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ReportsModule } from './reports/reports.module';
 import { RetentionModule } from './retention/retention.module';
 import { SecurityModule } from './security/security.module';
+import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { TurfsModule } from './turfs/turfs.module';
 import { UsersModule } from './users/users.module';
 import { VisitsModule } from './visits/visits.module';
@@ -22,6 +23,7 @@ import { VisitsModule } from './visits/visits.module';
     AddressRequestsModule,
     AuditModule,
     SecurityModule,
+    SystemSettingsModule,
     UsersModule,
     AuthModule,
     PoliciesModule,

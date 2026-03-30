@@ -154,6 +154,18 @@ model Organization {
   @@map("organizations")
 }
 
+model SystemConfiguration {
+  id                          String   @id @default("global")
+  authRateLimitWindowMinutes  Int      @default(15) @map("auth_rate_limit_window_minutes")
+  authRateLimitMaxAttempts    Int      @default(10) @map("auth_rate_limit_max_attempts")
+  retentionJobEnabled         Boolean  @default(false) @map("retention_job_enabled")
+  retentionJobIntervalMinutes Int      @default(60) @map("retention_job_interval_minutes")
+  createdAt                   DateTime @default(now()) @map("created_at")
+  updatedAt                   DateTime @updatedAt @map("updated_at")
+
+  @@map("system_configuration")
+}
+
 model Household {
   id              String           @id @default(uuid()) @db.Uuid
   organizationId  String?          @map("organization_id") @db.Uuid

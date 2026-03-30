@@ -5,6 +5,7 @@ import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RetentionService } from '../retention/retention.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 const safeUserSelect = {
   id: true,
@@ -54,7 +55,8 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly policiesService: PoliciesService,
     private readonly auditService: AuditService,
-    private readonly retentionService: RetentionService
+    private readonly retentionService: RetentionService,
+    private readonly systemSettingsService: SystemSettingsService
   ) {}
 
   private scopeWhere(scope: AccessScope) {
@@ -246,11 +248,57 @@ export class AdminService {
     return this.retentionService.getSummary(scope);
   }
 
+  async getSystemSettings() {
+    return this.systemSettingsService.getEffectiveSettings();
+  }
+
   async runRetentionCleanup(scope: AccessScope, actorUserId: string) {
     return this.retentionService.runCleanup({
       scope,
       actorUserId
     });
+  }
+
+  async upsertSystemSettings(
+    input: {
+      authRateLimitWindowMinutes?: number;
+      authRateLimitMaxAttempts?: number;
+      retentionJobEnabled?: boolean;
+      retentionJobIntervalMinutes?: number;
+    },
+    actorUserId: string
+  ) {
+    const current = await this.systemSettingsService.getEffectiveSettings();
+    const updated = await this.systemSettingsService.upsertSettings(input);
+    await this.retentionService.refreshSchedule();
+
+    await this.auditService.log({
+      actorUserId,
+      actionType: 'system_settings_updated',
+      entityType: 'system_settings',
+      entityId: 'global',
+      oldValuesJson: current,
+      newValuesJson: updated
+    });
+
+    return updated;
+  }
+
+  async clearSystemSettings(actorUserId: string) {
+    const current = await this.systemSettingsService.getEffectiveSettings();
+    const updated = await this.systemSettingsService.clearSettings();
+    await this.retentionService.refreshSchedule();
+
+    await this.auditService.log({
+      actorUserId,
+      actionType: 'system_settings_cleared',
+      entityType: 'system_settings',
+      entityId: 'global',
+      oldValuesJson: current,
+      newValuesJson: updated
+    });
+
+    return updated;
   }
 
   async upsertOperationalPolicy(

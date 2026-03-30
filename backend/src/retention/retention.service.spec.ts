@@ -14,8 +14,16 @@ describe('RetentionService', () => {
     $transaction: jest.fn()
   };
   const auditService = { log: jest.fn() };
+  const systemSettingsService = {
+    getEffectiveSettings: jest.fn().mockResolvedValue({
+      authRateLimitWindowMinutes: 15,
+      authRateLimitMaxAttempts: 10,
+      retentionJobEnabled: false,
+      retentionJobIntervalMinutes: 60
+    })
+  };
 
-  const service = new RetentionService(prisma as never, auditService as never);
+  const service = new RetentionService(prisma as never, auditService as never, systemSettingsService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -53,6 +61,10 @@ describe('RetentionService', () => {
       passwordResetTokens: 6,
       mfaChallenges: 7,
       usedBackupCodes: 8
+    });
+    expect(result.automation).toEqual({
+      enabled: false,
+      intervalMinutes: 60
     });
   });
 

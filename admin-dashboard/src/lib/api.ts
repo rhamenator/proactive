@@ -30,6 +30,7 @@ import type {
   OperationalPolicyRecord,
   SafeUser,
   SyncConflictItem,
+  SystemSettingsRecord,
   TurfAddressImportResult,
   TurfListItem
 } from './types';
@@ -313,6 +314,9 @@ export function createApiClient(token?: string | null) {
       }
       return requestJson<OperationalPolicyRecord>(`/admin/policies${params.toString() ? `?${params.toString()}` : ''}`, {}, token);
     },
+    getSystemSettings() {
+      return requestJson<SystemSettingsRecord>('/admin/system-settings', {}, token);
+    },
     retentionSummary() {
       return requestJson<RetentionSummary>('/admin/retention-summary', {}, token);
     },
@@ -350,12 +354,28 @@ export function createApiClient(token?: string | null) {
         body: JSON.stringify(payload)
       }, token);
     },
+    updateSystemSettings(payload: {
+      authRateLimitWindowMinutes?: number;
+      authRateLimitMaxAttempts?: number;
+      retentionJobEnabled?: boolean;
+      retentionJobIntervalMinutes?: number;
+    }) {
+      return requestJson<SystemSettingsRecord>('/admin/system-settings', {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }, token);
+    },
     clearOperationalPolicy(campaignId?: string | null) {
       const params = new URLSearchParams();
       if (campaignId) {
         params.set('campaignId', campaignId);
       }
       return requestJson<OperationalPolicyRecord>(`/admin/policies${params.toString() ? `?${params.toString()}` : ''}`, {
+        method: 'DELETE'
+      }, token);
+    },
+    clearSystemSettings() {
+      return requestJson<SystemSettingsRecord>('/admin/system-settings', {
         method: 'DELETE'
       }, token);
     },

@@ -6,7 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input, Select } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
-import type { CampaignRecord, OperationalPolicyRecord } from '../../src/lib/types';
+import type { CampaignRecord, OperationalPolicyRecord, SystemSettingsRecord } from '../../src/lib/types';
 
 type PolicyForm = {
   defaultImportMode: OperationalPolicyRecord['defaultImportMode'];
@@ -28,6 +28,13 @@ type PolicyForm = {
   retentionPurgeDays: string;
   requireArchiveReason: boolean;
   allowOrgOutcomeFallback: boolean;
+};
+
+type SystemSettingsForm = {
+  authRateLimitWindowMinutes: number;
+  authRateLimitMaxAttempts: number;
+  retentionJobEnabled: boolean;
+  retentionJobIntervalMinutes: number;
 };
 
 function toForm(policy: OperationalPolicyRecord): PolicyForm {
@@ -54,6 +61,15 @@ function toForm(policy: OperationalPolicyRecord): PolicyForm {
   };
 }
 
+function toSystemSettingsForm(settings: SystemSettingsRecord): SystemSettingsForm {
+  return {
+    authRateLimitWindowMinutes: settings.authRateLimitWindowMinutes,
+    authRateLimitMaxAttempts: settings.authRateLimitMaxAttempts,
+    retentionJobEnabled: settings.retentionJobEnabled,
+    retentionJobIntervalMinutes: settings.retentionJobIntervalMinutes
+  };
+}
+
 export default function PoliciesPage() {
   const { user, runSensitiveAction } = useAuth();
   const api = useAuthedApi();
@@ -61,9 +77,13 @@ export default function PoliciesPage() {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
   const [policy, setPolicy] = useState<OperationalPolicyRecord | null>(null);
   const [form, setForm] = useState<PolicyForm | null>(null);
+  const [systemSettings, setSystemSettings] = useState<SystemSettingsRecord | null>(null);
+  const [systemForm, setSystemForm] = useState<SystemSettingsForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [systemSaving, setSystemSaving] = useState(false);
+  const [systemResetting, setSystemResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -96,15 +116,21 @@ export default function PoliciesPage() {
     async function load() {
       setError(null);
       try {
-        const nextCampaigns = await api.listCampaigns();
+        const tasks = [api.listCampaigns()] as const;
+        const [nextCampaigns] = await Promise.all(tasks);
         setCampaigns(nextCampaigns);
+        if (!isScopedUser && isAdmin) {
+          const settings = await api.getSystemSettings();
+          setSystemSettings(settings);
+          setSystemForm(toSystemSettingsForm(settings));
+        }
       } catch (value) {
         setError(getErrorMessage(value));
       }
     }
 
     void load();
-  }, [api]);
+  }, [api, isAdmin, isScopedUser]);
 
   useEffect(() => {
     if (user?.campaignId) {
@@ -189,11 +215,169 @@ export default function PoliciesPage() {
     }
   }
 
+  async function handleSystemSettingsSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isAdmin || !systemForm || isScopedUser) {
+      return;
+    }
+
+    setSystemSaving(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const updated = await runSensitiveAction('save system settings', (freshApi) =>
+        freshApi.updateSystemSettings(systemForm)
+      );
+      setSystemSettings(updated);
+      setSystemForm(toSystemSettingsForm(updated));
+      setMessage('System-wide settings saved.');
+    } catch (value) {
+      setError(getErrorMessage(value));
+    } finally {
+      setSystemSaving(false);
+    }
+  }
+
+  async function handleClearSystemSettings() {
+    if (!isAdmin || isScopedUser || !systemSettings?.explicitRecord) {
+      return;
+    }
+
+    setSystemResetting(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const updated = await runSensitiveAction('clear system settings override', (freshApi) =>
+        freshApi.clearSystemSettings()
+      );
+      setSystemSettings(updated);
+      setSystemForm(toSystemSettingsForm(updated));
+      setMessage('System-wide settings reset to environment defaults.');
+    } catch (value) {
+      setError(getErrorMessage(value));
+    } finally {
+      setSystemResetting(false);
+    }
+  }
+
   return (
     <ProtectedFrame title="Policies" eyebrow="Operational Configuration">
       <div className="stack">
         {message ? <div className="notice notice-success">{message}</div> : null}
         {error ? <div className="notice notice-error">{error}</div> : null}
+
+        {!isScopedUser && systemForm ? (
+          <Card>
+            <form className="stack" onSubmit={handleSystemSettingsSubmit}>
+              <div className="inline-actions inline-actions-between">
+                <div>
+                  <p className="section-kicker">System-Wide</p>
+                  <h2 className="heading-reset">Global operational settings</h2>
+                </div>
+                <Badge tone={systemSettings?.explicitRecord ? 'success' : 'warning'}>
+                  {systemSettings?.explicitRecord ? 'Saved Override' : 'Environment Default'}
+                </Badge>
+              </div>
+
+              <div className="split">
+                <div className="field-group">
+                  <label htmlFor="rate-limit-window">Auth rate-limit window (minutes)</label>
+                  <Input
+                    id="rate-limit-window"
+                    type="number"
+                    min={1}
+                    value={String(systemForm.authRateLimitWindowMinutes)}
+                    disabled={!isAdmin}
+                    onChange={(event) =>
+                      setSystemForm((current) =>
+                        current ? { ...current, authRateLimitWindowMinutes: Number(event.target.value || 1) } : current
+                      )
+                    }
+                  />
+                </div>
+                <div className="field-group">
+                  <label htmlFor="rate-limit-attempts">Auth rate-limit attempts</label>
+                  <Input
+                    id="rate-limit-attempts"
+                    type="number"
+                    min={1}
+                    value={String(systemForm.authRateLimitMaxAttempts)}
+                    disabled={!isAdmin}
+                    onChange={(event) =>
+                      setSystemForm((current) =>
+                        current ? { ...current, authRateLimitMaxAttempts: Number(event.target.value || 1) } : current
+                      )
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="split">
+                <div className="field-group">
+                  <label htmlFor="retention-interval">Retention automation interval (minutes)</label>
+                  <Input
+                    id="retention-interval"
+                    type="number"
+                    min={1}
+                    value={String(systemForm.retentionJobIntervalMinutes)}
+                    disabled={!isAdmin}
+                    onChange={(event) =>
+                      setSystemForm((current) =>
+                        current ? { ...current, retentionJobIntervalMinutes: Number(event.target.value || 1) } : current
+                      )
+                    }
+                  />
+                </div>
+                <div className="field-group">
+                  <label htmlFor="retention-enabled">Retention automation</label>
+                  <Button
+                    type="button"
+                    id="retention-enabled"
+                    variant={systemForm.retentionJobEnabled ? 'secondary' : 'ghost'}
+                    onClick={() =>
+                      setSystemForm((current) =>
+                        current ? { ...current, retentionJobEnabled: !current.retentionJobEnabled } : current
+                      )
+                    }
+                    disabled={!isAdmin}
+                  >
+                    {systemForm.retentionJobEnabled ? 'Enabled' : 'Disabled'}
+                  </Button>
+                </div>
+              </div>
+
+              <p className="muted">
+                These settings apply across the whole deployment. Use them for authentication throttling and retention automation timing, not organization-specific business rules.
+              </p>
+
+              <div className="inline-actions">
+                <Button type="submit" disabled={systemSaving || systemResetting}>
+                  {systemSaving ? 'Saving...' : 'Save System Settings'}
+                </Button>
+                {systemSettings?.explicitRecord ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleClearSystemSettings}
+                    disabled={systemSaving || systemResetting}
+                  >
+                    {systemResetting ? 'Resetting...' : 'Reset To Environment Defaults'}
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => systemSettings ? setSystemForm(toSystemSettingsForm(systemSettings)) : null}
+                  disabled={systemSaving || systemResetting}
+                >
+                  Reset Form
+                </Button>
+              </div>
+            </form>
+          </Card>
+        ) : null}
 
         <div className="split">
           <Card className="stack">

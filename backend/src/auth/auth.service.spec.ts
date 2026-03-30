@@ -105,13 +105,22 @@ describe('AuthService', () => {
       mfaBackupCodeCount: 10
     })
   };
+  const systemSettingsService = {
+    getEffectiveSettings: jest.fn().mockResolvedValue({
+      authRateLimitWindowMinutes: 15,
+      authRateLimitMaxAttempts: 10,
+      retentionJobEnabled: false,
+      retentionJobIntervalMinutes: 60
+    })
+  };
 
   const service = new AuthService(
     usersService as never,
     prisma as never,
     jwtService as never,
     auditService as never,
-    policiesService as never
+    policiesService as never,
+    systemSettingsService as never
   );
 
   beforeEach(() => {

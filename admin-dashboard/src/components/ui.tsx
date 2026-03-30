@@ -17,22 +17,15 @@ export function Button({
   variant = 'primary',
   className = '',
   type = 'button',
-  disabled,
-  onClick
-}: {
-  children: React.ReactNode;
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  className?: string;
-  type?: 'button' | 'submit';
-  disabled?: boolean;
-  onClick?: React.MouseEventHandler<HTMLButtonElement>;
 }) {
   return (
     <button
       type={type}
       className={`button button-${variant} ${className}`.trim()}
-      disabled={disabled}
-      onClick={onClick}
+      {...props}
     >
       {children}
     </button>

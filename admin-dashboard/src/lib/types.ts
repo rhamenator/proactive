@@ -61,6 +61,15 @@ export interface OperationalPolicyRecord {
   allowOrgOutcomeFallback: boolean;
 }
 
+export interface SystemSettingsRecord {
+  id?: string | null;
+  explicitRecord: boolean;
+  authRateLimitWindowMinutes: number;
+  authRateLimitMaxAttempts: number;
+  retentionJobEnabled: boolean;
+  retentionJobIntervalMinutes: number;
+}
+
 export interface GpsReviewItem {
   id: string;
   visitLogId: string;

@@ -27,6 +27,7 @@ The application suite has been built and brought to a review-ready state across 
   - MFA account management
   - Sensitive-action MFA confirmation flow for exports, overrides, conflict resolution, and turf control changes
   - Policy management for configurable operational defaults such as field visit/GPS thresholds, auth/recovery timing, import behavior, MFA freshness, retention planning, and organization outcome fallback, with step-up MFA required for policy edits and explicit overrides that can be cleared back to inherited defaults
+  - System-wide settings management for deployment-level auth throttling and retention automation timing, with step-up MFA required for save/reset actions
   - Retention summary and manual cleanup workflow for purgeable artifacts and expired credential records
   - Outcomes management
   - GPS review
@@ -81,6 +82,7 @@ Please review:
 - Admin dashboard workflows
 - Field/mobile workflow
 - Policy-management defaults and whether they should be set at organization level or campaign level
+- Deployment-wide auth throttling and retention automation settings in the `System-Wide` policy card
 - Field visit/GPS thresholds and whether the initial defaults match your expected operations
 - Reporting views
 - GPS review flow

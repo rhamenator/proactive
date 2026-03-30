@@ -64,8 +64,18 @@ Before field testing:
 1. Confirm the backend is reachable from the device.
 2. Confirm test users exist and are active.
 3. Confirm at least one turf is assigned.
-4. Confirm export works from the dashboard.
-5. Confirm one offline visit can queue and later sync.
+4. Confirm organization or campaign policy defaults are set as expected in `Policies`.
+5. Confirm system-wide auth throttling and retention automation values are correct in the `System-Wide` settings card.
+6. Confirm export works from the dashboard.
+7. Confirm one offline visit can queue and later sync.
+
+## Policy Reset Behavior
+
+- scoped policy records can inherit from a broader scope instead of storing a full override forever
+- campaign policy reset falls back to organization policy
+- organization policy reset falls back to deployment defaults
+- system-wide settings reset falls back to environment defaults
+- sensitive policy or system-setting changes require a fresh MFA confirmation and are audit logged
 
 ## When Something Breaks
 

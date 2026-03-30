@@ -684,6 +684,87 @@ describe('admin api client', () => {
     expect(cleanup.skipped).toBe(false);
   });
 
+  it('fetches, updates, and clears global system settings', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            explicitRecord: false,
+            authRateLimitWindowMinutes: 15,
+            authRateLimitMaxAttempts: 10,
+            retentionJobEnabled: false,
+            retentionJobIntervalMinutes: 60
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 'global',
+            explicitRecord: true,
+            authRateLimitWindowMinutes: 20,
+            authRateLimitMaxAttempts: 12,
+            retentionJobEnabled: true,
+            retentionJobIntervalMinutes: 30
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            explicitRecord: false,
+            authRateLimitWindowMinutes: 15,
+            authRateLimitMaxAttempts: 10,
+            retentionJobEnabled: false,
+            retentionJobIntervalMinutes: 60
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      );
+
+    const client = createApiClient('token-123');
+    const initial = await client.getSystemSettings();
+    const updated = await client.updateSystemSettings({
+      authRateLimitWindowMinutes: 20,
+      authRateLimitMaxAttempts: 12,
+      retentionJobEnabled: true,
+      retentionJobIntervalMinutes: 30
+    });
+    const cleared = await client.clearSystemSettings();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/admin/system-settings', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3001/admin/system-settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        authRateLimitWindowMinutes: 20,
+        authRateLimitMaxAttempts: 12,
+        retentionJobEnabled: true,
+        retentionJobIntervalMinutes: 30
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, 'http://localhost:3001/admin/system-settings', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(initial.explicitRecord).toBe(false);
+    expect(updated.retentionJobEnabled).toBe(true);
+    expect(cleared.authRateLimitMaxAttempts).toBe(10);
+  });
+
   it('supports field-user and turf archive/delete admin requests', async () => {
     fetchMock
       .mockResolvedValueOnce(
