@@ -614,6 +614,35 @@ export interface TurfAddressImportResult {
   turfs: TurfListItem[];
 }
 
+export interface TurfImportPreviewResult {
+  profileCode: string;
+  profileName: string;
+  mode: 'create_only' | 'upsert' | 'replace_turf_membership';
+  duplicateStrategy: 'skip' | 'error' | 'merge' | 'review';
+  rowCount: number;
+  headerCount: number;
+  headers: string[];
+  missingHeaders: string[];
+  missingRequiredMappings: string[];
+  turfNames: string[];
+  rowsReady: number;
+  rowsMissingRequired: number;
+  rowsUsingFallbackTurf: number;
+  scope: {
+    campaignId?: string | null;
+    teamId?: string | null;
+    regionCode?: string | null;
+  };
+  sampleRows: Array<{
+    rowIndex: number;
+    turfName: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    status: 'ready' | 'missing_required_fields';
+  }>;
+}
+
 export interface ImportBatchRecord {
   id: string;
   filename: string;

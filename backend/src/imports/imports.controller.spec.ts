@@ -2,6 +2,7 @@ import { ImportsController } from './imports.controller';
 
 describe('ImportsController', () => {
   const importsService = {
+    previewCsv: jest.fn(),
     importCsv: jest.fn(),
     importHistory: jest.fn(),
     downloadImportBatch: jest.fn(),
@@ -43,6 +44,32 @@ describe('ImportsController', () => {
     );
 
     expect(importsService.importCsv).toHaveBeenCalledWith({
+      csv: 'address,city,state\n100 Main,Detroit,MI\n',
+      createdById: 'admin-1',
+      turfName: 'North',
+      mapping: { addressLine1: 'address' },
+      mode: 'upsert',
+      duplicateStrategy: 'merge'
+    });
+  });
+
+  it('delegates CSV preview requests with the parsed mapping payload', async () => {
+    const file = {
+      buffer: Buffer.from('address,city,state\n100 Main,Detroit,MI\n')
+    } as Express.Multer.File;
+
+    await controller.previewCsv(
+      file,
+      {
+        turfName: 'North',
+        mapping: JSON.stringify({ addressLine1: 'address' }),
+        mode: 'upsert',
+        duplicateStrategy: 'merge'
+      },
+      { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never }
+    );
+
+    expect(importsService.previewCsv).toHaveBeenCalledWith({
       csv: 'address,city,state\n100 Main,Detroit,MI\n',
       createdById: 'admin-1',
       turfName: 'North',

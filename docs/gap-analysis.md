@@ -56,6 +56,7 @@ The remaining gaps are now mostly in the remaining edges of import-policy breadt
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
 - import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
 - a dedicated `ImportsService` and `/imports/csv` path with import modes including replace-membership behavior, duplicate skip/error/merge/review handling, expanded source-field mapping support, a review queue tied directly to import-batch rows, and configurable import/export profiles with organization/campaign overrides
+- pre-import CSV preview that validates the chosen profile, required field coverage, fallback turf usage, and sample row readiness before the admin commits the import
 - operational policy records with organization/campaign fallback for import defaults, field visit/GPS thresholds, auth/recovery timing, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
 - configurable supervisor scope policy that can enforce campaign, team, or region-based access, backed by first-class teams and region codes across users, turfs, assignments, sessions, visits, address requests, imports, exports, and reports
 - deployment-wide system settings for auth rate-limit thresholds and retention automation schedule, with admin dashboard management and reset-to-env-default behavior

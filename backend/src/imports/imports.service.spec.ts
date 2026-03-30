@@ -153,6 +153,57 @@ describe('ImportsService', () => {
     });
   });
 
+  it('previews a CSV import using the resolved profile and reports missing required rows', async () => {
+    const result = await service.previewCsv({
+      createdById: 'admin-1',
+      turfName: 'Fallback Turf',
+      csv: [
+        'address_line1,city,state',
+        '10 Main St,Grand Rapids,MI',
+        ',Grand Rapids,MI'
+      ].join('\n')
+    });
+
+    expect(result).toEqual({
+      profileCode: 'van_standard',
+      profileName: 'VAN Standard Import',
+      mode: 'create_only',
+      duplicateStrategy: 'skip',
+      rowCount: 2,
+      headerCount: 3,
+      headers: ['address_line1', 'city', 'state'],
+      missingHeaders: [],
+      missingRequiredMappings: [],
+      turfNames: ['Fallback Turf'],
+      rowsReady: 1,
+      rowsMissingRequired: 1,
+      rowsUsingFallbackTurf: 2,
+      scope: {
+        campaignId: 'campaign-1',
+        teamId: null,
+        regionCode: null
+      },
+      sampleRows: [
+        {
+          rowIndex: 1,
+          turfName: 'Fallback Turf',
+          addressLine1: '10 Main St',
+          city: 'Grand Rapids',
+          state: 'MI',
+          status: 'ready'
+        },
+        {
+          rowIndex: 2,
+          turfName: 'Fallback Turf',
+          addressLine1: '',
+          city: 'Grand Rapids',
+          state: 'MI',
+          status: 'missing_required_fields'
+        }
+      ]
+    });
+  });
+
   it('upserts into an existing turf and merges duplicate addresses when configured', async () => {
     prisma.turf.findFirst.mockResolvedValue({
       id: 'turf-9',

@@ -51,8 +51,9 @@ If login fails, see [Troubleshooting](/home/rich/dev/proactive/docs/help/trouble
 3. Select the CSV file.
 4. Choose the import profile that best matches the source file, or leave the policy default selected.
 5. Choose the target campaign, team, and region when needed.
-6. Review mapping fields if prompted.
-7. Start the import.
+6. Use `Preview Import` to confirm the profile, headers, fallback turf usage, and row readiness before committing the batch.
+7. Review mapping fields if prompted.
+8. Start the import.
 
 ### Manage CSV Profiles
 

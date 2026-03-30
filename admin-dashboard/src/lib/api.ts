@@ -32,6 +32,7 @@ import type {
   OperationalPolicyRecord,
   SafeUser,
   TeamRecord,
+  TurfImportPreviewResult,
   SyncConflictItem,
   SystemSettingsRecord,
   TurfAddressImportResult,
@@ -674,6 +675,45 @@ export function createApiClient(token?: string | null) {
         formData.append('profileCode', payload.profileCode);
       }
       return requestJson<TurfAddressImportResult>('/imports/csv', {
+        method: 'POST',
+        body: formData
+      }, token);
+    },
+    previewImportTurfs(payload: {
+      file: File;
+      turfName?: string;
+      mapping?: string;
+      profileCode?: string | null;
+      mode?: TurfAddressImportResult['mode'];
+      duplicateStrategy?: TurfAddressImportResult['duplicateStrategy'];
+      teamId?: string | null;
+      regionCode?: string | null;
+    }) {
+      const formData = new FormData();
+      formData.set('file', payload.file);
+      if (payload.turfName) {
+        formData.set('turfName', payload.turfName);
+      }
+      if (payload.mapping) {
+        formData.set('mapping', payload.mapping);
+      }
+      if (payload.profileCode) {
+        formData.set('profileCode', payload.profileCode);
+      }
+      if (payload.mode) {
+        formData.set('mode', payload.mode);
+      }
+      if (payload.duplicateStrategy) {
+        formData.set('duplicateStrategy', payload.duplicateStrategy);
+      }
+      if (payload.teamId) {
+        formData.set('teamId', payload.teamId);
+      }
+      if (payload.regionCode) {
+        formData.set('regionCode', payload.regionCode);
+      }
+
+      return requestJson<TurfImportPreviewResult>('/imports/preview', {
         method: 'POST',
         body: formData
       }, token);

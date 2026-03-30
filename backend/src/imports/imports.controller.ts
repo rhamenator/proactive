@@ -59,6 +59,40 @@ export class ImportsController {
     return response.send(result.csv);
   }
 
+  @Post('preview')
+  @Roles(UserRole.admin)
+  @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))
+  async previewCsv(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: ImportCsvDto,
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    if (!file) {
+      throw new BadRequestException('CSV file is required');
+    }
+
+    let mapping: Record<string, string> | undefined;
+    if (body.mapping) {
+      try {
+        mapping = JSON.parse(body.mapping) as Record<string, string>;
+      } catch {
+        throw new BadRequestException('mapping must be valid JSON');
+      }
+    }
+
+    return this.importsService.previewCsv({
+      csv: file.buffer.toString('utf8'),
+      createdById: user.sub,
+      turfName: body.turfName,
+      mapping,
+      profileCode: body.profileCode,
+      mode: body.mode,
+      duplicateStrategy: body.duplicateStrategy,
+      teamId: body.teamId,
+      regionCode: body.regionCode
+    });
+  }
+
   @Post('csv')
   @Roles(UserRole.admin)
   @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))

@@ -271,6 +271,68 @@ describe('admin api client', () => {
     });
   });
 
+  it('posts turf import preview requests to the preview endpoint', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          profileCode: 'van_standard',
+          profileName: 'VAN Standard Import',
+          mode: 'replace_turf_membership',
+          duplicateStrategy: 'merge',
+          rowCount: 2,
+          headerCount: 3,
+          headers: ['address', 'city', 'state'],
+          missingHeaders: [],
+          missingRequiredMappings: [],
+          turfNames: ['North Turf'],
+          rowsReady: 2,
+          rowsMissingRequired: 0,
+          rowsUsingFallbackTurf: 2,
+          scope: {
+            campaignId: 'campaign-1',
+            teamId: null,
+            regionCode: null
+          },
+          sampleRows: [
+            {
+              rowIndex: 1,
+              turfName: 'North Turf',
+              addressLine1: '100 Main',
+              city: 'Detroit',
+              state: 'MI',
+              status: 'ready'
+            }
+          ]
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+
+    const file = new File(['address,city,state\n100 Main,Detroit,MI\n'], 'import.csv', {
+      type: 'text/csv'
+    });
+
+    const result = await createApiClient('token-123').previewImportTurfs({
+      file,
+      turfName: 'North Turf',
+      mapping: JSON.stringify({ addressLine1: 'address' }),
+      mode: 'replace_turf_membership',
+      duplicateStrategy: 'merge'
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/imports/preview',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer token-123'
+        }
+      })
+    );
+    expect(result.profileCode).toBe('van_standard');
+    expect(result.rowsReady).toBe(2);
+  });
+
   it('lists and downloads import history', async () => {
     fetchMock
       .mockResolvedValueOnce(

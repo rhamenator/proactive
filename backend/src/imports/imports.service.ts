@@ -4,7 +4,7 @@ import { TurfStatus } from '@prisma/client';
 import { parse } from 'csv-parse/sync';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
-import { CsvMapping, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
+import { CsvMapping, inferMappingFromHeaders, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
 import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,6 +14,18 @@ type ImportRow = Record<string, unknown>;
 type ImportMode = 'create_only' | 'upsert' | 'replace_turf_membership';
 type DuplicateStrategy = 'skip' | 'error' | 'merge' | 'review';
 type RowImportStatus = 'created' | 'merged' | 'skipped_invalid' | 'skipped_duplicate' | 'pending_review';
+type ResolvedImportContext = {
+  creator: Awaited<ReturnType<UsersService['findById']>>;
+  policy: Awaited<ReturnType<PoliciesService['getEffectivePolicy']>>;
+  team: Awaited<ReturnType<ImportsService['validateTeamScope']>>;
+  regionCode: string | null;
+  effectiveCampaignId: string | null;
+  profile: Awaited<ReturnType<CsvProfilesService['resolveProfile']>>;
+  profileSettings: Record<string, unknown>;
+  mapping?: CsvMapping;
+  mode: ImportMode;
+  duplicateStrategy: DuplicateStrategy;
+};
 
 @Injectable()
 export class ImportsService {
@@ -113,6 +125,56 @@ export class ImportsService {
     }
 
     return rawRowJson as ImportRow;
+  }
+
+  private async resolveImportContext(input: {
+    createdById: string;
+    profileCode?: string | null;
+    mapping?: CsvMapping;
+    mode?: ImportMode;
+    duplicateStrategy?: DuplicateStrategy;
+    teamId?: string | null;
+    regionCode?: string | null;
+  }): Promise<ResolvedImportContext> {
+    const creator = await this.usersService.findById(input.createdById);
+    if (!creator.organizationId) {
+      throw new BadRequestException('CSV imports require an organization-scoped admin account');
+    }
+
+    const policy = await this.policiesService.getEffectivePolicy({
+      organizationId: creator.organizationId,
+      campaignId: creator.campaignId ?? null
+    });
+    const team = await this.validateTeamScope(creator.organizationId ?? null, creator.campaignId ?? null, input.teamId);
+    const regionCode = input.regionCode?.trim() || team?.regionCode || null;
+    const effectiveCampaignId = creator.campaignId ?? team?.campaignId ?? null;
+    const profileCode = input.profileCode?.trim() || policy.defaultImportProfileCode;
+    const profile = await this.csvProfilesService.resolveProfile({
+      direction: 'import',
+      code: profileCode,
+      organizationId: creator.organizationId,
+      campaignId: effectiveCampaignId
+    });
+    const profileSettings = this.profileSettings(profile.settingsJson);
+    const mapping = input.mapping ?? profile.mappingJson ?? undefined;
+    const mode = input.mode ?? this.normalizeImportMode(profileSettings.importMode) ?? policy.defaultImportMode;
+    const duplicateStrategy =
+      input.duplicateStrategy ??
+      this.normalizeDuplicateStrategy(profileSettings.duplicateStrategy) ??
+      policy.defaultDuplicateStrategy;
+
+    return {
+      creator,
+      policy,
+      team,
+      regionCode,
+      effectiveCampaignId,
+      profile,
+      profileSettings,
+      mapping,
+      mode,
+      duplicateStrategy
+    };
   }
 
   private extractRowAddress(input: { row: ImportRow; mapping?: CsvMapping }) {
@@ -261,31 +323,18 @@ export class ImportsService {
     teamId?: string | null;
     regionCode?: string | null;
   }) {
-    const creator = await this.usersService.findById(input.createdById);
-    if (!creator.organizationId) {
-      throw new BadRequestException('CSV imports require an organization-scoped admin account');
-    }
-    const policy = await this.policiesService.getEffectivePolicy({
-      organizationId: creator.organizationId,
-      campaignId: creator.campaignId ?? null
-    });
-    const team = await this.validateTeamScope(creator.organizationId ?? null, creator.campaignId ?? null, input.teamId);
-    const regionCode = input.regionCode?.trim() || team?.regionCode || null;
-    const effectiveCampaignId = creator.campaignId ?? team?.campaignId ?? null;
-    const profileCode = input.profileCode?.trim() || policy.defaultImportProfileCode;
-    const profile = await this.csvProfilesService.resolveProfile({
-      direction: 'import',
-      code: profileCode,
-      organizationId: creator.organizationId,
-      campaignId: effectiveCampaignId
-    });
-    const profileSettings = this.profileSettings(profile.settingsJson);
-    const mapping = input.mapping ?? profile.mappingJson ?? undefined;
-    const mode = input.mode ?? this.normalizeImportMode(profileSettings.importMode) ?? policy.defaultImportMode;
-    const duplicateStrategy =
-      input.duplicateStrategy ??
-      this.normalizeDuplicateStrategy(profileSettings.duplicateStrategy) ??
-      policy.defaultDuplicateStrategy;
+    const {
+      creator,
+      policy,
+      team,
+      regionCode,
+      effectiveCampaignId,
+      profile,
+      profileSettings,
+      mapping,
+      mode,
+      duplicateStrategy
+    } = await this.resolveImportContext(input);
     const records = parse(input.csv, {
       columns: true,
       skip_empty_lines: true,
@@ -386,7 +435,7 @@ export class ImportsService {
           continue;
         }
         const household = await this.ensureHousehold({
-          organizationId: creator.organizationId,
+          organizationId: creator.organizationId!,
           addressLine1: combinedAddressLine1,
           city,
           state,
@@ -582,6 +631,121 @@ export class ImportsService {
     });
 
     return result;
+  }
+
+  async previewCsv(input: {
+    csv: string;
+    createdById: string;
+    turfName?: string;
+    mapping?: CsvMapping;
+    profileCode?: string | null;
+    mode?: ImportMode;
+    duplicateStrategy?: DuplicateStrategy;
+    teamId?: string | null;
+    regionCode?: string | null;
+  }) {
+    const { team, regionCode, effectiveCampaignId, profile, mapping, mode, duplicateStrategy } =
+      await this.resolveImportContext(input);
+
+    const records = parse(input.csv, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true
+    }) as ImportRow[];
+
+    if (records.length === 0) {
+      throw new BadRequestException('CSV file contains no rows');
+    }
+
+    const headers = Object.keys(records[0] ?? {});
+    const headerSet = new Set(headers);
+    const effectiveMapping = {
+      ...inferMappingFromHeaders(headers),
+      ...(mapping ?? {})
+    };
+    const requiredMappedFields: Array<keyof CsvMapping> = ['addressLine1', 'city', 'state'];
+    const profileMappingEntries = Object.entries(mapping ?? {});
+    const missingHeaders = profileMappingEntries
+      .filter(([, header]) => typeof header === 'string' && header.trim().length > 0 && !headerSet.has(header))
+      .map(([field]) => field)
+      .sort();
+
+    const missingRequiredMappings = requiredMappedFields.filter((field) => {
+      const mappedHeader = effectiveMapping[field];
+      return !mappedHeader || !headerSet.has(mappedHeader);
+    });
+
+    let rowsReady = 0;
+    let rowsMissingRequired = 0;
+    let rowsUsingFallbackTurf = 0;
+    const turfNames = new Set<string>();
+    const sampleRows = records.slice(0, 10).map((row, index) => {
+      const rowIndex = index + 1;
+      const {
+        addressLine1,
+        city,
+        state,
+        combinedAddressLine1
+      } = this.extractRowAddress({ row, mapping });
+      const mappedTurfName = resolveMappedValue(row, 'turfName', mapping);
+      const turfName = mappedTurfName ?? input.turfName ?? 'Imported Turf';
+      const status = addressLine1 && city && state ? 'ready' : 'missing_required_fields';
+      if (status === 'ready') {
+        rowsReady += 1;
+      } else {
+        rowsMissingRequired += 1;
+      }
+      if (!mappedTurfName && Boolean(input.turfName)) {
+        rowsUsingFallbackTurf += 1;
+      }
+      turfNames.add(turfName);
+
+      return {
+        rowIndex,
+        turfName,
+        addressLine1: combinedAddressLine1 || '',
+        city: city ?? '',
+        state: state ?? '',
+        status
+      };
+    });
+
+    for (const row of records.slice(10)) {
+      const { addressLine1, city, state } = this.extractRowAddress({ row, mapping });
+      const mappedTurfName = resolveMappedValue(row, 'turfName', mapping);
+      const turfName = mappedTurfName ?? input.turfName ?? 'Imported Turf';
+      if (addressLine1 && city && state) {
+        rowsReady += 1;
+      } else {
+        rowsMissingRequired += 1;
+      }
+      if (!mappedTurfName && Boolean(input.turfName)) {
+        rowsUsingFallbackTurf += 1;
+      }
+      turfNames.add(turfName);
+    }
+
+    return {
+      profileCode: profile.code,
+      profileName: profile.name,
+      mode,
+      duplicateStrategy,
+      rowCount: records.length,
+      headerCount: headers.length,
+      headers,
+      missingHeaders,
+      missingRequiredMappings,
+      turfNames: Array.from(turfNames).sort(),
+      rowsReady,
+      rowsMissingRequired,
+      rowsUsingFallbackTurf,
+      scope: {
+        campaignId: effectiveCampaignId,
+        teamId: team?.id ?? input.teamId ?? null,
+        regionCode
+      },
+      sampleRows
+    };
   }
 
   async importHistory(scope: AccessScope) {

@@ -6,7 +6,14 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input, TextArea } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
-import type { CanvasserRecord, CsvProfileRecord, ImportBatchRecord, TeamRecord, TurfListItem } from '../../src/lib/types';
+import type {
+  CanvasserRecord,
+  CsvProfileRecord,
+  ImportBatchRecord,
+  TeamRecord,
+  TurfImportPreviewResult,
+  TurfListItem
+} from '../../src/lib/types';
 
 const mappingFields = [
   ['vanId', 'VAN ID'],
@@ -32,6 +39,8 @@ export default function TurfsPage() {
   const [teams, setTeams] = useState<TeamRecord[]>([]);
   const [importHistory, setImportHistory] = useState<ImportBatchRecord[]>([]);
   const [importProfiles, setImportProfiles] = useState<CsvProfileRecord[]>([]);
+  const [importPreview, setImportPreview] = useState<TurfImportPreviewResult | null>(null);
+  const [previewingImport, setPreviewingImport] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -126,6 +135,7 @@ export default function TurfsPage() {
     setSelectedFile(file);
     setHeaders([]);
     setMapping({});
+    setImportPreview(null);
 
     if (!file) {
       return;
@@ -188,9 +198,39 @@ export default function TurfsPage() {
       setImportTeamId('');
       setImportRegionCode('');
       setImportProfileCode('');
+      setImportPreview(null);
       await load();
     } catch (value) {
       setError(getErrorMessage(value));
+    }
+  }
+
+  async function handlePreviewImport() {
+    if (!selectedFile) {
+      setError('Choose a CSV file to preview.');
+      return;
+    }
+
+    setPreviewingImport(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await api.previewImportTurfs({
+        file: selectedFile,
+        turfName: fallbackTurfName.trim() || undefined,
+        mapping: JSON.stringify(mapping),
+        mode: importMode,
+        duplicateStrategy,
+        teamId: importTeamId || null,
+        regionCode: importRegionCode.trim() || null,
+        profileCode: importProfileCode || null
+      });
+      setImportPreview(result);
+      setMessage('Import preview ready.');
+    } catch (value) {
+      setError(getErrorMessage(value));
+    } finally {
+      setPreviewingImport(false);
     }
   }
 
@@ -513,10 +553,101 @@ export default function TurfsPage() {
               <Button type="submit" disabled={!selectedFile}>
                 Import CSV
               </Button>
+              <Button type="button" variant="secondary" onClick={() => void handlePreviewImport()} disabled={!selectedFile || previewingImport}>
+                {previewingImport ? 'Previewing...' : 'Preview Import'}
+              </Button>
             </form>
           </Card>
           ) : null}
         </div>
+
+        {isAdmin && importPreview ? (
+          <Card>
+            <div className="stack">
+              <div className="inline-actions inline-actions-between">
+                <div>
+                  <p className="section-kicker">Import Preview</p>
+                  <h2 className="heading-reset">Profile and row validation</h2>
+                </div>
+                <Badge tone={importPreview.rowsMissingRequired > 0 ? 'warning' : 'success'}>
+                  {importPreview.rowsMissingRequired > 0 ? 'Needs attention' : 'Ready'}
+                </Badge>
+              </div>
+
+              <p className="muted">
+                Profile {importPreview.profileName} ({importPreview.profileCode}) • {importPreview.mode} •{' '}
+                {importPreview.duplicateStrategy}
+              </p>
+
+              <div className="grid two">
+                <Card className="card-subtle stack-tight">
+                  <span className="section-kicker">Rows</span>
+                  <strong>{importPreview.rowCount}</strong>
+                  <span className="muted">{importPreview.rowsReady} ready • {importPreview.rowsMissingRequired} missing required fields</span>
+                </Card>
+                <Card className="card-subtle stack-tight">
+                  <span className="section-kicker">Scope</span>
+                  <strong>{importPreview.turfNames.length} turf target(s)</strong>
+                  <span className="muted">
+                    {importPreview.scope.teamId ?? 'All teams'}
+                    {importPreview.scope.regionCode ? ` • ${importPreview.scope.regionCode}` : ''}
+                  </span>
+                </Card>
+              </div>
+
+              {importPreview.missingRequiredMappings.length > 0 ? (
+                <div className="notice notice-error">
+                  Missing required mappings: {importPreview.missingRequiredMappings.join(', ')}
+                </div>
+              ) : null}
+
+              {importPreview.missingHeaders.length > 0 ? (
+                <div className="notice notice-warning">
+                  Profile mappings reference headers not present in this file: {importPreview.missingHeaders.join(', ')}
+                </div>
+              ) : null}
+
+              <p className="muted">
+                Headers detected: {importPreview.headers.join(', ')}
+                {importPreview.rowsUsingFallbackTurf > 0
+                  ? ` • ${importPreview.rowsUsingFallbackTurf} row(s) use the fallback turf name`
+                  : ''}
+              </p>
+
+              <div className="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>Turf</th>
+                      <th>Address</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importPreview.sampleRows.map((row) => (
+                      <tr key={row.rowIndex}>
+                        <td>{row.rowIndex}</td>
+                        <td>{row.turfName}</td>
+                        <td>
+                          <strong>{row.addressLine1 || 'Missing address'}</strong>
+                          <div className="muted">
+                            {[row.city, row.state].filter(Boolean).join(', ') || 'Missing city/state'}
+                          </div>
+                        </td>
+                        <td>
+                          <Badge tone={row.status === 'ready' ? 'success' : 'warning'}>
+                            {row.status === 'ready' ? 'Ready' : 'Missing required fields'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </Card>
+        ) : null}
 
         {isAdmin ? (
           <Card>

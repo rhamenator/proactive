@@ -17,6 +17,7 @@ The application suite has been built and brought to a review-ready state across 
   - Configurable visit outcomes
   - Requested-address submission and review workflow
   - Dedicated CSV import service with create-only, upsert, and replace-membership modes; duplicate skip/error/merge/review handling; expanded VAN/person/household/unit mapping; batch history; downloadable source artifacts; row-level import tracing; reviewer resolution for deferred duplicate rows; and configurable import profiles with organization/campaign overrides
+  - Pre-import CSV preview that validates the selected profile, headers, fallback turf usage, and sample row readiness before data is committed
   - Reporting endpoints for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
   - VAN export, internal master export, export batch history, historical CSV re-download, row-traceable export artifacts, and configurable export profiles with policy-driven default profile selection
 
@@ -42,6 +43,7 @@ The application suite has been built and brought to a review-ready state across 
   - Requested-address review
   - Visit correction workflow
   - Import-history visibility and source CSV download for recent batches, including removed-membership counts for replace-membership imports and a dedicated duplicate-review queue for deferred import decisions
+  - Import preview on the turf-management screen so admins can confirm mapping and row readiness before running a CSV import
   - Impersonation-aware admin experience with visible banner
   - Field-preview mode for impersonated canvasser support sessions
 
