@@ -28,7 +28,7 @@ The system now covers the main operational v1 workflow:
 - VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
 - CI, build verification, regression tests, and GitHub release-build automation
 
-The remaining gaps are now mostly in deeper architecture and release policy rather than missing operational screens. They are concentrated in offline-first storage depth, normalized household modeling, fuller CSV/VAN parity beyond the new import baseline, and external mobile signing inputs.
+The remaining gaps are now mostly in deeper architecture and release policy rather than missing operational screens. They are concentrated in normalized household modeling, fuller CSV/VAN parity beyond the new import baseline, and external mobile signing inputs.
 
 ## What Is In Place
 
@@ -43,6 +43,7 @@ The remaining gaps are now mostly in deeper architecture and release policy rath
 - organization and campaign scoping in backend admin/turf/export/reports flows
 - org/campaign scaffolding in the schema and user/session JWT payloads
 - requested-address persistence plus mobile submission and review workflow
+- SQLite-backed on-device mobile persistence for auth state, queue state, and address state
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
 - a dedicated `ImportsService` and `/imports/csv` path with import modes plus duplicate skip/error/merge handling
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
@@ -70,23 +71,22 @@ What remains:
 - decide whether team or turf-region scoping is required in v1.x
 - if yes, model those assignments and enforce them in backend authorization
 
-### 2. Mobile storage is still durable queueing, not a full on-device relational database
+### 2. Mobile offline storage now uses a real on-device database
 
 Current state:
 
-- the mobile app persists auth state, queue state, and address state via `AsyncStorage`
-- offline queueing, retry, and idempotent sync are implemented
-- the client packet originally called for a stronger local database approach for long offline shifts
+- the mobile app now persists auth state, queue state, and address state in a local SQLite database
+- offline queueing, retry, and idempotent sync are implemented on top of that store
+- this closes the earlier architecture gap where persistence lived in `AsyncStorage`
 
 Why it matters:
 
-- the current approach is workable for pilot use and modest queue sizes
-- a true device database would be more resilient for larger offline workloads, richer sync metadata, and local querying
+- the app now has a real on-device data store for offline workflows
+- future work in this area is now about richer sync metadata or more advanced local querying, not replacing the storage foundation
 
 What remains:
 
-- decide whether to keep the current queue persistence for v1 or upgrade to SQLite-backed storage in v1.x
-- if upgraded, migrate queue/address persistence to a real device database and carry forward the same sync semantics
+- extend the local schema further only if the client wants richer device-side analytics, filtering, or sync forensics
 
 ### 3. Sensitive-action MFA is now enforced, but the policy may still evolve
 
@@ -154,6 +154,7 @@ What remains:
 - GPS review/override exists
 - sync-conflict review exists
 - admin/supervisor MFA exists, is enforced, and supports backup codes
+- mobile persistence now uses a local SQLite store instead of `AsyncStorage`
 - visit correction flows exist across backend and UI
 - requested-address submission/review exists across mobile and admin
 - organization/campaign-scoped operational access exists
@@ -177,7 +178,6 @@ Safe for:
 Still blocked for full source-packet alignment:
 
 - deeper team/geography scope policy and enforcement if the client wants that in v1.x
-- stronger offline-first storage if the client insists on a true local database in v1
 - fuller CSV/VAN import parity if the client insists on every import-side rule from the packet in v1
 - household normalization and retention metadata if the client insists on full schema-packet parity in v1
 - final signed mobile app distribution without real external signing credentials
@@ -188,6 +188,6 @@ Remaining non-blocking enhancements:
 
 ## Recommended Next Sequence
 
-1. Decide whether v1 production needs a true on-device database and/or fuller CSV/VAN import parity.
+1. Decide whether v1 production needs fuller CSV/VAN import parity beyond the current import baseline.
 2. Decide whether household normalization and retention metadata belong in v1.x or the post-pilot schema roadmap.
 3. Provide production release secrets and final app identifiers for EAS/App Store/Play.

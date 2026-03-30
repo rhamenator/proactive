@@ -85,7 +85,6 @@ Please review:
 
 Please confirm whether you want any of the following added before release:
 
-- A stronger on-device database implementation for the mobile offline queue
 - Any additional CSV/VAN import rules beyond the current review-ready baseline with import modes and duplicate handling
 - Deeper team/geography scoping beyond the current organization-and-campaign scope
 - Household normalization / retention-policy schema work beyond the current operational model
@@ -120,6 +119,5 @@ The system is now ready for client review and ready for controlled internal/pilo
 The only major items still outside the repository are:
 
 - Final release credentials for signed mobile binaries
-- A true on-device mobile database if you want full offline-first parity with the strict architecture packet
 - Additional CSV/VAN import workflow depth if you want the richer import policy beyond the current baseline
 - Any additional scope decisions you want included before production rollout

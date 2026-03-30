@@ -47,7 +47,7 @@ Primary app routes:
 
 - Expo
 - React Native
-- AsyncStorage for offline persistence
+- Expo SQLite for offline persistence
 - NetInfo for connectivity awareness
 - Expo Location for GPS capture
 

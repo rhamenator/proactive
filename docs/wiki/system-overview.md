@@ -47,7 +47,7 @@ Responsibilities:
 - assigned turf view
 - session start/pause/resume/complete
 - visit submission
-- offline queue persistence and retry
+- offline SQLite-backed queue persistence and retry
 
 ## Current Role Model
 
