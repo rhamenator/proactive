@@ -55,7 +55,7 @@ The remaining gaps are now mostly in the remaining edges of import-policy breadt
 - retention / lifecycle metadata on core operational tables, including users, turfs, address memberships, visits, address requests, and import/export artifacts
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
 - import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
-- a dedicated `ImportsService` and `/imports/csv` path with import modes including replace-membership behavior, duplicate skip/error/merge/review handling, expanded source-field mapping support, and a review queue tied directly to import-batch rows
+- a dedicated `ImportsService` and `/imports/csv` path with import modes including replace-membership behavior, duplicate skip/error/merge/review handling, expanded source-field mapping support, a review queue tied directly to import-batch rows, and configurable import/export profiles with organization/campaign overrides
 - operational policy records with organization/campaign fallback for import defaults, field visit/GPS thresholds, auth/recovery timing, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
 - configurable supervisor scope policy that can enforce campaign, team, or region-based access, backed by first-class teams and region codes across users, turfs, assignments, sessions, visits, address requests, imports, exports, and reports
 - deployment-wide system settings for auth rate-limit thresholds and retention automation schedule, with admin dashboard management and reset-to-env-default behavior
@@ -196,7 +196,7 @@ Safe for:
 
 Still blocked for full source-packet alignment:
 
-- fuller CSV/VAN import parity if the client insists on more source-specific workflow rules beyond the current audited baseline, duplicate review queue, and expanded field mapping
+- fuller CSV/VAN parity only if the client insists on more source-specific rules beyond the current configurable-profile baseline, duplicate review queue, and expanded field mapping
 - any optional expansion beyond the current team/region scope model into more specialized geography hierarchies
 - final signed mobile app distribution without real external signing credentials
 
@@ -207,7 +207,7 @@ Remaining non-blocking enhancements:
 
 ## Recommended Next Sequence
 
-1. Decide whether v1.x needs richer CSV/VAN parity beyond the current batch/row audit trail, replace-membership mode, duplicate review queue, and expanded field mapping support.
+1. Decide whether v1.x needs richer CSV/VAN parity beyond the current configurable-profile baseline, batch/row audit trail, replace-membership mode, duplicate review queue, and expanded field mapping support.
 2. Decide whether lifecycle automation should expand beyond the current safe cleanup targets of address requests, import/export artifacts, and expired credential records.
 3. Set the initial organization/campaign/team scope defaults in the new Policies and Teams screens before broader review.
 4. Provide production release secrets and final app identifiers for EAS/App Store/Play.

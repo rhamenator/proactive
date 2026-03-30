@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { CsvProfileDirection, UserRole } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RequireFreshMfa } from '../common/decorators/require-fresh-mfa.decorator';
@@ -125,6 +125,20 @@ export class AdminController {
     return this.adminService.getOperationalPolicy(await this.resolveScope(user), campaignId ?? null);
   }
 
+  @Get('csv-profiles')
+  @Roles(UserRole.admin, UserRole.supervisor)
+  async listCsvProfiles(
+    @CurrentUser() user: JwtUserPayload,
+    @Query('direction') direction: CsvProfileDirection,
+    @Query('campaignId') campaignId?: string
+  ) {
+    if (direction !== CsvProfileDirection.import && direction !== CsvProfileDirection.export) {
+      throw new BadRequestException('direction must be import or export');
+    }
+
+    return this.adminService.listCsvProfiles(await this.resolveScope(user), direction, campaignId ?? null);
+  }
+
   @Get('retention-summary')
   async retentionSummary(@CurrentUser() user: JwtUserPayload) {
     return this.adminService.retentionSummary(await this.resolveScope(user));
@@ -157,6 +171,51 @@ export class AdminController {
     @Query('campaignId') campaignId?: string
   ) {
     return this.adminService.clearOperationalPolicy(await this.resolveScope(user), campaignId ?? null, user.sub);
+  }
+
+  @Put('csv-profiles')
+  @RequireFreshMfa()
+  async upsertCsvProfile(
+    @Body()
+    body: {
+      direction: CsvProfileDirection;
+      code: string;
+      name: string;
+      description?: string | null;
+      campaignId?: string | null;
+      isActive?: boolean;
+      mappingJson?: Record<string, string> | null;
+      settingsJson?: Record<string, unknown> | null;
+    },
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    if (body.direction !== CsvProfileDirection.import && body.direction !== CsvProfileDirection.export) {
+      throw new BadRequestException('direction must be import or export');
+    }
+
+    return this.adminService.upsertCsvProfile(await this.resolveScope(user), body, user.sub);
+  }
+
+  @Delete('csv-profiles')
+  @RequireFreshMfa()
+  async clearCsvProfile(
+    @CurrentUser() user: JwtUserPayload,
+    @Query('direction') direction: CsvProfileDirection,
+    @Query('code') code: string,
+    @Query('campaignId') campaignId?: string
+  ) {
+    if (direction !== CsvProfileDirection.import && direction !== CsvProfileDirection.export) {
+      throw new BadRequestException('direction must be import or export');
+    }
+    if (!code?.trim()) {
+      throw new BadRequestException('code is required');
+    }
+
+    return this.adminService.clearCsvProfile(await this.resolveScope(user), {
+      direction,
+      code: code.trim(),
+      campaignId: campaignId ?? null
+    }, user.sub);
   }
 
   @Put('system-settings')

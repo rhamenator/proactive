@@ -31,7 +31,7 @@ describe('ExportsController', () => {
     exportsService.vanResultsCsv.mockResolvedValue({ csv: 'csv-data', count: 1, filename: 'van-results.csv' });
 
     await expect(
-      controller.vanResultsCsv('turf-1', 'true', {
+      controller.vanResultsCsv('turf-1', 'true', undefined, {
         sub: 'admin-1',
         email: 'admin@example.com',
         role: 'admin' as never,
@@ -59,6 +59,7 @@ describe('ExportsController', () => {
       controller.vanResultsCsv(
         'turf-1',
         'false',
+        undefined,
         { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never, organizationId: 'org-1' },
         response
       )
@@ -101,6 +102,7 @@ describe('ExportsController', () => {
     await expect(
       controller.internalMasterCsv(
         'turf-1',
+        undefined,
         { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never, organizationId: 'org-1' },
         response
       )

@@ -1,5 +1,6 @@
 export type Role = 'admin' | 'supervisor' | 'canvasser';
 export type SupervisorScopeMode = 'campaign' | 'team' | 'region';
+export type CsvProfileDirection = 'import' | 'export';
 
 export interface SafeUser {
   id: string;
@@ -46,6 +47,9 @@ export interface OperationalPolicyRecord {
   supervisorScopeMode: SupervisorScopeMode;
   defaultImportMode: 'create_only' | 'upsert' | 'replace_turf_membership';
   defaultDuplicateStrategy: 'skip' | 'error' | 'merge' | 'review';
+  defaultImportProfileCode?: string | null;
+  defaultVanExportProfileCode?: string | null;
+  defaultInternalExportProfileCode?: string | null;
   sensitiveMfaWindowMinutes: number;
   canvasserCorrectionWindowMinutes: number;
   maxAttemptsPerHousehold: number;
@@ -164,6 +168,23 @@ export interface CampaignRecord {
   isActive: boolean;
   organizationId?: string | null;
   createdAt?: string;
+}
+
+export interface CsvProfileRecord {
+  id: string | null;
+  direction: CsvProfileDirection;
+  code: string;
+  name: string;
+  description?: string | null;
+  campaignId?: string | null;
+  organizationId?: string | null;
+  isActive: boolean;
+  explicitRecord: boolean;
+  sourceScope: 'built_in' | 'organization' | 'campaign';
+  mappingJson?: unknown;
+  settingsJson?: unknown;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TeamRecord {

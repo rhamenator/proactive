@@ -12,6 +12,9 @@ type PolicyForm = {
   defaultImportMode: OperationalPolicyRecord['defaultImportMode'];
   defaultDuplicateStrategy: OperationalPolicyRecord['defaultDuplicateStrategy'];
   supervisorScopeMode: OperationalPolicyRecord['supervisorScopeMode'];
+  defaultImportProfileCode: string;
+  defaultVanExportProfileCode: string;
+  defaultInternalExportProfileCode: string;
   sensitiveMfaWindowMinutes: number;
   canvasserCorrectionWindowMinutes: number;
   maxAttemptsPerHousehold: number;
@@ -43,6 +46,9 @@ function toForm(policy: OperationalPolicyRecord): PolicyForm {
     defaultImportMode: policy.defaultImportMode,
     defaultDuplicateStrategy: policy.defaultDuplicateStrategy,
     supervisorScopeMode: policy.supervisorScopeMode,
+    defaultImportProfileCode: policy.defaultImportProfileCode ?? '',
+    defaultVanExportProfileCode: policy.defaultVanExportProfileCode ?? '',
+    defaultInternalExportProfileCode: policy.defaultInternalExportProfileCode ?? '',
     sensitiveMfaWindowMinutes: policy.sensitiveMfaWindowMinutes,
     canvasserCorrectionWindowMinutes: policy.canvasserCorrectionWindowMinutes,
     maxAttemptsPerHousehold: policy.maxAttemptsPerHousehold,
@@ -162,6 +168,9 @@ export default function PoliciesPage() {
         defaultImportMode: form.defaultImportMode,
         defaultDuplicateStrategy: form.defaultDuplicateStrategy,
         supervisorScopeMode: form.supervisorScopeMode,
+        defaultImportProfileCode: form.defaultImportProfileCode || null,
+        defaultVanExportProfileCode: form.defaultVanExportProfileCode || null,
+        defaultInternalExportProfileCode: form.defaultInternalExportProfileCode || null,
         sensitiveMfaWindowMinutes: form.sensitiveMfaWindowMinutes,
         canvasserCorrectionWindowMinutes: form.canvasserCorrectionWindowMinutes,
         maxAttemptsPerHousehold: form.maxAttemptsPerHousehold,
@@ -495,6 +504,57 @@ export default function PoliciesPage() {
                 <p className="muted">
                   This controls how supervisors inherit access: by campaign, by team, or by region.
                 </p>
+
+                <div>
+                  <p className="section-kicker">CSV Profiles</p>
+                  <h3 className="heading-reset-tight">Default profile codes</h3>
+                </div>
+
+                <div className="field-group">
+                  <label htmlFor="default-import-profile">Default import profile code</label>
+                  <Input
+                    id="default-import-profile"
+                    value={form.defaultImportProfileCode}
+                    disabled={!isAdmin}
+                    onChange={(event) =>
+                      setForm((current) =>
+                        current ? { ...current, defaultImportProfileCode: event.target.value } : current
+                      )
+                    }
+                    placeholder="profile code used for CSV imports"
+                  />
+                </div>
+
+                <div className="split">
+                  <div className="field-group">
+                    <label htmlFor="default-van-export-profile">Default VAN export profile code</label>
+                    <Input
+                      id="default-van-export-profile"
+                      value={form.defaultVanExportProfileCode}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, defaultVanExportProfileCode: event.target.value } : current
+                        )
+                      }
+                      placeholder="profile code used for VAN exports"
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label htmlFor="default-internal-export-profile">Default internal export profile code</label>
+                    <Input
+                      id="default-internal-export-profile"
+                      value={form.defaultInternalExportProfileCode}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, defaultInternalExportProfileCode: event.target.value } : current
+                        )
+                      }
+                      placeholder="profile code used for internal exports"
+                    />
+                  </div>
+                </div>
 
                 <div className="field-group">
                   <label htmlFor="mfa-window">Sensitive-action MFA window (minutes)</label>

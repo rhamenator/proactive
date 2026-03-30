@@ -11,6 +11,10 @@ export class ImportCsvDto {
   mapping?: string;
 
   @IsOptional()
+  @IsString()
+  profileCode?: string;
+
+  @IsOptional()
   @IsIn(['create_only', 'upsert', 'replace_turf_membership'])
   mode?: 'create_only' | 'upsert' | 'replace_turf_membership';
 

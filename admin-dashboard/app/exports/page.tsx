@@ -1,30 +1,73 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Select } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
-import type { ExportBatchRecord, TurfListItem } from '../../src/lib/types';
+import type { CsvProfileRecord, ExportBatchRecord, OperationalPolicyRecord, TurfListItem } from '../../src/lib/types';
+
+function profileOptionKey(profile: Pick<CsvProfileRecord, 'direction' | 'code' | 'campaignId'>) {
+  return `${profile.direction}:${profile.code}:${profile.campaignId ?? 'org'}`;
+}
+
+function resolveMarkExportedDefault(profile?: CsvProfileRecord | null) {
+  if (!profile?.settingsJson || typeof profile.settingsJson !== 'object' || Array.isArray(profile.settingsJson)) {
+    return true;
+  }
+
+  const value = (profile.settingsJson as Record<string, unknown>).markExportedDefault;
+  return typeof value === 'boolean' ? value : true;
+}
 
 export default function ExportsPage() {
   const { user, runSensitiveAction } = useAuth();
   const api = useAuthedApi();
   const [turfs, setTurfs] = useState<TurfListItem[]>([]);
   const [history, setHistory] = useState<ExportBatchRecord[]>([]);
+  const [policy, setPolicy] = useState<OperationalPolicyRecord | null>(null);
+  const [exportProfiles, setExportProfiles] = useState<CsvProfileRecord[]>([]);
   const [selectedTurfId, setSelectedTurfId] = useState('');
+  const [selectedVanProfileCode, setSelectedVanProfileCode] = useState('');
+  const [selectedInternalProfileCode, setSelectedInternalProfileCode] = useState('');
   const [markExported, setMarkExported] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [historyDownloadId, setHistoryDownloadId] = useState<string | null>(null);
 
+  const vanProfiles = useMemo(
+    () => exportProfiles.filter((profile) => profile.code !== 'internal_master'),
+    [exportProfiles]
+  );
+  const internalProfiles = useMemo(
+    () => exportProfiles.filter((profile) => profile.code === 'internal_master'),
+    [exportProfiles]
+  );
+  const selectedVanProfile = useMemo(
+    () => vanProfiles.find((profile) => profile.code === selectedVanProfileCode) ?? null,
+    [selectedVanProfileCode, vanProfiles]
+  );
+
   const loadHistory = useCallback(async () => {
-    const [nextTurfs, nextHistory] = await Promise.all([api.listTurfs(), api.listExportHistory()]);
+    const [nextTurfs, nextHistory, nextPolicy, nextProfiles] = await Promise.all([
+      api.listTurfs(),
+      api.listExportHistory(),
+      api.getOperationalPolicy(user?.campaignId ?? null),
+      api.listCsvProfiles('export', user?.campaignId ?? null)
+    ]);
+
+    const nextVanProfiles = nextProfiles.filter((profile) => profile.code !== 'internal_master');
+    const nextInternalProfiles = nextProfiles.filter((profile) => profile.code === 'internal_master');
+
     setTurfs(nextTurfs);
     setHistory(nextHistory);
-  }, [api]);
+    setPolicy(nextPolicy);
+    setExportProfiles(nextProfiles);
+    setSelectedVanProfileCode(nextPolicy.defaultVanExportProfileCode ?? nextVanProfiles[0]?.code ?? '');
+    setSelectedInternalProfileCode(nextPolicy.defaultInternalExportProfileCode ?? nextInternalProfiles[0]?.code ?? '');
+  }, [api, user?.campaignId]);
 
   useEffect(() => {
     if (user?.role !== 'admin') {
@@ -32,6 +75,10 @@ export default function ExportsPage() {
     }
     void loadHistory().catch((value) => setError(getErrorMessage(value)));
   }, [loadHistory, user?.role]);
+
+  useEffect(() => {
+    setMarkExported(resolveMarkExportedDefault(selectedVanProfile));
+  }, [selectedVanProfile]);
 
   if (user?.role !== 'admin') {
     return (
@@ -59,10 +106,12 @@ export default function ExportsPage() {
           profile === 'van'
             ? freshApi.exportVanResults({
                 turfId: selectedTurfId || undefined,
-                markExported
+                markExported,
+                profileCode: selectedVanProfileCode || undefined
               })
             : freshApi.exportInternalMaster({
-                turfId: selectedTurfId || undefined
+                turfId: selectedTurfId || undefined,
+                profileCode: selectedInternalProfileCode || undefined
               })
       );
       const url = URL.createObjectURL(result.blob);
@@ -125,17 +174,52 @@ export default function ExportsPage() {
         </Card>
 
         <Card className="stack">
-          <div className="field-group">
-            <label htmlFor="turf-filter">Filter by turf</label>
-            <Select id="turf-filter" value={selectedTurfId} onChange={(event) => setSelectedTurfId(event.target.value)}>
-              <option value="">All turfs</option>
-              {turfs.map((turf) => (
-                <option key={turf.id} value={turf.id}>
-                  {turf.name}
-                </option>
-              ))}
-            </Select>
+          <div className="split">
+            <div className="field-group">
+              <label htmlFor="turf-filter">Filter by turf</label>
+              <Select id="turf-filter" value={selectedTurfId} onChange={(event) => setSelectedTurfId(event.target.value)}>
+                <option value="">All turfs</option>
+                {turfs.map((turf) => (
+                  <option key={turf.id} value={turf.id}>
+                    {turf.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="field-group">
+              <label htmlFor="van-profile">VAN export profile</label>
+              <Select id="van-profile" value={selectedVanProfileCode} onChange={(event) => setSelectedVanProfileCode(event.target.value)}>
+                {vanProfiles.map((profile) => (
+                  <option key={profileOptionKey(profile)} value={profile.code}>
+                    {profile.name} ({profile.code})
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="field-group">
+              <label htmlFor="internal-profile">Internal export profile</label>
+              <Select
+                id="internal-profile"
+                value={selectedInternalProfileCode}
+                onChange={(event) => setSelectedInternalProfileCode(event.target.value)}
+              >
+                {internalProfiles.map((profile) => (
+                  <option key={profileOptionKey(profile)} value={profile.code}>
+                    {profile.name} ({profile.code})
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
+
+          <p className="muted">
+            Policy defaults:
+            {policy?.defaultVanExportProfileCode ? ` VAN ${policy.defaultVanExportProfileCode}` : ' VAN default unset'}
+            {' • '}
+            {policy?.defaultInternalExportProfileCode
+              ? `Internal ${policy.defaultInternalExportProfileCode}`
+              : 'Internal default unset'}
+          </p>
 
           <div className="inline-actions">
             <Button variant={markExported ? 'secondary' : 'ghost'} onClick={() => setMarkExported((current) => !current)}>

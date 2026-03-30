@@ -18,11 +18,20 @@ describe('ExportsService', () => {
   };
   const policiesService = {
     getEffectivePolicy: jest.fn().mockResolvedValue({
-      retentionPurgeDays: 30
+      retentionPurgeDays: 30,
+      defaultVanExportProfileCode: 'van_compatible',
+      defaultInternalExportProfileCode: 'internal_master'
     })
   };
+  const csvProfilesService = {
+    resolveProfile: jest.fn().mockImplementation(async ({ code }: { code: string }) => ({
+      code,
+      name: code === 'internal_master' ? 'Internal Master Export' : 'VAN Compatible Export',
+      settingsJson: null
+    }))
+  };
 
-  const service = new ExportsService(prisma as never, auditService as never, policiesService as never);
+  const service = new ExportsService(prisma as never, auditService as never, policiesService as never, csvProfilesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();

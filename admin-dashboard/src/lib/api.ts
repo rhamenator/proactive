@@ -4,6 +4,8 @@ import type {
   AuditActivityReport,
   AuthLoginResponse,
   CampaignRecord,
+  CsvProfileDirection,
+  CsvProfileRecord,
   DashboardSummary,
   DisableMfaResponse,
   ExportBatchAnalyticsReport,
@@ -314,6 +316,40 @@ export function createApiClient(token?: string | null) {
     listCampaigns() {
       return requestJson<CampaignRecord[]>('/admin/campaigns', {}, token);
     },
+    listCsvProfiles(direction: CsvProfileDirection, campaignId?: string | null) {
+      const params = new URLSearchParams();
+      params.set('direction', direction);
+      if (campaignId) {
+        params.set('campaignId', campaignId);
+      }
+      return requestJson<CsvProfileRecord[]>(`/admin/csv-profiles?${params.toString()}`, {}, token);
+    },
+    upsertCsvProfile(payload: {
+      direction: CsvProfileDirection;
+      code: string;
+      name: string;
+      description?: string | null;
+      campaignId?: string | null;
+      isActive?: boolean;
+      mappingJson?: unknown;
+      settingsJson?: unknown;
+    }) {
+      return requestJson<CsvProfileRecord[]>('/admin/csv-profiles', {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }, token);
+    },
+    deleteCsvProfile(direction: CsvProfileDirection, code: string, campaignId?: string | null) {
+      const params = new URLSearchParams();
+      params.set('direction', direction);
+      params.set('code', code);
+      if (campaignId) {
+        params.set('campaignId', campaignId);
+      }
+      return requestJson<CsvProfileRecord[]>(`/admin/csv-profiles?${params.toString()}`, {
+        method: 'DELETE'
+      }, token);
+    },
     listTeams() {
       return requestJson<TeamRecord[]>('/admin/teams', {}, token);
     },
@@ -369,6 +405,9 @@ export function createApiClient(token?: string | null) {
       defaultImportMode?: OperationalPolicyRecord['defaultImportMode'];
       defaultDuplicateStrategy?: OperationalPolicyRecord['defaultDuplicateStrategy'];
       supervisorScopeMode?: OperationalPolicyRecord['supervisorScopeMode'];
+      defaultImportProfileCode?: string | null;
+      defaultVanExportProfileCode?: string | null;
+      defaultInternalExportProfileCode?: string | null;
       sensitiveMfaWindowMinutes?: number;
       canvasserCorrectionWindowMinutes?: number;
       maxAttemptsPerHousehold?: number;
@@ -609,6 +648,7 @@ export function createApiClient(token?: string | null) {
       duplicateStrategy?: TurfAddressImportResult['duplicateStrategy'];
       teamId?: string | null;
       regionCode?: string | null;
+      profileCode?: string | null;
     }) {
       const formData = new FormData();
       formData.append('file', payload.file);
@@ -630,12 +670,15 @@ export function createApiClient(token?: string | null) {
       if (payload.regionCode) {
         formData.append('regionCode', payload.regionCode);
       }
+      if (payload.profileCode) {
+        formData.append('profileCode', payload.profileCode);
+      }
       return requestJson<TurfAddressImportResult>('/imports/csv', {
         method: 'POST',
         body: formData
       }, token);
     },
-    exportVanResults(payload?: { turfId?: string; markExported?: boolean }) {
+    exportVanResults(payload?: { turfId?: string; markExported?: boolean; profileCode?: string | null }) {
       const params = new URLSearchParams();
       if (payload?.turfId) {
         params.set('turfId', payload.turfId);
@@ -643,12 +686,18 @@ export function createApiClient(token?: string | null) {
       if (payload?.markExported) {
         params.set('markExported', 'true');
       }
+      if (payload?.profileCode) {
+        params.set('profileCode', payload.profileCode);
+      }
       return requestBlob(`/exports/van-results${params.toString() ? `?${params.toString()}` : ''}`, token);
     },
-    exportInternalMaster(payload?: { turfId?: string }) {
+    exportInternalMaster(payload?: { turfId?: string; profileCode?: string | null }) {
       const params = new URLSearchParams();
       if (payload?.turfId) {
         params.set('turfId', payload.turfId);
+      }
+      if (payload?.profileCode) {
+        params.set('profileCode', payload.profileCode);
       }
       return requestBlob(`/exports/internal-master${params.toString() ? `?${params.toString()}` : ''}`, token);
     }

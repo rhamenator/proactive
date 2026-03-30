@@ -85,6 +85,7 @@ export class ImportsController {
       createdById: user.sub,
       turfName: body.turfName,
       mapping,
+      profileCode: body.profileCode,
       mode: body.mode,
       duplicateStrategy: body.duplicateStrategy,
       teamId: body.teamId,

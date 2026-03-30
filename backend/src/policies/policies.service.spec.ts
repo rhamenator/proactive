@@ -31,8 +31,11 @@ describe('PoliciesService', () => {
         campaignId: null,
         sourceScope: 'default',
         explicitRecord: false,
+        defaultImportProfileCode: 'van_standard',
         defaultImportMode: 'replace_turf_membership',
         defaultDuplicateStrategy: 'skip',
+        defaultVanExportProfileCode: 'van_compatible',
+        defaultInternalExportProfileCode: 'internal_master',
         canvasserCorrectionWindowMinutes: 10,
         maxAttemptsPerHousehold: 3,
         minMinutesBetweenAttempts: 5,
@@ -55,8 +58,11 @@ describe('PoliciesService', () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         id: 'policy-org',
+        defaultImportProfileCode: 'van_standard',
         defaultImportMode: 'upsert',
         defaultDuplicateStrategy: 'merge',
+        defaultVanExportProfileCode: 'van_compatible',
+        defaultInternalExportProfileCode: 'internal_master',
         sensitiveMfaWindowMinutes: 12,
         canvasserCorrectionWindowMinutes: 15,
         maxAttemptsPerHousehold: 4,
@@ -84,8 +90,11 @@ describe('PoliciesService', () => {
         sourceScope: 'organization',
         explicitRecord: false,
         inheritedFromOrganization: true,
+        defaultImportProfileCode: 'van_standard',
         defaultImportMode: 'upsert',
         defaultDuplicateStrategy: 'merge',
+        defaultVanExportProfileCode: 'van_compatible',
+        defaultInternalExportProfileCode: 'internal_master',
         sensitiveMfaWindowMinutes: 12,
         canvasserCorrectionWindowMinutes: 15,
         maxAttemptsPerHousehold: 4,
@@ -117,6 +126,7 @@ describe('PoliciesService', () => {
     const result = await service.upsertPolicy(
       { organizationId: 'org-1', campaignId: null },
       {
+        defaultImportProfileCode: 'van_standard',
         defaultImportMode: 'upsert',
         canvasserCorrectionWindowMinutes: 20,
         refreshTokenTtlDays: 30,
@@ -133,6 +143,7 @@ describe('PoliciesService', () => {
         scopeKey: 'org-1:org',
         organizationId: 'org-1',
         campaignId: null,
+        defaultImportProfileCode: 'van_standard',
         defaultImportMode: 'upsert',
         canvasserCorrectionWindowMinutes: 20,
         refreshTokenTtlDays: 30,
@@ -140,6 +151,7 @@ describe('PoliciesService', () => {
         retentionPurgeDays: 90
       }),
       update: expect.objectContaining({
+        defaultImportProfileCode: 'van_standard',
         defaultImportMode: 'upsert',
         canvasserCorrectionWindowMinutes: 20,
         refreshTokenTtlDays: 30,
@@ -156,8 +168,11 @@ describe('PoliciesService', () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         id: 'policy-org',
+        defaultImportProfileCode: 'van_standard',
         defaultImportMode: 'upsert',
         defaultDuplicateStrategy: 'merge',
+        defaultVanExportProfileCode: 'van_compatible',
+        defaultInternalExportProfileCode: 'internal_master',
         sensitiveMfaWindowMinutes: 12,
         canvasserCorrectionWindowMinutes: 15,
         maxAttemptsPerHousehold: 4,

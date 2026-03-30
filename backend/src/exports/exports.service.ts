@@ -4,12 +4,14 @@ import { Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify/sync';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
+import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 type ExportOptions = {
   turfId?: string;
   markExported?: boolean;
+  profileCode?: string;
   actorUserId?: string;
   organizationId?: string | null;
   campaignId?: string | null;
@@ -22,7 +24,8 @@ export class ExportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-    private readonly policiesService: PoliciesService
+    private readonly policiesService: PoliciesService,
+    private readonly csvProfilesService: CsvProfilesService
   ) {}
 
   private buildTimestampedFilename(prefix: string) {
@@ -61,6 +64,33 @@ export class ExportsService {
     return createHash('sha256').update(csv).digest('hex');
   }
 
+  private profileSettings(value: unknown) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return value as Record<string, unknown>;
+  }
+
+  private normalizeColumns(value: unknown, fallback: string[]) {
+    if (!Array.isArray(value)) {
+      return fallback;
+    }
+
+    const columns = value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+    return columns.length > 0 ? columns : fallback;
+  }
+
+  private renderRows(rows: Array<Record<string, unknown>>, columns: string[]) {
+    return rows.map((row) => {
+      const rendered: Record<string, unknown> = {};
+      for (const column of columns) {
+        rendered[column] = row[column] ?? '';
+      }
+      return rendered;
+    });
+  }
+
   private buildPurgeAt(days?: number | null) {
     if (!days || days <= 0) {
       return null;
@@ -71,6 +101,7 @@ export class ExportsService {
 
   private async recordExportBatch(input: {
     profileCode: string;
+    profileName?: string | null;
     filename: string;
     csv: string;
     rowCount: number;
@@ -86,6 +117,7 @@ export class ExportsService {
     return this.prisma.exportBatch.create({
       data: {
         profileCode: input.profileCode,
+        profileName: input.profileName ?? null,
         filename: input.filename,
         organizationId: input.scope.organizationId,
         campaignId: input.scope.campaignId ?? null,
@@ -182,9 +214,25 @@ export class ExportsService {
   }
 
   async vanResultsCsv(options?: ExportOptions) {
+    const scope = {
+      organizationId: options?.organizationId ?? null,
+      campaignId: options?.campaignId ?? null,
+      teamId: options?.teamId ?? null,
+      regionCode: options?.regionCode ?? null
+    };
+    const policy = scope.organizationId
+      ? await this.policiesService.getEffectivePolicy(scope)
+      : null;
+    const profileCode = options?.profileCode ?? policy?.defaultVanExportProfileCode ?? 'van_compatible';
+    const profile = await this.csvProfilesService.resolveProfile({
+      direction: 'export',
+      code: profileCode,
+      organizationId: scope.organizationId,
+      campaignId: scope.campaignId ?? null
+    });
+    const profileSettings = this.profileSettings(profile.settingsJson);
     const visits = await this.fetchVisits(options);
-    const filename = this.buildTimestampedFilename('van-results');
-    const rows = visits.map((visit) => ({
+    const baseRows = visits.map((visit) => ({
       van_id: visit.address.vanId ?? '',
       address_line1: visit.address.addressLine1,
       visit_time: visit.visitTime.toISOString(),
@@ -200,33 +248,53 @@ export class ExportsService {
       sync_status: visit.syncStatus,
       canvasser_name: `${visit.canvasser.firstName} ${visit.canvasser.lastName}`.trim()
     }));
+    const columns = this.normalizeColumns(profileSettings.columns, Object.keys(baseRows[0] ?? {
+      van_id: '',
+      address_line1: '',
+      visit_time: '',
+      result: '',
+      contact_made: '',
+      notes: '',
+      time_zone: '',
+      gps_status: '',
+      latitude: '',
+      longitude: '',
+      accuracy_meters: '',
+      distance_from_target_feet: '',
+      sync_status: '',
+      canvasser_name: ''
+    }));
+    const rows = this.renderRows(baseRows, columns);
+    const filenamePrefix =
+      typeof profileSettings.filenamePrefix === 'string' && profileSettings.filenamePrefix.trim()
+        ? profileSettings.filenamePrefix.trim()
+        : 'van-results';
+    const filename = this.buildTimestampedFilename(filenamePrefix);
 
     const csv = stringify(rows, {
       header: true,
       bom: true
     });
 
-    if (options?.markExported && visits.length > 0) {
+    const markExported =
+      options?.markExported ??
+      (typeof profileSettings.markExportedDefault === 'boolean' ? profileSettings.markExportedDefault : false);
+
+    if (markExported && visits.length > 0) {
       await this.prisma.visitLog.updateMany({
         where: { id: { in: visits.map((visit) => visit.id) } },
         data: { vanExported: true }
       });
     }
-
-    const scope = {
-      organizationId: options?.organizationId ?? null,
-      campaignId: options?.campaignId ?? null,
-      teamId: options?.teamId ?? null,
-      regionCode: options?.regionCode ?? null
-    };
     await this.recordExportBatch({
-      profileCode: 'van_compatible',
+      profileCode: profile.code,
+      profileName: profile.name,
       filename,
       csv,
       rowCount: visits.length,
       turfId: options?.turfId,
       actorUserId: options?.actorUserId,
-      markExported: options?.markExported ?? false,
+      markExported,
       scope,
       visits,
       rows
@@ -243,9 +311,9 @@ export class ExportsService {
         campaignId: scope.campaignId,
         teamId: scope.teamId,
         regionCode: scope.regionCode,
-        markExported: options?.markExported ?? false,
+        markExported,
         count: visits.length,
-        profileCode: 'van_compatible'
+        profileCode: profile.code
       }
     });
 
@@ -253,12 +321,28 @@ export class ExportsService {
   }
 
   async internalMasterCsv(options?: ExportOptions) {
+    const scope = {
+      organizationId: options?.organizationId ?? null,
+      campaignId: options?.campaignId ?? null,
+      teamId: options?.teamId ?? null,
+      regionCode: options?.regionCode ?? null
+    };
+    const policy = scope.organizationId
+      ? await this.policiesService.getEffectivePolicy(scope)
+      : null;
+    const profileCode = options?.profileCode ?? policy?.defaultInternalExportProfileCode ?? 'internal_master';
+    const profile = await this.csvProfilesService.resolveProfile({
+      direction: 'export',
+      code: profileCode,
+      organizationId: scope.organizationId,
+      campaignId: scope.campaignId ?? null
+    });
+    const profileSettings = this.profileSettings(profile.settingsJson);
     const visits = await this.fetchVisits({
       ...options,
       markExported: false
     });
-    const filename = this.buildTimestampedFilename('internal-master');
-    const rows = visits.map((visit) => ({
+    const baseRows = visits.map((visit) => ({
       visit_id: visit.id,
       turf_id: visit.turfId,
       turf_name: visit.turf.name,
@@ -296,20 +380,32 @@ export class ExportsService {
       time_zone: 'America/Detroit',
       van_exported: visit.vanExported ? 'true' : 'false'
     }));
+    const columns = this.normalizeColumns(profileSettings.columns, Object.keys(baseRows[0] ?? {
+      visit_id: '',
+      turf_id: '',
+      turf_name: '',
+      address_id: '',
+      van_id: '',
+      address_line1: '',
+      city: '',
+      state: '',
+      zip: '',
+      visit_time: ''
+    }));
+    const rows = this.renderRows(baseRows, columns);
+    const filenamePrefix =
+      typeof profileSettings.filenamePrefix === 'string' && profileSettings.filenamePrefix.trim()
+        ? profileSettings.filenamePrefix.trim()
+        : 'internal-master';
+    const filename = this.buildTimestampedFilename(filenamePrefix);
 
     const csv = stringify(rows, {
       header: true,
       bom: true
     });
-
-    const scope = {
-      organizationId: options?.organizationId ?? null,
-      campaignId: options?.campaignId ?? null,
-      teamId: options?.teamId ?? null,
-      regionCode: options?.regionCode ?? null
-    };
     await this.recordExportBatch({
-      profileCode: 'internal_master',
+      profileCode: profile.code,
+      profileName: profile.name,
       filename,
       csv,
       rowCount: visits.length,
@@ -334,7 +430,7 @@ export class ExportsService {
         regionCode: scope.regionCode,
         markExported: false,
         count: visits.length,
-        profileCode: 'internal_master'
+        profileCode: profile.code
       }
     });
 

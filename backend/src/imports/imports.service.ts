@@ -5,6 +5,7 @@ import { parse } from 'csv-parse/sync';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { CsvMapping, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
+import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -20,7 +21,8 @@ export class ImportsService {
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
     private readonly auditService: AuditService,
-    private readonly policiesService: PoliciesService
+    private readonly policiesService: PoliciesService,
+    private readonly csvProfilesService: CsvProfilesService
   ) {}
 
   private buildTimestampedFilename(prefix: string) {
@@ -79,6 +81,30 @@ export class ImportsService {
     }
 
     return mappingJson as CsvMapping;
+  }
+
+  private normalizeImportMode(value: unknown): ImportMode | undefined {
+    if (value === 'create_only' || value === 'upsert' || value === 'replace_turf_membership') {
+      return value;
+    }
+
+    return undefined;
+  }
+
+  private normalizeDuplicateStrategy(value: unknown): DuplicateStrategy | undefined {
+    if (value === 'skip' || value === 'error' || value === 'merge' || value === 'review') {
+      return value;
+    }
+
+    return undefined;
+  }
+
+  private profileSettings(value: unknown) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return value as Record<string, unknown>;
   }
 
   private parseRow(rawRowJson: unknown): ImportRow {
@@ -229,6 +255,7 @@ export class ImportsService {
     createdById: string;
     turfName?: string;
     mapping?: CsvMapping;
+    profileCode?: string | null;
     mode?: ImportMode;
     duplicateStrategy?: DuplicateStrategy;
     teamId?: string | null;
@@ -244,8 +271,21 @@ export class ImportsService {
     });
     const team = await this.validateTeamScope(creator.organizationId ?? null, creator.campaignId ?? null, input.teamId);
     const regionCode = input.regionCode?.trim() || team?.regionCode || null;
-    const mode = input.mode ?? policy.defaultImportMode;
-    const duplicateStrategy = input.duplicateStrategy ?? policy.defaultDuplicateStrategy;
+    const effectiveCampaignId = creator.campaignId ?? team?.campaignId ?? null;
+    const profileCode = input.profileCode?.trim() || policy.defaultImportProfileCode;
+    const profile = await this.csvProfilesService.resolveProfile({
+      direction: 'import',
+      code: profileCode,
+      organizationId: creator.organizationId,
+      campaignId: effectiveCampaignId
+    });
+    const profileSettings = this.profileSettings(profile.settingsJson);
+    const mapping = input.mapping ?? profile.mappingJson ?? undefined;
+    const mode = input.mode ?? this.normalizeImportMode(profileSettings.importMode) ?? policy.defaultImportMode;
+    const duplicateStrategy =
+      input.duplicateStrategy ??
+      this.normalizeDuplicateStrategy(profileSettings.duplicateStrategy) ??
+      policy.defaultDuplicateStrategy;
     const records = parse(input.csv, {
       columns: true,
       skip_empty_lines: true,
@@ -258,7 +298,7 @@ export class ImportsService {
 
     const groupedRows = new Map<string, Array<{ row: ImportRow; rowIndex: number }>>();
     for (const [index, row] of records.entries()) {
-      const resolvedTurfName = resolveMappedValue(row, 'turfName', input.mapping) ?? input.turfName ?? 'Imported Turf';
+      const resolvedTurfName = resolveMappedValue(row, 'turfName', mapping) ?? input.turfName ?? 'Imported Turf';
       if (!groupedRows.has(resolvedTurfName)) {
         groupedRows.set(resolvedTurfName, []);
       }
@@ -329,7 +369,7 @@ export class ImportsService {
           latitude,
           longitude,
           combinedAddressLine1
-        } = this.extractRowAddress({ row, mapping: input.mapping });
+        } = this.extractRowAddress({ row, mapping });
 
         if (!addressLine1 || !city || !state) {
           invalidRowsSkipped += 1;
@@ -473,12 +513,18 @@ export class ImportsService {
       }
     }
 
-    const filename = this.buildTimestampedFilename('import-batch');
+    const filenamePrefix =
+      typeof profileSettings.filenamePrefix === 'string' && profileSettings.filenamePrefix.trim()
+        ? profileSettings.filenamePrefix.trim()
+        : 'import-batch';
+    const filename = this.buildTimestampedFilename(filenamePrefix);
     const importBatch = await this.prisma.importBatch.create({
       data: {
+        profileCode: profile.code,
+        profileName: profile.name,
         filename,
         organizationId: creator.organizationId ?? null,
-        campaignId: creator.campaignId ?? null,
+        campaignId: effectiveCampaignId,
         teamId: input.teamId ?? null,
         regionCode,
         initiatedByUserId: input.createdById,
@@ -492,7 +538,7 @@ export class ImportsService {
         pendingReviewCount: pendingDuplicateReviews,
         invalidCount: invalidRowsSkipped,
         duplicateSkippedCount: duplicateRowsSkipped,
-        mappingJson: (input.mapping ?? null) as never,
+        mappingJson: (mapping ?? null) as never,
         csvContent: input.csv,
         sha256Checksum: this.checksum(input.csv),
         purgeAt: this.buildPurgeAt(policy.retentionPurgeDays),
@@ -514,6 +560,7 @@ export class ImportsService {
     const result = {
       importBatchId: importBatch.id,
       filename,
+      profileCode: profile.code,
       mode,
       duplicateStrategy,
       turfsCreated: createdTurfs.length,

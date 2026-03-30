@@ -46,6 +46,7 @@ export class ExportsController {
   async vanResultsCsv(
     @Query('turfId') turfId?: string,
     @Query('markExported') markExported?: string,
+    @Query('profileCode') profileCode?: string,
     @CurrentUser() user?: JwtUserPayload,
     @Res() response?: Response
   ) {
@@ -53,6 +54,7 @@ export class ExportsController {
     const result = await this.exportsService.vanResultsCsv({
       turfId,
       markExported: markExported === 'true',
+      profileCode,
       actorUserId: user?.sub,
       organizationId: scope.organizationId,
       campaignId: scope.campaignId
@@ -71,12 +73,14 @@ export class ExportsController {
   @RequireFreshMfa()
   async internalMasterCsv(
     @Query('turfId') turfId?: string,
+    @Query('profileCode') profileCode?: string,
     @CurrentUser() user?: JwtUserPayload,
     @Res() response?: Response
   ) {
     const scope = user ? await resolveAccessScope(user, this.usersService, this.policiesService) : { organizationId: null, campaignId: null };
     const result = await this.exportsService.internalMasterCsv({
       turfId,
+      profileCode,
       actorUserId: user?.sub,
       organizationId: scope.organizationId,
       campaignId: scope.campaignId

@@ -16,9 +16,9 @@ The application suite has been built and brought to a review-ready state across 
   - Sync-conflict review and resolution workflow
   - Configurable visit outcomes
   - Requested-address submission and review workflow
-  - Dedicated CSV import service with create-only, upsert, and replace-membership modes; duplicate skip/error/merge/review handling; expanded VAN/person/household/unit mapping; batch history; downloadable source artifacts; row-level import tracing; and reviewer resolution for deferred duplicate rows
+  - Dedicated CSV import service with create-only, upsert, and replace-membership modes; duplicate skip/error/merge/review handling; expanded VAN/person/household/unit mapping; batch history; downloadable source artifacts; row-level import tracing; reviewer resolution for deferred duplicate rows; and configurable import profiles with organization/campaign overrides
   - Reporting endpoints for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
-  - VAN export, internal master export, export batch history, historical CSV re-download, and row-traceable export artifacts
+  - VAN export, internal master export, export batch history, historical CSV re-download, row-traceable export artifacts, and configurable export profiles with policy-driven default profile selection
 
 - **Admin Dashboard**
   - Dashboard and operational summary views
@@ -29,6 +29,7 @@ The application suite has been built and brought to a review-ready state across 
   - MFA account management
   - Sensitive-action MFA confirmation flow for exports, overrides, conflict resolution, and turf control changes
   - Policy management for configurable operational defaults such as field visit/GPS thresholds, auth/recovery timing, import behavior, MFA freshness, retention planning, and organization outcome fallback, with step-up MFA required for policy edits and explicit overrides that can be cleared back to inherited defaults
+  - CSV profile management for import/export mappings and settings, including organization/campaign overrides and policy-selected default profile codes
   - Supervisor scope configuration across campaign, team, and region modes
   - System-wide settings management for deployment-level auth throttling and retention automation timing, with step-up MFA required for save/reset actions
   - Retention summary and manual cleanup workflow for purgeable artifacts and expired credential records
@@ -99,7 +100,7 @@ Please review:
 
 Please confirm whether you want any of the following added before release:
 
-- Any additional CSV/VAN import rules beyond the current review-ready baseline with replace-membership imports, expanded VAN field mapping, deferred duplicate review, and duplicate handling
+- Any additional CSV/VAN rules beyond the current review-ready baseline with configurable profiles, replace-membership imports, expanded VAN field mapping, deferred duplicate review, and duplicate handling
 - Any geography model deeper than the current campaign/team/region scope design
 - Whether you want lifecycle automation expanded beyond the current safe cleanup targets of address requests, import/export artifacts, and expired credential records
 - Any changes to impersonation policy, correction windows, or review permissions
@@ -133,5 +134,5 @@ The system is now ready for client review and ready for controlled internal/pilo
 The only major items still outside the repository are:
 
 - Final release credentials for signed mobile binaries
-- Additional CSV/VAN import workflow depth if you want richer source-specific policy beyond the current baseline, expanded mapping, and duplicate-review workflow
+- Additional CSV/VAN workflow depth if you want richer source-specific policy beyond the current configurable-profile baseline, expanded mapping, and duplicate-review workflow
 - Any additional geography/scope decisions you want included beyond the current campaign/team/region model

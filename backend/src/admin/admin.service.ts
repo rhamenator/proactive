@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AssignmentStatus, Prisma, SyncStatus, UserRole } from '@prisma/client';
+import { AssignmentStatus, CsvProfileDirection, Prisma, SyncStatus, UserRole } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
+import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RetentionService } from '../retention/retention.service';
@@ -58,6 +59,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly policiesService: PoliciesService,
+    private readonly csvProfilesService: CsvProfilesService,
     private readonly auditService: AuditService,
     private readonly retentionService: RetentionService,
     private readonly systemSettingsService: SystemSettingsService
@@ -413,6 +415,11 @@ export class AdminService {
     return this.policiesService.getManageablePolicy(scope, requestedCampaignId);
   }
 
+  async listCsvProfiles(scope: AccessScope, direction: CsvProfileDirection, requestedCampaignId?: string | null) {
+    const targetScope = await this.policiesService.resolveTargetScope(scope, requestedCampaignId);
+    return this.csvProfilesService.listProfiles(targetScope, direction, targetScope.campaignId ?? null);
+  }
+
   async retentionSummary(scope: AccessScope) {
     return this.retentionService.getSummary(scope);
   }
@@ -474,8 +481,11 @@ export class AdminService {
     scope: AccessScope,
     input: {
       campaignId?: string | null;
+      defaultImportProfileCode?: string;
       defaultImportMode?: 'create_only' | 'upsert' | 'replace_turf_membership';
       defaultDuplicateStrategy?: 'skip' | 'error' | 'merge' | 'review';
+      defaultVanExportProfileCode?: string;
+      defaultInternalExportProfileCode?: string;
       sensitiveMfaWindowMinutes?: number;
       canvasserCorrectionWindowMinutes?: number;
       maxAttemptsPerHousehold?: number;
@@ -525,6 +535,78 @@ export class AdminService {
     });
 
     return updated;
+  }
+
+  async upsertCsvProfile(
+    scope: AccessScope,
+    input: {
+      direction: CsvProfileDirection;
+      code: string;
+      name: string;
+      description?: string | null;
+      campaignId?: string | null;
+      isActive?: boolean;
+      mappingJson?: Record<string, string> | null;
+      settingsJson?: Record<string, unknown> | null;
+    },
+    actorUserId: string
+  ) {
+    const targetScope = await this.policiesService.resolveTargetScope(scope, input.campaignId ?? null);
+    const profile = await this.csvProfilesService.upsertProfile({
+      direction: input.direction,
+      code: input.code,
+      name: input.name,
+      description: input.description ?? null,
+      organizationId: targetScope.organizationId,
+      campaignId: targetScope.campaignId ?? null,
+      isActive: input.isActive,
+      mappingJson: input.mappingJson ?? null,
+      settingsJson: input.settingsJson ?? null
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      actionType: 'csv_profile_upserted',
+      entityType: 'csv_profile',
+      entityId: profile.id,
+      newValuesJson: {
+        direction: profile.direction,
+        code: profile.code,
+        campaignId: profile.campaignId,
+        isActive: profile.isActive
+      }
+    });
+
+    return this.listCsvProfiles(scope, input.direction, targetScope.campaignId ?? null);
+  }
+
+  async clearCsvProfile(
+    scope: AccessScope,
+    input: { direction: CsvProfileDirection; code: string; campaignId?: string | null },
+    actorUserId: string
+  ) {
+    const targetScope = await this.policiesService.resolveTargetScope(scope, input.campaignId ?? null);
+
+    await this.csvProfilesService.clearProfile({
+      direction: input.direction,
+      code: input.code,
+      organizationId: targetScope.organizationId,
+      campaignId: targetScope.campaignId ?? null
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      actionType: 'csv_profile_cleared',
+      entityType: 'csv_profile',
+      entityId: `${input.direction}:${input.code}:${targetScope.campaignId ?? 'org'}`,
+      newValuesJson: {
+        direction: input.direction,
+        code: input.code,
+        campaignId: targetScope.campaignId ?? null
+      }
+    });
+
+    return this.listCsvProfiles(scope, input.direction, targetScope.campaignId ?? null);
   }
 
   async archiveFieldUser(input: {

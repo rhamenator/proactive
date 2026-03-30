@@ -15,8 +15,11 @@ export type EffectiveOperationalPolicy = {
   sourceScope: PolicySourceScope;
   explicitRecord: boolean;
   inheritedFromOrganization: boolean;
+  defaultImportProfileCode: string;
   defaultImportMode: ImportMode;
   defaultDuplicateStrategy: DuplicateStrategy;
+  defaultVanExportProfileCode: string;
+  defaultInternalExportProfileCode: string;
   sensitiveMfaWindowMinutes: number;
   canvasserCorrectionWindowMinutes: number;
   maxAttemptsPerHousehold: number;
@@ -38,8 +41,11 @@ export type EffectiveOperationalPolicy = {
 };
 
 type PolicyUpdateInput = Partial<{
+  defaultImportProfileCode: string;
   defaultImportMode: ImportMode;
   defaultDuplicateStrategy: DuplicateStrategy;
+  defaultVanExportProfileCode: string;
+  defaultInternalExportProfileCode: string;
   sensitiveMfaWindowMinutes: number;
   canvasserCorrectionWindowMinutes: number;
   maxAttemptsPerHousehold: number;
@@ -69,8 +75,11 @@ export class PoliciesService {
     const purgeDays = Number(process.env.RETENTION_PURGE_DAYS ?? '');
 
     return {
+      defaultImportProfileCode: process.env.DEFAULT_IMPORT_PROFILE_CODE?.trim() || 'van_standard',
       defaultImportMode: this.normalizeImportMode(process.env.DEFAULT_IMPORT_MODE),
       defaultDuplicateStrategy: this.normalizeDuplicateStrategy(process.env.DEFAULT_IMPORT_DUPLICATE_STRATEGY),
+      defaultVanExportProfileCode: process.env.DEFAULT_VAN_EXPORT_PROFILE_CODE?.trim() || 'van_compatible',
+      defaultInternalExportProfileCode: process.env.DEFAULT_INTERNAL_EXPORT_PROFILE_CODE?.trim() || 'internal_master',
       sensitiveMfaWindowMinutes: this.normalizePositiveInteger(getSensitiveMfaWindowMinutes(), 5, 'sensitiveMfaWindowMinutes'),
       canvasserCorrectionWindowMinutes: this.normalizePositiveInteger(
         process.env.CANVASSER_CORRECTION_WINDOW_MINUTES,
@@ -216,8 +225,11 @@ export class PoliciesService {
     }
 
     return {
+      defaultImportProfileCode: record.defaultImportProfileCode,
       defaultImportMode: this.normalizeImportMode(record.defaultImportMode),
       defaultDuplicateStrategy: this.normalizeDuplicateStrategy(record.defaultDuplicateStrategy),
+      defaultVanExportProfileCode: record.defaultVanExportProfileCode,
+      defaultInternalExportProfileCode: record.defaultInternalExportProfileCode,
       sensitiveMfaWindowMinutes: this.normalizePositiveInteger(record.sensitiveMfaWindowMinutes, 5, 'sensitiveMfaWindowMinutes'),
       canvasserCorrectionWindowMinutes: this.normalizePositiveInteger(
         record.canvasserCorrectionWindowMinutes,
@@ -351,8 +363,12 @@ export class PoliciesService {
     const normalizedPurgeDays = this.sanitizeNullableDayValue(input.retentionPurgeDays, 'retentionPurgeDays');
 
     const next = {
+      defaultImportProfileCode: input.defaultImportProfileCode?.trim() || current.defaultImportProfileCode,
       defaultImportMode: input.defaultImportMode ?? current.defaultImportMode,
       defaultDuplicateStrategy: input.defaultDuplicateStrategy ?? current.defaultDuplicateStrategy,
+      defaultVanExportProfileCode: input.defaultVanExportProfileCode?.trim() || current.defaultVanExportProfileCode,
+      defaultInternalExportProfileCode:
+        input.defaultInternalExportProfileCode?.trim() || current.defaultInternalExportProfileCode,
       sensitiveMfaWindowMinutes:
         input.sensitiveMfaWindowMinutes === undefined
           ? current.sensitiveMfaWindowMinutes

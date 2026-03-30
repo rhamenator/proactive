@@ -62,7 +62,13 @@ describe('AdminService', () => {
     getEffectivePolicy: jest.fn(),
     getManageablePolicy: jest.fn(),
     upsertPolicy: jest.fn(),
-    clearPolicy: jest.fn()
+    clearPolicy: jest.fn(),
+    resolveTargetScope: jest.fn()
+  };
+  const csvProfilesService = {
+    listProfiles: jest.fn(),
+    upsertProfile: jest.fn(),
+    clearProfile: jest.fn()
   };
   const auditService = {
     log: jest.fn()
@@ -81,6 +87,7 @@ describe('AdminService', () => {
   const service = new AdminService(
     prisma as never,
     policiesService as never,
+    csvProfilesService as never,
     auditService as never,
     retentionService as never,
     systemSettingsService as never
@@ -88,6 +95,10 @@ describe('AdminService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    policiesService.resolveTargetScope.mockImplementation(async (input: { organizationId: string | null; campaignId?: string | null }, requestedCampaignId?: string | null) => ({
+      organizationId: input.organizationId,
+      campaignId: requestedCampaignId ?? input.campaignId ?? null
+    }));
   });
 
   it('builds a role-aware dashboard summary with per-turf progress', async () => {

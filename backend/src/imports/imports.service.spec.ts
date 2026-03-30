@@ -38,12 +38,27 @@ describe('ImportsService', () => {
   };
   const policiesService = {
     getEffectivePolicy: jest.fn().mockResolvedValue({
+      defaultImportProfileCode: 'van_standard',
       defaultImportMode: 'create_only',
       defaultDuplicateStrategy: 'skip'
     })
   };
+  const csvProfilesService = {
+    resolveProfile: jest.fn().mockResolvedValue({
+      code: 'van_standard',
+      name: 'VAN Standard Import',
+      mappingJson: null,
+      settingsJson: null
+    })
+  };
 
-  const service = new ImportsService(prisma as never, usersService as never, auditService as never, policiesService as never);
+  const service = new ImportsService(
+    prisma as never,
+    usersService as never,
+    auditService as never,
+    policiesService as never,
+    csvProfilesService as never
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -121,6 +136,7 @@ describe('ImportsService', () => {
     expect(result).toEqual({
       importBatchId: 'batch-1',
       filename: expect.stringContaining('import-batch-'),
+      profileCode: 'van_standard',
       mode: 'create_only',
       duplicateStrategy: 'skip',
       turfsCreated: 2,
@@ -183,6 +199,7 @@ describe('ImportsService', () => {
     expect(result).toEqual({
       importBatchId: 'batch-1',
       filename: expect.stringContaining('import-batch-'),
+      profileCode: 'van_standard',
       mode: 'upsert',
       duplicateStrategy: 'merge',
       turfsCreated: 0,

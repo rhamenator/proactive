@@ -49,9 +49,18 @@ If login fails, see [Troubleshooting](/home/rich/dev/proactive/docs/help/trouble
 1. Open `Turfs`.
 2. Choose the CSV import option.
 3. Select the CSV file.
-4. Choose the target campaign, team, and region when needed.
-5. Review mapping fields if prompted.
-6. Start the import.
+4. Choose the import profile that best matches the source file, or leave the policy default selected.
+5. Choose the target campaign, team, and region when needed.
+6. Review mapping fields if prompted.
+7. Start the import.
+
+### Manage CSV Profiles
+
+1. Open `CSV Profiles`.
+2. Choose whether you are editing an import profile or export profile.
+3. Select the organization default scope or a campaign-specific override scope.
+4. Update the mapping JSON and settings JSON for the target profile.
+5. Save the override, or reset a scoped override to fall back to the inherited or built-in definition.
 
 Expected minimum address data:
 
@@ -117,7 +126,7 @@ Use `Dashboard` to review:
 ## Manage Policies And System Settings
 
 1. Open `Policies`.
-2. Use the scoped policy editor to set organization or campaign defaults for field thresholds, auth timing, import behavior, retention defaults, outcome fallback behavior, and supervisor scope mode.
+2. Use the scoped policy editor to set organization or campaign defaults for field thresholds, auth timing, import behavior, default import/export profile codes, retention defaults, outcome fallback behavior, and supervisor scope mode.
 3. Use the `System-Wide` card for deployment-level settings such as auth rate-limiting and retention automation timing.
 4. Complete the fresh MFA confirmation step before saving sensitive changes.
 5. Use `Reset` when you want a scope to fall back to its inherited settings instead of maintaining a custom override.
@@ -125,7 +134,7 @@ Use `Dashboard` to review:
 ## Export Results
 
 1. Open `Exports`.
-2. Choose `Internal Master` for operational review or `VAN Results` for downstream upload.
+2. Choose the export profile you want for `Internal Master` or `VAN Results`.
 3. Optionally filter to a single turf.
 4. Download the generated CSV.
 5. Confirm the file contents and review the recorded export batch entry.

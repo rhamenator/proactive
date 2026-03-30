@@ -7,12 +7,21 @@ export class UpsertOperationalPolicyDto {
   campaignId?: string | null;
 
   @IsOptional()
+  defaultImportProfileCode?: string;
+
+  @IsOptional()
   @IsIn(['create_only', 'upsert', 'replace_turf_membership'])
   defaultImportMode?: 'create_only' | 'upsert' | 'replace_turf_membership';
 
   @IsOptional()
   @IsIn(['skip', 'error', 'merge', 'review'])
   defaultDuplicateStrategy?: 'skip' | 'error' | 'merge' | 'review';
+
+  @IsOptional()
+  defaultVanExportProfileCode?: string;
+
+  @IsOptional()
+  defaultInternalExportProfileCode?: string;
 
   @IsOptional()
   @IsInt()

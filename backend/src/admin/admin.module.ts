@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { AuditModule } from '../audit/audit.module';
+import { CsvProfilesModule } from '../csv-profiles/csv-profiles.module';
 import { PoliciesModule } from '../policies/policies.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RetentionModule } from '../retention/retention.module';
@@ -11,7 +12,7 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
 @Module({
-  imports: [PrismaModule, UsersModule, AuthModule, TurfsModule, PoliciesModule, AuditModule, RetentionModule, SystemSettingsModule],
+  imports: [PrismaModule, UsersModule, AuthModule, TurfsModule, PoliciesModule, CsvProfilesModule, AuditModule, RetentionModule, SystemSettingsModule],
   controllers: [AdminController],
   providers: [AdminService]
 })

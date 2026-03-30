@@ -6,7 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input, TextArea } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
-import type { CanvasserRecord, ImportBatchRecord, TeamRecord, TurfListItem } from '../../src/lib/types';
+import type { CanvasserRecord, CsvProfileRecord, ImportBatchRecord, TeamRecord, TurfListItem } from '../../src/lib/types';
 
 const mappingFields = [
   ['vanId', 'VAN ID'],
@@ -31,6 +31,7 @@ export default function TurfsPage() {
   const [canvassers, setCanvassers] = useState<CanvasserRecord[]>([]);
   const [teams, setTeams] = useState<TeamRecord[]>([]);
   const [importHistory, setImportHistory] = useState<ImportBatchRecord[]>([]);
+  const [importProfiles, setImportProfiles] = useState<CsvProfileRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export default function TurfsPage() {
   const [fallbackTurfName, setFallbackTurfName] = useState('');
   const [importTeamId, setImportTeamId] = useState('');
   const [importRegionCode, setImportRegionCode] = useState('');
+  const [importProfileCode, setImportProfileCode] = useState('');
   const [importMode, setImportMode] = useState<'create_only' | 'upsert' | 'replace_turf_membership'>('replace_turf_membership');
   const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'error' | 'merge' | 'review'>('skip');
 
@@ -56,21 +58,24 @@ export default function TurfsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [nextTurfs, nextCanvassers, nextTeams, nextImportHistory] = await Promise.all([
+      const [nextTurfs, nextCanvassers, nextTeams, nextImportHistory, nextImportProfiles] = await Promise.all([
         api.listTurfs(),
         api.listCanvassers(),
         api.listTeams(),
-        isAdmin ? api.listImportHistory() : Promise.resolve([])
+        isAdmin ? api.listImportHistory() : Promise.resolve([]),
+        isAdmin ? api.listCsvProfiles('import', user?.campaignId ?? null) : Promise.resolve([])
       ]);
       if (isAdmin) {
         const policy = await api.getOperationalPolicy();
         setImportMode(policy.defaultImportMode);
         setDuplicateStrategy(policy.defaultDuplicateStrategy);
+        setImportProfileCode(policy.defaultImportProfileCode ?? nextImportProfiles[0]?.code ?? '');
       }
       setTurfs(nextTurfs);
       setCanvassers(nextCanvassers);
       setTeams(nextTeams);
       setImportHistory(nextImportHistory);
+      setImportProfiles(nextImportProfiles);
       setScopeSelection(
         Object.fromEntries(
           nextTurfs.map((turf) => [
@@ -87,7 +92,7 @@ export default function TurfsPage() {
     } finally {
       setLoading(false);
     }
-  }, [api, isAdmin]);
+  }, [api, isAdmin, user?.campaignId]);
 
   useEffect(() => {
     void load();
@@ -167,7 +172,8 @@ export default function TurfsPage() {
         mode: importMode,
         duplicateStrategy,
         teamId: importTeamId || null,
-        regionCode: importRegionCode.trim() || null
+        regionCode: importRegionCode.trim() || null,
+        profileCode: importProfileCode || null
       });
       setMessage(
         `Imported ${result.addressesImported} addresses across ${result.turfsCreated} turf(s)` +
@@ -181,6 +187,7 @@ export default function TurfsPage() {
       setFallbackTurfName('');
       setImportTeamId('');
       setImportRegionCode('');
+      setImportProfileCode('');
       await load();
     } catch (value) {
       setError(getErrorMessage(value));
@@ -293,6 +300,18 @@ export default function TurfsPage() {
         </option>
       )),
     [teams]
+  );
+  const importProfileOptions = useMemo(
+    () =>
+      importProfiles.map((profile) => (
+        <option key={`${profile.direction}:${profile.code}:${profile.campaignId ?? 'org'}`} value={profile.code}>
+          {profile.name}
+          {profile.code ? ` (${profile.code})` : ''}
+          {profile.campaignId ? ` • ${profile.campaignId}` : ''}
+          {profile.isActive ? '' : ' (inactive)'}
+        </option>
+      )),
+    [importProfiles]
   );
 
   return (
@@ -410,6 +429,25 @@ export default function TurfsPage() {
                     placeholder="Defaults from selected team"
                   />
                 </div>
+              </div>
+
+              <div className="field-group">
+                <label htmlFor="import-profile">CSV profile</label>
+                <select
+                  id="import-profile"
+                  className="select"
+                  value={importProfileCode}
+                  onChange={(event) => setImportProfileCode(event.target.value)}
+                >
+                  {importProfileCode && !importProfiles.some((profile) => profile.code === importProfileCode) ? (
+                    <option value={importProfileCode}>Policy default: {importProfileCode}</option>
+                  ) : null}
+                  <option value="">No profile override</option>
+                  {importProfileOptions}
+                </select>
+                <p className="muted">
+                  Uses the current scope&apos;s import profiles. The policy default is {importProfileCode || 'not set'}.
+                </p>
               </div>
 
               <div className="grid two">
