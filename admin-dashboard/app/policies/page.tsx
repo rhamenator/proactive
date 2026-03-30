@@ -63,6 +63,7 @@ export default function PoliciesPage() {
   const [form, setForm] = useState<PolicyForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -158,6 +159,33 @@ export default function PoliciesPage() {
       setError(getErrorMessage(value));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleClearOverride() {
+    if (!isAdmin || !policy?.explicitRecord) {
+      return;
+    }
+
+    setResetting(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const updated = await runSensitiveAction('clear policy override', (freshApi) =>
+        freshApi.clearOperationalPolicy(selectedCampaignId || null)
+      );
+      setPolicy(updated);
+      setForm(toForm(updated));
+      setMessage(
+        selectedCampaignId
+          ? 'Campaign policy override cleared. The campaign now inherits the organization/default policy.'
+          : 'Organization policy cleared. Environment defaults are now in effect.'
+      );
+    } catch (value) {
+      setError(getErrorMessage(value));
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -532,14 +560,23 @@ export default function PoliciesPage() {
 
                 {isAdmin ? (
                   <div className="inline-actions">
-                    <Button type="submit" disabled={saving}>
+                    <Button type="submit" disabled={saving || resetting}>
                       {saving ? 'Saving...' : 'Save Policy'}
                     </Button>
+                    {policy?.explicitRecord ? (
+                      <Button type="button" variant="secondary" onClick={handleClearOverride} disabled={saving || resetting}>
+                        {resetting
+                          ? 'Clearing...'
+                          : selectedCampaignId
+                            ? 'Clear Campaign Override'
+                            : 'Clear Organization Policy'}
+                      </Button>
+                    ) : null}
                     <Button
                       type="button"
                       variant="ghost"
                       onClick={() => policy ? setForm(toForm(policy)) : null}
-                      disabled={saving}
+                      disabled={saving || resetting}
                     >
                       Reset Form
                     </Button>

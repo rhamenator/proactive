@@ -350,6 +350,15 @@ export function createApiClient(token?: string | null) {
         body: JSON.stringify(payload)
       }, token);
     },
+    clearOperationalPolicy(campaignId?: string | null) {
+      const params = new URLSearchParams();
+      if (campaignId) {
+        params.set('campaignId', campaignId);
+      }
+      return requestJson<OperationalPolicyRecord>(`/admin/policies${params.toString() ? `?${params.toString()}` : ''}`, {
+        method: 'DELETE'
+      }, token);
+    },
     listOutcomeDefinitions() {
       return requestJson<OutcomeDefinitionRecord[]>('/admin/outcomes', {}, token);
     },

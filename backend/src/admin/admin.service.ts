@@ -294,6 +294,22 @@ export class AdminService {
     return updated;
   }
 
+  async clearOperationalPolicy(scope: AccessScope, requestedCampaignId: string | null | undefined, actorUserId: string) {
+    const current = await this.policiesService.getManageablePolicy(scope, requestedCampaignId ?? null);
+    const updated = await this.policiesService.clearPolicy(scope, requestedCampaignId ?? null);
+
+    await this.auditService.log({
+      actorUserId,
+      actionType: 'operational_policy_cleared',
+      entityType: 'operational_policy',
+      entityId: `${updated.organizationId ?? 'global'}:${requestedCampaignId ?? 'org'}`,
+      oldValuesJson: current,
+      newValuesJson: updated
+    });
+
+    return updated;
+  }
+
   async archiveFieldUser(input: {
     userId: string;
     actorUserId: string;

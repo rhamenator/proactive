@@ -19,7 +19,8 @@ describe('AdminController', () => {
     overrideGpsResult: jest.fn(),
     resolveSyncConflict: jest.fn(),
     upsertOutcomeDefinition: jest.fn(),
-    upsertOperationalPolicy: jest.fn()
+    upsertOperationalPolicy: jest.fn(),
+    clearOperationalPolicy: jest.fn()
   };
   const usersService = {
     findById: jest.fn(),
@@ -287,5 +288,14 @@ describe('AdminController', () => {
       defaultDuplicateStrategy: 'merge',
       sensitiveMfaWindowMinutes: 15
     }, 'admin-1');
+  });
+
+  it('delegates operational policy clearing through the current scope', async () => {
+    await controller.clearOperationalPolicy(
+      { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null },
+      'campaign-1'
+    );
+
+    expect(adminService.clearOperationalPolicy).toHaveBeenCalledWith(scope, 'campaign-1', 'admin-1');
   });
 });

@@ -5,7 +5,8 @@ describe('PoliciesService', () => {
   const prisma = {
     operationalPolicy: {
       findUnique: jest.fn(),
-      upsert: jest.fn()
+      upsert: jest.fn(),
+      deleteMany: jest.fn()
     },
     campaign: {
       findFirst: jest.fn()
@@ -16,6 +17,7 @@ describe('PoliciesService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.campaign.findFirst.mockResolvedValue({ id: 'campaign-1', organizationId: 'org-1' });
   });
 
   it('returns environment defaults when no scoped policy record exists', async () => {
@@ -146,5 +148,43 @@ describe('PoliciesService', () => {
       })
     });
     expect(result.defaultImportMode).toBe('replace_turf_membership');
+  });
+
+  it('clears a campaign policy and falls back to inherited organization values', async () => {
+    prisma.operationalPolicy.deleteMany.mockResolvedValue({ count: 1 });
+    prisma.operationalPolicy.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'policy-org',
+        defaultImportMode: 'upsert',
+        defaultDuplicateStrategy: 'merge',
+        sensitiveMfaWindowMinutes: 12,
+        canvasserCorrectionWindowMinutes: 15,
+        maxAttemptsPerHousehold: 4,
+        minMinutesBetweenAttempts: 8,
+        geofenceRadiusFeet: 100,
+        gpsLowAccuracyMeters: 40,
+        refreshTokenTtlDays: 21,
+        activationTokenTtlHours: 72,
+        passwordResetTtlMinutes: 45,
+        loginLockoutThreshold: 6,
+        loginLockoutMinutes: 20,
+        mfaChallengeTtlMinutes: 12,
+        mfaBackupCodeCount: 12,
+        retentionArchiveDays: 30,
+        retentionPurgeDays: 90,
+        requireArchiveReason: true,
+        allowOrgOutcomeFallback: false
+      });
+
+    const result = await service.clearPolicy({ organizationId: 'org-1', campaignId: null }, 'campaign-1');
+
+    expect(prisma.operationalPolicy.deleteMany).toHaveBeenCalledWith({
+      where: {
+        scopeKey: 'org-1:campaign-1'
+      }
+    });
+    expect(result.inheritedFromOrganization).toBe(true);
+    expect(result.sourceScope).toBe('organization');
   });
 });

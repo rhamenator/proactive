@@ -61,7 +61,8 @@ describe('AdminService', () => {
   const policiesService = {
     getEffectivePolicy: jest.fn(),
     getManageablePolicy: jest.fn(),
-    upsertPolicy: jest.fn()
+    upsertPolicy: jest.fn(),
+    clearPolicy: jest.fn()
   };
   const auditService = {
     log: jest.fn()
@@ -188,6 +189,43 @@ describe('AdminService', () => {
       newValuesJson: updatedPolicy
     });
     expect(result).toBe(updatedPolicy);
+  });
+
+  it('clears a scoped operational policy and audits the rollback', async () => {
+    const currentPolicy = {
+      organizationId: 'org-1',
+      campaignId: 'campaign-1',
+      sourceScope: 'campaign',
+      explicitRecord: true,
+      inheritedFromOrganization: false,
+      defaultImportMode: 'upsert',
+      sensitiveMfaWindowMinutes: 15
+    };
+    const inheritedPolicy = {
+      organizationId: 'org-1',
+      campaignId: 'campaign-1',
+      sourceScope: 'organization',
+      explicitRecord: false,
+      inheritedFromOrganization: true,
+      defaultImportMode: 'replace_turf_membership',
+      sensitiveMfaWindowMinutes: 5
+    };
+    policiesService.getManageablePolicy.mockResolvedValue(currentPolicy);
+    policiesService.clearPolicy.mockResolvedValue(inheritedPolicy);
+
+    const result = await service.clearOperationalPolicy(scope, 'campaign-1', 'admin-1');
+
+    expect(policiesService.getManageablePolicy).toHaveBeenCalledWith(scope, 'campaign-1');
+    expect(policiesService.clearPolicy).toHaveBeenCalledWith(scope, 'campaign-1');
+    expect(auditService.log).toHaveBeenCalledWith({
+      actorUserId: 'admin-1',
+      actionType: 'operational_policy_cleared',
+      entityType: 'operational_policy',
+      entityId: 'org-1:campaign-1',
+      oldValuesJson: currentPolicy,
+      newValuesJson: inheritedPolicy
+    });
+    expect(result).toBe(inheritedPolicy);
   });
 
   it('lists only field users with supervisor and canvasser roles', async () => {

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -115,6 +115,15 @@ export class AdminController {
     @CurrentUser() user: JwtUserPayload
   ) {
     return this.adminService.upsertOperationalPolicy(await this.resolveScope(user), body, user.sub);
+  }
+
+  @Delete('policies')
+  @RequireFreshMfa()
+  async clearOperationalPolicy(
+    @CurrentUser() user: JwtUserPayload,
+    @Query('campaignId') campaignId?: string
+  ) {
+    return this.adminService.clearOperationalPolicy(await this.resolveScope(user), campaignId ?? null, user.sub);
   }
 
   @Post('outcomes')

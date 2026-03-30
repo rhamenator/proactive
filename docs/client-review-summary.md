@@ -26,7 +26,7 @@ The application suite has been built and brought to a review-ready state across 
   - MFA-protected archive/delete workflows for field users and turfs
   - MFA account management
   - Sensitive-action MFA confirmation flow for exports, overrides, conflict resolution, and turf control changes
-  - Policy management for configurable operational defaults such as field visit/GPS thresholds, auth/recovery timing, import behavior, MFA freshness, retention planning, and organization outcome fallback, with step-up MFA required for policy edits
+  - Policy management for configurable operational defaults such as field visit/GPS thresholds, auth/recovery timing, import behavior, MFA freshness, retention planning, and organization outcome fallback, with step-up MFA required for policy edits and explicit overrides that can be cleared back to inherited defaults
   - Retention summary and manual cleanup workflow for purgeable artifacts and expired credential records
   - Outcomes management
   - GPS review

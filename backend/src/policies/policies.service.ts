@@ -442,4 +442,16 @@ export class PoliciesService {
 
     return this.getEffectivePolicy(targetScope);
   }
+
+  async clearPolicy(scope: AccessScope, requestedCampaignId?: string | null) {
+    const targetScope = await this.resolveTargetScope(scope, requestedCampaignId);
+
+    await this.prisma.operationalPolicy.deleteMany({
+      where: {
+        scopeKey: this.buildScopeKey(targetScope.organizationId, targetScope.campaignId)
+      }
+    });
+
+    return this.getEffectivePolicy(targetScope);
+  }
 }

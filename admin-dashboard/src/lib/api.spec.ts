@@ -516,6 +516,37 @@ describe('admin api client', () => {
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            organizationId: 'org-1',
+            campaignId: 'camp-1',
+            sourceScope: 'organization',
+            explicitRecord: false,
+            inheritedFromOrganization: true,
+            defaultImportMode: 'create_only',
+            defaultDuplicateStrategy: 'skip',
+            sensitiveMfaWindowMinutes: 5,
+            canvasserCorrectionWindowMinutes: 10,
+            maxAttemptsPerHousehold: 3,
+            minMinutesBetweenAttempts: 5,
+            geofenceRadiusFeet: 75,
+            gpsLowAccuracyMeters: 30,
+            refreshTokenTtlDays: 14,
+            activationTokenTtlHours: 48,
+            passwordResetTtlMinutes: 30,
+            loginLockoutThreshold: 5,
+            loginLockoutMinutes: 15,
+            mfaChallengeTtlMinutes: 10,
+            mfaBackupCodeCount: 10,
+            retentionArchiveDays: 30,
+            retentionPurgeDays: 90,
+            requireArchiveReason: false,
+            allowOrgOutcomeFallback: true
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
       );
 
     const client = createApiClient('token-123');
@@ -542,6 +573,7 @@ describe('admin api client', () => {
       requireArchiveReason: true,
       allowOrgOutcomeFallback: false
     });
+    const cleared = await client.clearOperationalPolicy('camp-1');
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/admin/policies?campaignId=camp-1', {
       headers: {
@@ -578,8 +610,16 @@ describe('admin api client', () => {
         Authorization: 'Bearer token-123'
       }
     });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, 'http://localhost:3001/admin/policies?campaignId=camp-1', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
     expect(policy.sourceScope).toBe('organization');
     expect(updated.sourceScope).toBe('campaign');
+    expect(cleared.inheritedFromOrganization).toBe(true);
   });
 
   it('supports retention summary and manual cleanup requests', async () => {
