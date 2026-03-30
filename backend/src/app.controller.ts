@@ -21,6 +21,23 @@ export class AppController {
   @UseGuards(JwtAuthGuard)
   async getMe(@CurrentUser() user: JwtUserPayload) {
     const value = await this.usersService.findById(user.sub);
-    return this.usersService.sanitize(value);
+    const safeUser = this.usersService.sanitize(value);
+
+    if (!user.impersonationSessionId || !user.impersonatorUserId) {
+      return safeUser;
+    }
+
+    return {
+      ...safeUser,
+      impersonation: {
+        sessionId: user.impersonationSessionId,
+        actorUserId: user.impersonatorUserId,
+        actorEmail: user.impersonatorEmail ?? null,
+        actorRole: user.impersonatorRole ?? null,
+        actorName: user.impersonatorName ?? null,
+        startedAt: user.impersonationStartedAt ?? null,
+        reasonText: user.impersonationReasonText ?? null
+      }
+    };
   }
 }

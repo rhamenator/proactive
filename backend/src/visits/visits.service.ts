@@ -1,11 +1,13 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { AssignmentStatus, GpsStatus, SyncStatus, VisitResult, VisitSource } from '@prisma/client';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { AssignmentStatus, GpsStatus, SyncStatus, UserRole, VisitResult, VisitSource } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { getDistanceInMeters } from '../common/utils/distance.util';
 
 @Injectable()
 export class VisitsService {
+  private readonly canvasserCorrectionWindowMinutes = Number(process.env.CANVASSER_CORRECTION_WINDOW_MINUTES ?? 10);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService
@@ -17,11 +19,227 @@ export class VisitsService {
     return allowed.has(normalized) ? (normalized as VisitResult) : VisitResult.other;
   }
 
+  private getCorrectionWindowMinutes() {
+    const parsed = Number.isFinite(this.canvasserCorrectionWindowMinutes)
+      ? this.canvasserCorrectionWindowMinutes
+      : Number.NaN;
+
+    return parsed > 0 ? parsed : 10;
+  }
+
+  private buildCorrectionLockReason(visit: {
+    vanExported: boolean;
+    syncConflictFlag: boolean;
+    syncStatus: SyncStatus;
+    geofenceResult: { overrideFlag: boolean } | null;
+  }) {
+    if (visit.vanExported) {
+      return 'Exported visits are locked and cannot be corrected';
+    }
+
+    if (visit.syncConflictFlag || visit.syncStatus === SyncStatus.conflict) {
+      return 'Resolve the sync conflict before correcting this visit';
+    }
+
+    if (visit.geofenceResult?.overrideFlag) {
+      return 'Visits with GPS overrides are locked and cannot be corrected';
+    }
+
+    return null;
+  }
+
+  private normalizeCorrectionNotes(notes: string | undefined, existingNotes: string | null) {
+    if (notes === undefined) {
+      return existingNotes;
+    }
+
+    const trimmed = notes.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private buildCorrectionSnapshot(visit: {
+    outcomeDefinitionId: string | null;
+    outcomeCode: string;
+    outcomeLabel: string;
+    result: VisitResult;
+    notes: string | null;
+    contactMade: boolean;
+  }) {
+    return {
+      outcomeDefinitionId: visit.outcomeDefinitionId,
+      outcomeCode: visit.outcomeCode,
+      outcomeLabel: visit.outcomeLabel,
+      result: visit.result,
+      notes: visit.notes,
+      contactMade: visit.contactMade
+    };
+  }
+
   async listActiveOutcomes(organizationId: string | null) {
     return this.prisma.outcomeDefinition.findMany({
       where: { isActive: true, organizationId },
       orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }]
     });
+  }
+
+  async listRecentVisits(input: {
+    requesterId: string;
+    requesterRole: UserRole;
+    organizationId: string | null;
+    turfId?: string;
+    canvasserId?: string;
+    addressId?: string;
+  }) {
+    const canvasserId =
+      input.requesterRole === UserRole.canvasser
+        ? input.requesterId
+        : input.canvasserId;
+
+    return this.prisma.visitLog.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ...(input.turfId ? { turfId: input.turfId } : {}),
+        ...(canvasserId ? { canvasserId } : {}),
+        ...(input.addressId ? { addressId: input.addressId } : {})
+      },
+      orderBy: { visitTime: 'desc' },
+      take: 100,
+      include: {
+        address: true,
+        turf: {
+          select: { id: true, name: true }
+        },
+        canvasser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            isActive: true,
+            status: true,
+            mfaEnabled: true,
+            invitedAt: true,
+            activatedAt: true,
+            lastLoginAt: true,
+            createdAt: true
+          }
+        },
+        geofenceResult: true
+      }
+    });
+  }
+
+  async correctVisit(input: {
+    visitId: string;
+    actorUserId: string;
+    actorRole: UserRole;
+    organizationId: string | null;
+    outcomeCode: string;
+    notes?: string;
+    reason: string;
+  }) {
+    const reason = input.reason.trim();
+    if (!reason) {
+      throw new BadRequestException('Correction reason is required');
+    }
+
+    const visit = await this.prisma.visitLog.findFirst({
+      where: {
+        id: input.visitId,
+        organizationId: input.organizationId
+      },
+      include: {
+        geofenceResult: true
+      }
+    });
+
+    if (!visit) {
+      throw new NotFoundException('Visit not found');
+    }
+
+    if (input.actorRole === UserRole.canvasser) {
+      if (visit.canvasserId !== input.actorUserId) {
+        throw new ForbiddenException('You can only correct your own recent submissions');
+      }
+
+      const ageMs = Date.now() - visit.visitTime.getTime();
+      if (ageMs > this.getCorrectionWindowMinutes() * 60 * 1000) {
+        throw new ForbiddenException('The correction window for this visit has expired');
+      }
+    }
+
+    const lockReason = this.buildCorrectionLockReason(visit);
+    if (lockReason) {
+      throw new BadRequestException(lockReason);
+    }
+
+    const outcomeDefinition = await this.prisma.outcomeDefinition.findFirst({
+      where: {
+        code: input.outcomeCode,
+        isActive: true,
+        organizationId: input.organizationId
+      }
+    });
+
+    if (!outcomeDefinition) {
+      throw new BadRequestException('Visit outcome is not recognized');
+    }
+
+    const normalizedNotes = this.normalizeCorrectionNotes(input.notes, visit.notes);
+    if (outcomeDefinition.requiresNote && !normalizedNotes) {
+      throw new BadRequestException('Notes are required for the selected visit outcome');
+    }
+
+    const oldValues = this.buildCorrectionSnapshot(visit);
+    const newValues = {
+      outcomeDefinitionId: outcomeDefinition.id,
+      outcomeCode: outcomeDefinition.code,
+      outcomeLabel: outcomeDefinition.label,
+      result: this.normalizeLegacyResult(outcomeDefinition.code),
+      notes: normalizedNotes,
+      contactMade: outcomeDefinition.code === 'talked_to_voter'
+    };
+
+    if (JSON.stringify(oldValues) === JSON.stringify(newValues)) {
+      throw new BadRequestException('This correction does not change the visit');
+    }
+
+    const correctedVisit = await this.prisma.$transaction(async (tx) => {
+      const updatedVisit = await tx.visitLog.update({
+        where: { id: input.visitId },
+        data: newValues
+      });
+
+      await tx.visitCorrection.create({
+        data: {
+          visitLogId: input.visitId,
+          actorUserId: input.actorUserId,
+          organizationId: visit.organizationId,
+          campaignId: visit.campaignId,
+          reasonText: reason,
+          oldValuesJson: oldValues,
+          newValuesJson: newValues
+        }
+      });
+
+      await this.auditService.log(
+        {
+          actorUserId: input.actorUserId,
+          actionType: 'visit_corrected',
+          entityType: 'visit_log',
+          entityId: input.visitId,
+          reasonText: reason,
+          oldValuesJson: oldValues,
+          newValuesJson: newValues
+        },
+        tx
+      );
+
+      return updatedVisit;
+    });
+
+    return correctedVisit;
   }
 
   async logVisit(input: {

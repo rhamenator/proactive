@@ -1,6 +1,9 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
 import { ActivateAccountDto } from './dto/activate-account.dto';
 import { CompletePasswordResetDto } from './dto/complete-password-reset.dto';
@@ -10,6 +13,8 @@ import { MfaChallengeDto } from './dto/mfa-challenge.dto';
 import { MfaCodeDto } from './dto/mfa-code.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { StartImpersonationDto } from './dto/start-impersonation.dto';
+import { StopImpersonationDto } from './dto/stop-impersonation.dto';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 
@@ -75,6 +80,33 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   mfaDisable(@CurrentUser() user: JwtUserPayload, @Body() body: DisableMfaDto) {
     return this.authService.disableMfa(user.sub, body.password, body.code);
+  }
+
+  @Get('impersonation/active')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin)
+  activeImpersonation(@CurrentUser() user: JwtUserPayload) {
+    return this.authService.getActiveImpersonation(user.sub);
+  }
+
+  @Post('impersonation/start')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin)
+  startImpersonation(@CurrentUser() user: JwtUserPayload, @Body() body: StartImpersonationDto) {
+    return this.authService.startImpersonation(user.sub, body.targetUserId, body.reason);
+  }
+
+  @Post('impersonation/stop')
+  @UseGuards(JwtAuthGuard)
+  stopImpersonation(@CurrentUser() user: JwtUserPayload, @Body() body: StopImpersonationDto) {
+    const sessionId = body.sessionId ?? user.impersonationSessionId;
+    const actorUserId = user.impersonatorUserId ?? user.sub;
+
+    if (!sessionId) {
+      throw new UnauthorizedException('No active impersonation session was provided');
+    }
+
+    return this.authService.stopImpersonation(actorUserId, sessionId);
   }
 
   @Get('me')

@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { MfaChallengePurpose, UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import * as mfaUtil from './mfa.util';
@@ -69,6 +69,12 @@ describe('AuthService', () => {
       findFirst: jest.fn(),
       update: jest.fn()
     },
+    impersonationSession: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn()
+    },
     passwordResetToken: {
       updateMany: jest.fn(),
       create: jest.fn(),
@@ -105,6 +111,10 @@ describe('AuthService', () => {
     prisma.mfaBackupCode.deleteMany.mockResolvedValue({ count: 0 });
     prisma.mfaBackupCode.findFirst.mockResolvedValue(null);
     prisma.mfaBackupCode.update.mockResolvedValue({ id: 'backup-1' });
+    prisma.impersonationSession.create.mockResolvedValue({ id: 'imp-1' });
+    prisma.impersonationSession.findFirst.mockResolvedValue(null);
+    prisma.impersonationSession.update.mockResolvedValue({ id: 'imp-1' });
+    prisma.impersonationSession.updateMany.mockResolvedValue({ count: 0 });
     prisma.user.update.mockResolvedValue({ id: 'user-1' });
     prisma.$transaction.mockImplementation(async (callback) =>
       callback({
@@ -496,5 +506,144 @@ describe('AuthService', () => {
       required: true,
       backupCodeCount: 10
     });
+  });
+
+  it('starts an impersonation session for an admin targeting a field user in the same organization', async () => {
+    const actor = buildUser({ id: 'admin-1', role: UserRole.admin, organizationId: 'org-1' });
+    const target = buildUser({ id: 'user-2', role: UserRole.supervisor, organizationId: 'org-1' });
+    usersService.findById
+      .mockResolvedValueOnce(actor)
+      .mockResolvedValueOnce(target);
+    prisma.impersonationSession.create.mockResolvedValue({
+      id: 'imp-1',
+      startedAt: new Date('2026-03-29T21:00:00.000Z'),
+      reasonText: 'Support',
+      targetUser: target
+    });
+
+    const result = await service.startImpersonation(actor.id, target.id, 'Support');
+
+    expect(prisma.impersonationSession.updateMany).toHaveBeenCalledWith({
+      where: { actorUserId: actor.id, endedAt: null },
+      data: { endedAt: expect.any(Date) }
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        accessToken: 'signed-access-token',
+        token: 'signed-access-token',
+        role: UserRole.supervisor,
+        user: expect.objectContaining({
+          id: target.id,
+          email: target.email,
+          role: UserRole.supervisor,
+          impersonation: expect.objectContaining({
+            sessionId: 'imp-1',
+            actorUserId: actor.id,
+            actorRole: UserRole.admin,
+            reasonText: 'Support'
+          })
+        })
+      })
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: 'impersonation_started',
+        entityId: 'imp-1'
+      })
+    );
+  });
+
+  it('rejects impersonation attempts from non-admin users', async () => {
+    const actor = buildUser({ id: 'supervisor-1', role: UserRole.supervisor, organizationId: 'org-1' });
+    usersService.findById.mockResolvedValue(actor);
+
+    await expect(service.startImpersonation(actor.id, 'user-2', 'Support')).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
+    expect(prisma.impersonationSession.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects impersonation of admin users and cross-organization targets', async () => {
+    const actor = buildUser({ id: 'admin-1', role: UserRole.admin, organizationId: 'org-1' });
+    const adminTarget = buildUser({ id: 'admin-2', role: UserRole.admin, organizationId: 'org-1' });
+    const crossOrgTarget = buildUser({ id: 'user-3', role: UserRole.canvasser, organizationId: 'org-2' });
+
+    usersService.findById.mockResolvedValueOnce(actor).mockResolvedValueOnce(adminTarget);
+    await expect(service.startImpersonation(actor.id, adminTarget.id, 'Support')).rejects.toBeInstanceOf(
+      BadRequestException
+    );
+
+    usersService.findById.mockResolvedValueOnce(actor).mockResolvedValueOnce(crossOrgTarget);
+    await expect(service.startImpersonation(actor.id, crossOrgTarget.id, 'Support')).rejects.toBeInstanceOf(
+      NotFoundException
+    );
+  });
+
+  it('returns the active impersonation session banner payload for the current admin', async () => {
+    const target = buildUser({ id: 'user-2', role: UserRole.canvasser });
+    prisma.impersonationSession.findFirst.mockResolvedValue({
+      id: 'imp-1',
+      startedAt: new Date('2026-03-29T21:00:00.000Z'),
+      reasonText: 'Support',
+      targetUser: target
+    });
+
+    await expect(service.getActiveImpersonation('admin-1')).resolves.toEqual({
+      id: 'imp-1',
+      startedAt: new Date('2026-03-29T21:00:00.000Z'),
+      reasonText: 'Support',
+      targetUser: target
+    });
+  });
+
+  it('stops an active impersonation session for the current admin', async () => {
+    const target = buildUser({ id: 'user-2', role: UserRole.canvasser });
+    prisma.impersonationSession.findFirst.mockResolvedValue({
+      id: 'imp-1',
+      actorUserId: 'admin-1',
+      targetUserId: target.id,
+      organizationId: 'org-1',
+      reasonText: 'Support',
+      startedAt: new Date('2026-03-29T21:00:00.000Z'),
+      endedAt: null,
+      targetUser: target
+    });
+    prisma.impersonationSession.update.mockResolvedValue({
+      id: 'imp-1',
+      actorUserId: 'admin-1',
+      targetUserId: target.id,
+      organizationId: 'org-1',
+      reasonText: 'Support',
+      startedAt: new Date('2026-03-29T21:00:00.000Z'),
+      endedAt: new Date('2026-03-29T22:00:00.000Z'),
+      targetUser: target
+    });
+
+    const result = await service.stopImpersonation('admin-1', 'imp-1');
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true,
+        session: expect.objectContaining({
+          id: 'imp-1',
+          targetUser: target
+        })
+      })
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: 'impersonation_stopped',
+        entityId: 'imp-1'
+      })
+    );
+  });
+
+  it('rejects stopping an impersonation session that is not active for the actor', async () => {
+    prisma.impersonationSession.findFirst.mockResolvedValue(null);
+
+    await expect(service.stopImpersonation('admin-1', 'missing-session')).rejects.toBeInstanceOf(
+      NotFoundException
+    );
+    expect(prisma.impersonationSession.update).not.toHaveBeenCalled();
   });
 });

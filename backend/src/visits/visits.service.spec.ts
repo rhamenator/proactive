@@ -7,7 +7,9 @@ describe('VisitsService', () => {
     visitLog: {
       findUnique: jest.fn(),
       count: jest.fn(),
-      findFirst: jest.fn()
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn()
     },
     address: {
       findUnique: jest.fn()
@@ -21,6 +23,9 @@ describe('VisitsService', () => {
     },
     turfSession: {
       findFirst: jest.fn()
+    },
+    visitCorrection: {
+      create: jest.fn()
     }
   };
   const auditService = {
@@ -31,6 +36,9 @@ describe('VisitsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.visitLog.findMany.mockResolvedValue([]);
+    prisma.visitLog.update.mockResolvedValue({ id: 'visit-1', outcomeCode: 'talked_to_voter' });
+    prisma.visitCorrection.create.mockResolvedValue({ id: 'correction-1' });
   });
 
   function mockAssignedAddress(overrides: Partial<Record<string, unknown>> = {}) {
@@ -72,6 +80,43 @@ describe('VisitsService', () => {
       },
       syncEvent: {
         create: jest.fn().mockResolvedValue({ id: 'sync-1' })
+      }
+    };
+    prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+    auditService.log.mockResolvedValue(undefined);
+    return tx;
+  }
+
+  function buildCorrectableVisit(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      id: 'visit-1',
+      organizationId: 'org-1',
+      campaignId: null,
+      canvasserId: 'user-2',
+      outcomeDefinitionId: 'outcome-1',
+      outcomeCode: 'knocked',
+      outcomeLabel: 'Knocked',
+      result: 'knocked',
+      notes: 'Original note',
+      contactMade: false,
+      vanExported: false,
+      syncStatus: SyncStatus.synced,
+      syncConflictFlag: false,
+      geofenceResult: { overrideFlag: false },
+      visitTime: new Date('2026-03-29T21:00:00.000Z'),
+      ...overrides
+    };
+  }
+
+  function mockCorrectionTransaction(
+    updatedVisit: Record<string, unknown> = { id: 'visit-1', outcomeCode: 'talked_to_voter' }
+  ) {
+    const tx = {
+      visitLog: {
+        update: jest.fn().mockResolvedValue(updatedVisit)
+      },
+      visitCorrection: {
+        create: jest.fn().mockResolvedValue({ id: 'correction-1' })
       }
     };
     prisma.$transaction.mockImplementation(async (callback) => callback(tx));
@@ -377,5 +422,297 @@ describe('VisitsService', () => {
       })
     });
     expect(result.gpsStatus).toBe(GpsStatus.verified);
+  });
+
+  it('returns recent visits scoped to the current organization', async () => {
+    prisma.visitLog.findMany.mockResolvedValue([{ id: 'visit-1' }]);
+
+    const result = await service.listRecentVisits({
+      requesterId: 'admin-1',
+      requesterRole: 'admin' as never,
+      organizationId: 'org-1',
+      turfId: 'turf-1'
+    });
+
+    expect(prisma.visitLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId: 'org-1',
+          turfId: 'turf-1'
+        }
+      })
+    );
+    expect(result).toEqual([{ id: 'visit-1' }]);
+  });
+
+  it('records a correction for an admin-reviewed visit', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(buildCorrectableVisit({ notes: null }));
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-2',
+      code: 'talked_to_voter',
+      label: 'Talked To Voter',
+      requiresNote: true
+    });
+    const tx = mockCorrectionTransaction();
+
+    const result = await service.correctVisit({
+      visitId: 'visit-1',
+      actorUserId: 'admin-1',
+      actorRole: 'admin' as never,
+      organizationId: 'org-1',
+      outcomeCode: 'talked_to_voter',
+      notes: 'Corrected note',
+      reason: 'Fix incorrect disposition'
+    });
+
+    expect(tx.visitLog.update).toHaveBeenCalledWith({
+      where: { id: 'visit-1' },
+      data: expect.objectContaining({
+        outcomeCode: 'talked_to_voter',
+        outcomeLabel: 'Talked To Voter',
+        notes: 'Corrected note',
+        contactMade: true
+      })
+    });
+    expect(tx.visitCorrection.create).toHaveBeenCalled();
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: 'visit_corrected',
+        entityId: 'visit-1'
+      }),
+      tx
+    );
+    expect(result).toEqual({ id: 'visit-1', outcomeCode: 'talked_to_voter' });
+  });
+
+  it('allows supervisors to correct visits within organization scope', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(buildCorrectableVisit());
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-3',
+      code: 'other',
+      label: 'Other',
+      requiresNote: false
+    });
+    const tx = mockCorrectionTransaction({ id: 'visit-1', outcomeCode: 'other' });
+
+    const result = await service.correctVisit({
+      visitId: 'visit-1',
+      actorUserId: 'supervisor-1',
+      actorRole: 'supervisor' as never,
+      organizationId: 'org-1',
+      outcomeCode: 'other',
+      notes: 'Supervisor correction',
+      reason: 'Supervisor QA review'
+    });
+
+    expect(tx.visitCorrection.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorUserId: 'supervisor-1',
+        visitLogId: 'visit-1',
+        reasonText: 'Supervisor QA review'
+      })
+    });
+    expect(result).toEqual({ id: 'visit-1', outcomeCode: 'other' });
+  });
+
+  it('prevents canvassers from correcting another user visit', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(buildCorrectableVisit({ canvasserId: 'user-2' }));
+
+    await expect(
+      service.correctVisit({
+        visitId: 'visit-1',
+        actorUserId: 'user-1',
+        actorRole: 'canvasser' as never,
+        organizationId: 'org-1',
+        outcomeCode: 'knocked',
+        reason: 'Not my visit'
+      })
+    ).rejects.toThrow('You can only correct your own recent submissions');
+  });
+
+  it('allows canvassers to correct their own recent submissions inside the correction window', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(
+      buildCorrectableVisit({
+        canvasserId: 'user-1',
+        visitTime: new Date(Date.now() - 10 * 60 * 1000)
+      })
+    );
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-3',
+      code: 'other',
+      label: 'Other',
+      requiresNote: false
+    });
+    const tx = mockCorrectionTransaction({ id: 'visit-1', outcomeCode: 'other' });
+
+    const result = await service.correctVisit({
+      visitId: 'visit-1',
+      actorUserId: 'user-1',
+      actorRole: 'canvasser' as never,
+      organizationId: 'org-1',
+      outcomeCode: 'other',
+      reason: 'Fix my last entry'
+    });
+
+    expect(tx.visitCorrection.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorUserId: 'user-1',
+        visitLogId: 'visit-1'
+      })
+    });
+    expect(result).toEqual({ id: 'visit-1', outcomeCode: 'other' });
+  });
+
+  it('blocks canvasser corrections outside the correction window', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(
+      buildCorrectableVisit({
+        canvasserId: 'user-1',
+        visitTime: new Date(Date.now() - 31 * 60 * 1000)
+      })
+    );
+
+    await expect(
+      service.correctVisit({
+        visitId: 'visit-1',
+        actorUserId: 'user-1',
+        actorRole: 'canvasser' as never,
+        organizationId: 'org-1',
+        outcomeCode: 'knocked',
+        notes: undefined,
+        reason: 'Too late'
+      })
+    ).rejects.toThrow('The correction window for this visit has expired');
+  });
+
+  it('blocks corrections for exported visits', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(buildCorrectableVisit({ vanExported: true }));
+
+    await expect(
+      service.correctVisit({
+        visitId: 'visit-1',
+        actorUserId: 'admin-1',
+        actorRole: 'admin' as never,
+        organizationId: 'org-1',
+        outcomeCode: 'other',
+        reason: 'Blocked export'
+      })
+    ).rejects.toThrow('Exported visits are locked and cannot be corrected');
+  });
+
+  it('blocks corrections while sync conflict remains flagged', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(buildCorrectableVisit({ syncConflictFlag: true }));
+
+    await expect(
+      service.correctVisit({
+        visitId: 'visit-1',
+        actorUserId: 'admin-1',
+        actorRole: 'admin' as never,
+        organizationId: 'org-1',
+        outcomeCode: 'other',
+        reason: 'Blocked conflict'
+      })
+    ).rejects.toThrow('Resolve the sync conflict before correcting this visit');
+  });
+
+  it('blocks corrections while visit sync status is conflict', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(buildCorrectableVisit({ syncStatus: SyncStatus.conflict }));
+
+    await expect(
+      service.correctVisit({
+        visitId: 'visit-1',
+        actorUserId: 'admin-1',
+        actorRole: 'admin' as never,
+        organizationId: 'org-1',
+        outcomeCode: 'other',
+        reason: 'Blocked conflict status'
+      })
+    ).rejects.toThrow('Resolve the sync conflict before correcting this visit');
+  });
+
+  it('blocks corrections for visits with GPS overrides', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(
+      buildCorrectableVisit({ geofenceResult: { overrideFlag: true } })
+    );
+
+    await expect(
+      service.correctVisit({
+        visitId: 'visit-1',
+        actorUserId: 'admin-1',
+        actorRole: 'admin' as never,
+        organizationId: 'org-1',
+        outcomeCode: 'other',
+        reason: 'Blocked gps override'
+      })
+    ).rejects.toThrow('Visits with GPS overrides are locked and cannot be corrected');
+  });
+
+  it('preserves existing notes when the correction omits notes', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(buildCorrectableVisit({ notes: 'Keep me' }));
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-3',
+      code: 'other',
+      label: 'Other',
+      requiresNote: false
+    });
+    const tx = mockCorrectionTransaction({ id: 'visit-1', outcomeCode: 'other', notes: 'Keep me' });
+
+    await service.correctVisit({
+      visitId: 'visit-1',
+      actorUserId: 'admin-1',
+      actorRole: 'admin' as never,
+      organizationId: 'org-1',
+      outcomeCode: 'other',
+      reason: 'Keep existing note'
+    });
+
+    expect(tx.visitLog.update).toHaveBeenCalledWith({
+      where: { id: 'visit-1' },
+      data: expect.objectContaining({
+        notes: 'Keep me'
+      })
+    });
+  });
+
+  it('rejects corrections when the selected outcome requires notes and no notes remain', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(buildCorrectableVisit({ notes: null }));
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-4',
+      code: 'refused',
+      label: 'Refused',
+      requiresNote: true
+    });
+
+    await expect(
+      service.correctVisit({
+        visitId: 'visit-1',
+        actorUserId: 'admin-1',
+        actorRole: 'admin' as never,
+        organizationId: 'org-1',
+        outcomeCode: 'refused',
+        notes: '   ',
+        reason: 'Need note'
+      })
+    ).rejects.toThrow('Notes are required for the selected visit outcome');
+  });
+
+  it('rejects corrections that do not change the visit state', async () => {
+    prisma.visitLog.findFirst.mockResolvedValue(buildCorrectableVisit());
+    prisma.outcomeDefinition.findFirst.mockResolvedValue({
+      id: 'outcome-1',
+      code: 'knocked',
+      label: 'Knocked',
+      requiresNote: false
+    });
+
+    await expect(
+      service.correctVisit({
+        visitId: 'visit-1',
+        actorUserId: 'admin-1',
+        actorRole: 'admin' as never,
+        organizationId: 'org-1',
+        outcomeCode: 'knocked',
+        reason: 'No change'
+      })
+    ).rejects.toThrow('This correction does not change the visit');
   });
 });

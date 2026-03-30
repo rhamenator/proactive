@@ -27,7 +27,11 @@ describe('admin storage helpers', () => {
 
     expect(readStoredSession()).toEqual({
       token: 'token-123',
-      user
+      user,
+      original: {
+        token: null,
+        user: null
+      }
     });
   });
 
@@ -38,7 +42,11 @@ describe('admin storage helpers', () => {
 
     expect(readStoredSession()).toEqual({
       token: null,
-      user: null
+      user: null,
+      original: {
+        token: null,
+        user: null
+      }
     });
   });
 });

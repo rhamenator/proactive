@@ -4,17 +4,27 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { useRouter } from 'next/navigation';
 
 import { createApiClient } from './api';
-import { clearStoredSession, readStoredSession, writeStoredSession } from './storage';
+import {
+  clearOriginalSession,
+  clearStoredSession,
+  readOriginalSession,
+  readStoredSession,
+  writeOriginalSession,
+  writeStoredSession
+} from './storage';
 import type { LoginResponse, MfaChallengeResponse, MfaSetupInitResponse, SafeUser } from './types';
 
 type AuthContextValue = {
   ready: boolean;
   token: string | null;
   user: SafeUser | null;
+  impersonation: NonNullable<SafeUser['impersonation']> | null;
   login: (email: string, password: string) => Promise<MfaChallengeResponse | null>;
   initializeMfaSetup: (challengeToken: string) => Promise<MfaSetupInitResponse>;
   completeMfaSetup: (challengeToken: string, code: string) => Promise<string[]>;
   verifyMfa: (challengeToken: string, code: string) => Promise<void>;
+  startImpersonation: (targetUserId: string, reason?: string) => Promise<void>;
+  stopImpersonation: () => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -25,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<SafeUser | null>(null);
+  const [impersonation, setImpersonation] = useState<NonNullable<SafeUser['impersonation']> | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -38,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setToken(stored.token);
       setUser(stored.user);
+      setImpersonation(stored.user?.impersonation ?? null);
 
       if (stored.token) {
         try {
@@ -47,12 +59,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           setUser(me);
+          setImpersonation(me.impersonation ?? null);
           writeStoredSession(stored.token, me);
         } catch {
           clearStoredSession();
+          clearOriginalSession();
           if (active) {
             setToken(null);
             setUser(null);
+            setImpersonation(null);
           }
         }
       }
@@ -70,6 +85,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   function ensureDashboardRole(userValue: SafeUser) {
+    if (userValue.impersonation) {
+      return;
+    }
+
     if (userValue.role !== 'admin' && userValue.role !== 'supervisor') {
       throw new Error('This dashboard is restricted to admin and supervisor accounts.');
     }
@@ -84,9 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setToken(accessToken);
     setUser(response.user);
+    setImpersonation(response.user.impersonation ?? null);
     writeStoredSession(accessToken, response.user);
     if (shouldRedirect) {
-      router.push('/dashboard');
+      router.push(response.user.role === 'canvasser' ? '/field-preview' : '/dashboard');
     }
   }
 
@@ -122,9 +142,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
+    clearOriginalSession();
     clearStoredSession();
     setToken(null);
     setUser(null);
+    setImpersonation(null);
     router.push('/login');
   }
 
@@ -135,12 +157,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const api = createApiClient(token);
     const me = await api.me();
     setUser(me);
+    setImpersonation(me.impersonation ?? null);
     writeStoredSession(token, me);
+  }
+
+  async function startImpersonation(targetUserId: string, reason?: string) {
+    if (!token || !user) {
+      throw new Error('You must be signed in to start impersonation.');
+    }
+    if (user.role !== 'admin') {
+      throw new Error('Only admin users can start impersonation sessions.');
+    }
+
+    const api = createApiClient(token);
+    const response = await api.startImpersonation(targetUserId, reason);
+    const accessToken = response.accessToken || response.token;
+    if (!accessToken) {
+      throw new Error('Impersonation response did not include a token.');
+    }
+
+    if (!user.impersonation) {
+      writeOriginalSession(token, user);
+    }
+
+    setToken(accessToken);
+    setUser(response.user);
+    setImpersonation(response.user.impersonation ?? null);
+    writeStoredSession(accessToken, response.user);
+    router.push(response.user.role === 'canvasser' ? '/field-preview' : '/dashboard');
+  }
+
+  async function stopImpersonation() {
+    if (!token || !impersonation) {
+      return;
+    }
+
+    const api = createApiClient(token);
+    await api.stopImpersonation(impersonation.sessionId);
+
+    const original = readOriginalSession();
+    clearOriginalSession();
+
+    if (original.token && original.user) {
+      setToken(original.token);
+      setUser(original.user);
+      setImpersonation(original.user.impersonation ?? null);
+      writeStoredSession(original.token, original.user);
+      router.push('/dashboard');
+      return;
+    }
+
+    clearStoredSession();
+    setToken(null);
+    setUser(null);
+    setImpersonation(null);
+    router.push('/login');
   }
 
   return (
     <AuthContext.Provider
-      value={{ ready, token, user, login, initializeMfaSetup, completeMfaSetup, verifyMfa, logout, refresh }}
+      value={{
+        ready,
+        token,
+        user,
+        impersonation,
+        login,
+        initializeMfaSetup,
+        completeMfaSetup,
+        verifyMfa,
+        startImpersonation,
+        stopImpersonation,
+        logout,
+        refresh
+      }}
     >
       {children}
     </AuthContext.Provider>

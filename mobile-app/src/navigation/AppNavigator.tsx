@@ -6,6 +6,7 @@ import { colors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { AddressDetailScreen } from '../screens/AddressDetailScreen';
 import { AddressListScreen } from '../screens/AddressListScreen';
+import { AddressRequestScreen } from '../screens/AddressRequestScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { QueueScreen } from '../screens/QueueScreen';
@@ -14,6 +15,7 @@ export type RootStackParamList = {
   Dashboard: undefined;
   AddressList: undefined;
   AddressDetail: { addressId: string };
+  AddressRequest: undefined;
   Queue: undefined;
 };
 
@@ -86,6 +88,7 @@ export function AppNavigator() {
           component={AddressDetailScreen}
           options={{ title: 'Visit Detail' }}
         />
+        <Stack.Screen name="AddressRequest" component={AddressRequestScreen} options={{ title: 'Request Address' }} />
         <Stack.Screen name="Queue" component={QueueScreen} options={{ title: 'Sync Queue' }} />
       </Stack.Navigator>
     </NavigationContainer>

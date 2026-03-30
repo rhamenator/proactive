@@ -448,6 +448,17 @@ th {
   border-color: rgba(16, 59, 102, 0.12);
 }
 
+.notice-warning {
+  background: rgba(221, 178, 74, 0.16);
+  border-color: rgba(221, 178, 74, 0.28);
+}
+
+.stack-tight {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
 .split {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);

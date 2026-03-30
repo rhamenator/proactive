@@ -5,4 +5,11 @@ export interface JwtUserPayload {
   email: string;
   role: UserRole;
   organizationId?: string | null;
+  impersonationSessionId?: string | null;
+  impersonatorUserId?: string | null;
+  impersonatorEmail?: string | null;
+  impersonatorRole?: UserRole | null;
+  impersonatorName?: string | null;
+  impersonationStartedAt?: string | null;
+  impersonationReasonText?: string | null;
 }

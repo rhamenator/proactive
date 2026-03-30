@@ -1,4 +1,12 @@
-import type { Address, LoginResponse, OutcomeDefinition, TurfSnapshot, VisitSubmission } from '../types';
+import type {
+  Address,
+  AddressRequestRecord,
+  LoginResponse,
+  OutcomeDefinition,
+  RecentVisitRecord,
+  TurfSnapshot,
+  VisitSubmission
+} from '../types';
 
 const baseUrl = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
 
@@ -111,6 +119,52 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }, token);
+  },
+
+  listRecentVisits(token: string, payload?: { addressId?: string }) {
+    const params = new URLSearchParams();
+    if (payload?.addressId) {
+      params.set('addressId', payload.addressId);
+    }
+    return request<RecentVisitRecord[]>(
+      `/visits/recent${params.toString() ? `?${params.toString()}` : ''}`,
+      {},
+      token
+    );
+  },
+
+  correctVisit(
+    token: string,
+    visitId: string,
+    payload: { outcomeCode: string; notes?: string; reason: string }
+  ) {
+    return request<RecentVisitRecord>(`/visits/${visitId}/correct`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }, token);
+  },
+
+  submitAddressRequest(
+    token: string,
+    payload: {
+      turfId: string;
+      addressLine1: string;
+      city: string;
+      state: string;
+      zip?: string;
+      latitude?: number | null;
+      longitude?: number | null;
+      notes?: string;
+    }
+  ) {
+    return request<AddressRequestRecord>('/address-requests', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, token);
+  },
+
+  myAddressRequests(token: string) {
+    return request<AddressRequestRecord[]>('/address-requests/mine', {}, token);
   },
 };
 

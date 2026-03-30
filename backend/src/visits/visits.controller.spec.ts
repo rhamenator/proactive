@@ -3,7 +3,9 @@ import { VisitsController } from './visits.controller';
 describe('VisitsController', () => {
   const visitsService = {
     logVisit: jest.fn(),
-    listActiveOutcomes: jest.fn()
+    listActiveOutcomes: jest.fn(),
+    listRecentVisits: jest.fn(),
+    correctVisit: jest.fn()
   };
   const usersService = {
     findById: jest.fn()
@@ -38,6 +40,40 @@ describe('VisitsController', () => {
       canvasserId: 'canvasser-1',
       addressId: 'address-1',
       outcomeCode: 'knocked'
+    });
+  });
+
+  it('delegates recent visit lookups and corrections with organization scope', async () => {
+    usersService.findById.mockResolvedValue({ id: 'admin-1', organizationId: 'org-1' });
+
+    await controller.listRecentVisits(
+      { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never },
+      'turf-1',
+      'user-2',
+      undefined
+    );
+    await controller.correctVisit(
+      '9f870efe-98f7-4d34-9ef7-16b1965de5b6',
+      { outcomeCode: 'talked_to_voter', notes: 'Corrected', reason: 'Fix typo' },
+      { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never }
+    );
+
+    expect(visitsService.listRecentVisits).toHaveBeenCalledWith({
+      requesterId: 'admin-1',
+      requesterRole: 'admin',
+      organizationId: 'org-1',
+      turfId: 'turf-1',
+      canvasserId: 'user-2',
+      addressId: undefined
+    });
+    expect(visitsService.correctVisit).toHaveBeenCalledWith({
+      visitId: '9f870efe-98f7-4d34-9ef7-16b1965de5b6',
+      actorUserId: 'admin-1',
+      actorRole: 'admin',
+      organizationId: 'org-1',
+      outcomeCode: 'talked_to_voter',
+      notes: 'Corrected',
+      reason: 'Fix typo'
     });
   });
 });

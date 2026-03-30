@@ -15,13 +15,17 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', roles: ['admin', 'supervisor'] },
+  { href: '/reports', label: 'Reports', roles: ['admin', 'supervisor'] },
   { href: '/turfs', label: 'Turfs', roles: ['admin', 'supervisor'] },
+  { href: '/address-requests', label: 'Address Requests', roles: ['admin', 'supervisor'] },
+  { href: '/visit-corrections', label: 'Visit Corrections', roles: ['admin', 'supervisor'] },
   { href: '/gps-review', label: 'GPS Review', roles: ['admin', 'supervisor'] },
   { href: '/sync-conflicts', label: 'Sync Conflicts', roles: ['admin', 'supervisor'] },
   { href: '/outcomes', label: 'Outcomes', roles: ['admin', 'supervisor'] },
   { href: '/canvassers', label: 'Field Users', roles: ['admin', 'supervisor'] },
   { href: '/exports', label: 'Exports', roles: ['admin'] },
-  { href: '/account', label: 'Account', roles: ['admin', 'supervisor'] }
+  { href: '/field-preview', label: 'Field Preview', roles: ['canvasser'] },
+  { href: '/account', label: 'Account', roles: ['admin', 'supervisor', 'canvasser'] }
 ];
 
 export function ProtectedFrame({
@@ -33,7 +37,7 @@ export function ProtectedFrame({
   eyebrow?: string;
   children: React.ReactNode;
 }) {
-  const { ready, token, user, logout } = useAuth();
+  const { ready, token, user, impersonation, logout, stopImpersonation } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -94,6 +98,23 @@ export function ProtectedFrame({
       </aside>
 
       <main className="content">
+        {impersonation ? (
+          <div className="notice notice-warning">
+            <div className="inline-actions inline-actions-between">
+              <div className="stack-tight">
+                <strong>Impersonation Active</strong>
+                <span className="muted">
+                  Acting as {user?.firstName} {user?.lastName}
+                  {impersonation.actorName ? ` on behalf of ${impersonation.actorName}` : ''}
+                  {impersonation.reasonText ? ` • ${impersonation.reasonText}` : ''}
+                </span>
+              </div>
+              <button className="button button-danger" onClick={() => void stopImpersonation()}>
+                Stop Impersonation
+              </button>
+            </div>
+          </div>
+        ) : null}
         <header className="page-header">
           <div>
             {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}

@@ -8,6 +8,15 @@ export interface SafeUser {
   role: Role;
   isActive: boolean;
   createdAt: string;
+  impersonation?: {
+    sessionId: string;
+    actorUserId: string;
+    actorEmail?: string | null;
+    actorRole?: Role | null;
+    actorName?: string | null;
+    startedAt?: string | null;
+    reasonText?: string | null;
+  } | null;
 }
 
 export interface OutcomeDefinitionRecord {
@@ -123,6 +132,222 @@ export interface MfaStatusResponse {
   enabled: boolean;
   required: boolean;
   backupCodeCount: number;
+}
+
+export interface ReportFilters {
+  dateFrom?: string;
+  dateTo?: string;
+  turfId?: string;
+  canvasserId?: string;
+  syncStatus?: SyncConflictItem['syncStatus'];
+  gpsStatus?: GpsReviewItem['gpsStatus'];
+}
+
+export interface ReportOverview {
+  filters: ReportFilters & { limit?: number | null };
+  dataFreshness: {
+    reflectsSyncedDataOnly: boolean;
+    pendingSyncRecords: number;
+    failedSyncRecords: number;
+    conflictRecords: number;
+  };
+  kpis: {
+    totalVisits: number;
+    uniqueAddressesVisited: number;
+    contactsMade: number;
+    activeCanvassers: number;
+    syncStatus: {
+      pending: number;
+      syncing: number;
+      synced: number;
+      failed: number;
+      conflict: number;
+    };
+    gpsStatus: {
+      verified: number;
+      flagged: number;
+      missing: number;
+      lowAccuracy: number;
+      overrides: number;
+    };
+  };
+  productivityPreview: Array<{
+    canvasserId: string;
+    canvasserName: string;
+    email: string;
+    totalVisits: number;
+    uniqueAddressesVisited: number;
+    contactsMade: number;
+  }>;
+  recentAuditActivity: AuditActivityItem[];
+}
+
+export interface ProductivityRow {
+  canvasserId: string;
+  canvasserName: string;
+  email: string;
+  totalVisits: number;
+  uniqueAddressesVisited: number;
+  contactsMade: number;
+  sessionsCount: number;
+  totalSessionMinutes: number;
+  averageSessionMinutes: number;
+  housesPerHour: number;
+  gpsVerifiedRate: number;
+  gpsFlaggedRate: number;
+}
+
+export interface ProductivityReport {
+  filters: ReportFilters & { limit?: number | null };
+  summary: {
+    totalCanvassers: number;
+    totalVisits: number;
+    totalUniqueAddressesVisited: number;
+    averageHousesPerHour: number;
+  };
+  rows: ProductivityRow[];
+}
+
+export interface GpsExceptionRow {
+  visitId: string;
+  visitTime: string;
+  canvasser: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  turf: {
+    id: string;
+    name: string;
+  };
+  address: {
+    id: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+  };
+  outcome: {
+    code: string;
+    label: string;
+    result: string;
+  };
+  syncStatus: SyncConflictItem['syncStatus'];
+  gpsStatus: GpsReviewItem['gpsStatus'];
+  geofence: {
+    distanceFromTargetFeet: number | null;
+    accuracyMeters: number | null;
+    validationRadiusFeet: number | null;
+    failureReason: string | null;
+  };
+  override: {
+    flag: boolean;
+    reason: string | null;
+    approvedAt: string | null;
+    approvedBy:
+      | {
+          id: string;
+          name: string;
+          email: string;
+        }
+      | null;
+  };
+}
+
+export interface GpsExceptionsReport {
+  filters: ReportFilters & { limit?: number | null };
+  summary: {
+    totalExceptions: number;
+    flagged: number;
+    missing: number;
+    lowAccuracy: number;
+    overrides: number;
+    byCanvasser: Array<{ canvasserId: string; canvasserName: string; total: number }>;
+    byTurf: Array<{ turfId: string; turfName: string; total: number }>;
+  };
+  rows: GpsExceptionRow[];
+}
+
+export interface AuditActivityReport {
+  filters: ReportFilters & { limit?: number | null };
+  summary: {
+    totalEntries: number;
+    byActionType: Array<{ actionType: string; count: number }>;
+    byEntityType: Array<{ entityType: string; count: number }>;
+  };
+  rows: AuditActivityItem[];
+}
+
+export interface ImpersonationStartResponse extends LoginResponse {
+  user: SafeUser;
+}
+
+export interface AddressRequestRecord {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt: string;
+  reviewedAt?: string | null;
+  reviewReason?: string | null;
+  notes?: string | null;
+  organizationId?: string | null;
+  campaignId?: string | null;
+  requestedAddress: {
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  turf: {
+    id: string;
+    name: string;
+  };
+  requestedBy: SafeUser;
+  reviewedBy?: SafeUser | null;
+  approvedAddress?: {
+    id: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  } | null;
+}
+
+export interface RecentVisitRecord {
+  id: string;
+  visitTime: string;
+  outcomeCode: string;
+  outcomeLabel: string;
+  result: string;
+  notes?: string | null;
+  canvasser: SafeUser;
+  turf: {
+    id: string;
+    name: string;
+  };
+  address: {
+    id: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+  };
+  geofenceResult?: {
+    overrideFlag: boolean;
+  } | null;
+}
+
+export interface AuditActivityItem {
+  id: string;
+  actionType: string;
+  entityType: string;
+  entityId: string;
+  reasonCode?: string | null;
+  createdAt: string;
+  actorUser?: SafeUser | null;
 }
 
 export interface DisableMfaResponse {

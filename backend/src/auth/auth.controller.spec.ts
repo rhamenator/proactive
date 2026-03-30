@@ -12,7 +12,10 @@ describe('AuthController', () => {
     completeMfaSetup: jest.fn(),
     verifyMfaChallenge: jest.fn(),
     mfaStatus: jest.fn(),
-    disableMfa: jest.fn()
+    disableMfa: jest.fn(),
+    getActiveImpersonation: jest.fn(),
+    startImpersonation: jest.fn(),
+    stopImpersonation: jest.fn()
   };
   const usersService = {
     findById: jest.fn(),
@@ -63,6 +66,22 @@ describe('AuthController', () => {
     expect(authService.verifyMfaChallenge).toHaveBeenCalledWith('verify-challenge-token', '654321');
     expect(authService.mfaStatus).toHaveBeenCalledWith('user-1');
     expect(authService.disableMfa).toHaveBeenCalledWith('user-1', 'Password123!', '123456');
+  });
+
+  it('delegates impersonation lifecycle calls to the auth service', () => {
+    controller.activeImpersonation({ sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never });
+    controller.startImpersonation(
+      { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never },
+      { targetUserId: 'user-2', reason: 'Support session' }
+    );
+    controller.stopImpersonation(
+      { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never },
+      { sessionId: 'session-1' }
+    );
+
+    expect(authService.getActiveImpersonation).toHaveBeenCalledWith('admin-1');
+    expect(authService.startImpersonation).toHaveBeenCalledWith('admin-1', 'user-2', 'Support session');
+    expect(authService.stopImpersonation).toHaveBeenCalledWith('admin-1', 'session-1');
   });
 
   it('returns the current user from the users service', async () => {

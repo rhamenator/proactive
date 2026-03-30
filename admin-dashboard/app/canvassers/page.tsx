@@ -15,7 +15,7 @@ const roleLabels: Record<FieldUserRecord['role'], string> = {
 };
 
 export default function CanvassersPage() {
-  const { user } = useAuth();
+  const { user, startImpersonation, impersonation } = useAuth();
   const api = useAuthedApi();
   const isAdmin = user?.role === 'admin';
   const [users, setUsers] = useState<FieldUserRecord[]>([]);
@@ -74,6 +74,26 @@ export default function CanvassersPage() {
       await api.updateCanvasser(user.id, { isActive: !user.isActive });
       setMessage(`${user.firstName} ${user.lastName} updated.`);
       await load();
+    } catch (value) {
+      setError(getErrorMessage(value));
+    }
+  }
+
+  async function handleImpersonate(target: FieldUserRecord) {
+    const reason = window.prompt(
+      `Start an audited support impersonation session for ${target.firstName} ${target.lastName}. Enter a reason:`,
+      'Support investigation'
+    );
+
+    if (reason === null) {
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+
+    try {
+      await startImpersonation(target.id, reason);
     } catch (value) {
       setError(getErrorMessage(value));
     }
@@ -185,6 +205,13 @@ export default function CanvassersPage() {
                   </div>
                   {isAdmin ? (
                     <div className="inline-actions">
+                      <Button
+                        variant="ghost"
+                        onClick={() => void handleImpersonate(user)}
+                        disabled={Boolean(impersonation)}
+                      >
+                        Impersonate
+                      </Button>
                       <Button variant="secondary" onClick={() => void toggleActive(user)}>
                         {user.isActive ? 'Deactivate' : 'Reactivate'}
                       </Button>

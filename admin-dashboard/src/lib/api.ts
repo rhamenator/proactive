@@ -1,11 +1,21 @@
 import type {
+  AddressRequestRecord,
+  AuditActivityItem,
+  AuditActivityReport,
   AuthLoginResponse,
   DashboardSummary,
   DisableMfaResponse,
   ExportBatchRecord,
   FieldUserRecord,
   GpsReviewItem,
+  GpsExceptionsReport,
+  ImpersonationStartResponse,
   LoginResponse,
+  RecentVisitRecord,
+  ProductivityRow,
+  ProductivityReport,
+  ReportFilters,
+  ReportOverview,
   MfaSetupInitResponse,
   MfaStatusResponse,
   OutcomeDefinitionRecord,
@@ -47,6 +57,35 @@ function normalizeErrorMessage(payload: unknown, fallback: string) {
     }
   }
   return fallback;
+}
+
+function buildQueryString(filters?: ReportFilters) {
+  if (!filters) {
+    return '';
+  }
+
+  const params = new URLSearchParams();
+  if (filters.dateFrom) {
+    params.set('dateFrom', filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    params.set('dateTo', filters.dateTo);
+  }
+  if (filters.turfId) {
+    params.set('turfId', filters.turfId);
+  }
+  if (filters.canvasserId) {
+    params.set('canvasserId', filters.canvasserId);
+  }
+  if (filters.syncStatus) {
+    params.set('syncStatus', filters.syncStatus);
+  }
+  if (filters.gpsStatus) {
+    params.set('gpsStatus', filters.gpsStatus);
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : '';
 }
 
 async function requestJson<T>(
@@ -153,6 +192,77 @@ export function createApiClient(token?: string | null) {
     },
     dashboardSummary() {
       return requestJson<DashboardSummary>('/admin/dashboard-summary', {}, token);
+    },
+    reportsOverview(filters?: ReportFilters) {
+      return requestJson<ReportOverview>(`/reports/overview${buildQueryString(filters)}`, {}, token);
+    },
+    reportsProductivity(filters?: ReportFilters) {
+      return requestJson<ProductivityReport>(`/reports/productivity${buildQueryString(filters)}`, {}, token);
+    },
+    reportsGpsExceptions(filters?: ReportFilters) {
+      return requestJson<GpsExceptionsReport>(`/reports/gps-exceptions${buildQueryString(filters)}`, {}, token);
+    },
+    reportsAuditActivity(filters?: ReportFilters) {
+      return requestJson<AuditActivityReport>(`/reports/audit-activity${buildQueryString(filters)}`, {}, token);
+    },
+    activeImpersonation() {
+      return requestJson<SafeUser['impersonation']>('/auth/impersonation/active', {}, token);
+    },
+    startImpersonation(targetUserId: string, reason?: string) {
+      return requestJson<ImpersonationStartResponse>('/auth/impersonation/start', {
+        method: 'POST',
+        body: JSON.stringify({ targetUserId, reason })
+      }, token);
+    },
+    stopImpersonation(sessionId: string) {
+      return requestJson<{ success: boolean }>('/auth/impersonation/stop', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId })
+      }, token);
+    },
+    listAddressRequestsForReview(payload?: { status?: AddressRequestRecord['status']; take?: number }) {
+      const params = new URLSearchParams();
+      if (payload?.status) {
+        params.set('status', payload.status);
+      }
+      if (payload?.take) {
+        params.set('take', String(payload.take));
+      }
+      return requestJson<AddressRequestRecord[]>(`/address-requests/review${params.toString() ? `?${params.toString()}` : ''}`, {}, token);
+    },
+    approveAddressRequest(id: string, reason?: string) {
+      return requestJson<AddressRequestRecord>(`/address-requests/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      }, token);
+    },
+    rejectAddressRequest(id: string, reason: string) {
+      return requestJson<AddressRequestRecord>(`/address-requests/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      }, token);
+    },
+    listRecentVisits(payload?: { turfId?: string; canvasserId?: string; addressId?: string }) {
+      const params = new URLSearchParams();
+      if (payload?.turfId) {
+        params.set('turfId', payload.turfId);
+      }
+      if (payload?.canvasserId) {
+        params.set('canvasserId', payload.canvasserId);
+      }
+      if (payload?.addressId) {
+        params.set('addressId', payload.addressId);
+      }
+      return requestJson<RecentVisitRecord[]>(`/visits/recent${params.toString() ? `?${params.toString()}` : ''}`, {}, token);
+    },
+    correctVisit(visitId: string, payload: { outcomeCode: string; notes?: string; reason: string }) {
+      return requestJson<RecentVisitRecord>(`/visits/${visitId}/correct`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }, token);
+    },
+    myTurfSnapshot() {
+      return requestJson<{ turf: { id: string; name: string; description?: string | null } | null; session: { id: string; startTime: string; endTime?: string | null; status?: string } | null; progress: { completed: number; total: number; pendingSync: number }; addresses: Array<{ id: string; addressLine1: string; city: string; state: string; zip?: string | null; lastResult?: string | null; lastVisitAt?: string | null }> }>('/my-turf', {}, token);
     },
     activeCanvassers() {
       return requestJson<DashboardSummary['activeCanvassers']>('/admin/active-canvassers', {}, token);

@@ -13,124 +13,47 @@ The system now covers the main operational v1 workflow:
 
 - admin and supervisor dashboard access
 - canvasser-only mobile workflow
+- audited admin impersonation with token-backed session switching and visible dashboard banner
 - configurable visit outcomes
 - admin and supervisor MFA enrollment, verification, backup-code use, and disable workflow
 - GPS review and override workflow
 - sync-conflict review and resolution workflow
+- audited visit correction workflow for admin, supervisor, and time-window-limited canvasser edits
 - offline queueing and idempotent visit sync
 - turf lifecycle management, including a completion warning when addresses remain unattempted
 - organization-scoped admin, turf, export, and review queries
+- requested-address submission from the field plus admin/supervisor review and approval
+- filtered reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, and audit activity
 - VAN-compatible export, internal master export, and export history
 - CI, build verification, regression tests, and GitHub release-build automation
 
-The remaining gaps are no longer centered on auth/sync basics. They are now concentrated in support workflows, richer reporting, finer-grained permissions, and a few acceptance-level product features that the expanded client packet makes explicit.
+The remaining gaps are now mostly outside the core application logic. They are concentrated in finer-grained authorization policy, deeper analytics/report-history polish, and external mobile signing inputs.
 
 ## What Is In Place
 
 - backend auth with refresh tokens, activation, password reset, lockout, and request throttling
 - admin/supervisor MFA challenge, setup, verification, backup-code, and disable flows
+- token-backed admin impersonation start/stop, active impersonation banner context, and audited impersonation sessions
 - configurable outcome definitions in the database
 - GPS review queue and override actions
 - sync-conflict queue and resolution actions
+- visit correction endpoints and UI with role-aware edit restrictions
 - organization scoping in backend admin/turf/export review flows
 - org/campaign scaffolding in the schema
+- requested-address persistence plus mobile submission and review workflow
 - export batch tracking and two export profiles
-- admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, and field-user management
-- mobile canvasser workflow driven by server-defined outcomes
+- admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
+- mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
 - repo-wide `verify` command and GitHub Actions CI
 - GitHub release-build workflow for trusted build artifacts
 
 ## Remaining Material Gaps
 
-### 1. Impersonation is still missing
+### 1. Fine-grained scope enforcement still stops at the organization boundary
 
 Current state:
 
-- the permissions and acceptance documents explicitly require audited admin impersonation with a visible banner
-- there is no impersonation endpoint, token/session flow, or UI banner in the current system
-
-Why it matters:
-
-- the client’s support model now explicitly includes impersonation
-- this is a clear product-spec gap, not just a “future enhancement”
-
-What remains:
-
-- add admin-only impersonation start/stop flows
-- tag impersonation context in JWT/session state
-- show a persistent impersonation banner in the UI
-- audit impersonation start, stop, and impersonated actions
-
-### 2. Visit editing and correction flows are still incomplete
-
-Current state:
-
-- visit records are append-only
-- GPS overrides and sync-conflict resolutions exist
-- there is still no general correction workflow matching the permissions and acceptance docs:
-  - admin edit logs
-  - supervisor edit within scope
-  - canvasser edit own recent submissions only
-
-Why it matters:
-
-- this is now a documented client requirement rather than an inferred future feature
-- operations staff cannot yet correct ordinary outcome/note mistakes through a formal audited workflow
-
-What remains:
-
-- define the correction window and allowed fields by role
-- implement audited correction actions and UI
-- prevent correction after record lock/review where policy requires it
-
-### 3. Reporting and analytics are still only partially implemented
-
-Current state:
-
-- the dashboard exposes basic totals and turf progress
-- GPS review and export history exist
-- the reporting packet requires more than that:
-  - productivity KPIs
-  - standard filters across reports
-  - GPS exception reports
-  - audit-oriented reporting
-  - exportable report views matching active filters
-
-Why it matters:
-
-- the client now has an explicit reporting/analytics requirements document
-- the current dashboard is operational, but not yet a full reporting surface
-
-What remains:
-
-- define the first concrete report set to build
-- add report filters and report endpoints
-- expose productivity and GPS exception reporting in the admin UI
-- support report export that honors active filters
-
-### 4. Address-add review workflow is still missing
-
-Current state:
-
-- the canvassing addendum requests a field-visible way to submit addresses that were not on the assigned list
-- the system does not currently support canvasser or supervisor submission of proposed new addresses for admin review
-
-Why it matters:
-
-- this affects real field operations when households are missing from the imported turf
-- the addendum requires admin confirmation before those submitted addresses become active
-
-What remains:
-
-- add a mobile submission flow for requested new addresses
-- persist those requests separately from approved turf addresses
-- add an admin review/approve/reject workflow
-
-### 5. Scope enforcement stops at the organization boundary
-
-Current state:
-
-- admin and supervisor operational queries are now organization-scoped
+- admin and supervisor operational queries are organization-scoped
 - `organization_id` and `campaign_id` are present in the schema
 - there is still no deeper team, geography, or campaign-specific permission matrix
 
@@ -144,7 +67,25 @@ What remains:
 - decide whether campaign, team, or turf-region scoping is required in v1.x
 - if yes, model those assignments and enforce them in backend authorization
 
-### 6. Signed mobile binaries still depend on external release credentials
+### 2. Reporting history and analytics depth can still be extended
+
+Current state:
+
+- the dashboard now exposes filtered reporting for overview, productivity, GPS exceptions, and audit activity
+- exportable views now match active filters at the page layer
+- the reporting packet still leaves room for deeper slices such as long-range trend reporting, resolved-conflict history, and richer export-batch analytics
+
+Why it matters:
+
+- the client reporting packet is broader than any sensible first release surface
+- additional analytics would improve operations, but they are no longer core product blockers
+
+What remains:
+
+- decide whether resolved-conflict history, export-batch rollups, or longitudinal trend views belong in the next release
+- add those pages/endpoints if the client wants them in v1.x rather than a later enhancement
+
+### 3. Signed mobile binaries still depend on external release credentials
 
 Current state:
 
@@ -169,13 +110,17 @@ What remains:
 ## What No Longer Counts As A Gap
 
 - supervisor dashboard access exists
+- impersonation exists, is audited, and has a persistent UI banner
 - configurable outcomes exist
 - GPS review/override exists
 - sync-conflict review exists
 - admin/supervisor MFA exists, is enforced, and supports backup codes
+- visit correction flows exist across backend and UI
+- requested-address submission/review exists across mobile and admin
 - organization-scoped operational access exists
 - org/campaign scaffolding exists
 - export profiles and export history now exist
+- reporting endpoints and dashboard reporting pages now exist
 - the root build/test/Prisma verification path is automated
 - trusted GitHub release-build automation exists
 
@@ -192,21 +137,16 @@ Safe for:
 
 Still blocked for full source-packet alignment:
 
-- impersonation
-- visit correction/edit workflows
-- fuller reporting/analytics surface
-- requested-address review workflow
-- signed mobile app distribution without real external signing credentials
+- deeper team/campaign/geography scope policy and enforcement if the client wants that in v1.x
+- final signed mobile app distribution without real external signing credentials
 
 Remaining non-blocking enhancements:
 
-- deeper team/campaign/geography scope rules
+- deeper analytics/report-history breadth beyond the first reporting slice
 - richer break-glass or help-desk recovery options beyond backup codes
 
 ## Recommended Next Sequence
 
-1. Implement admin impersonation with full audit tagging and UI bannering.
-2. Implement audited visit correction/edit flows by role and time window.
-3. Build the first reporting/analytics slice from the reporting packet.
-4. Add requested-address submission and admin review.
-5. Provide production release secrets and app identifiers for EAS/App Store/Play.
+1. Decide whether deeper campaign/team/geography scope belongs in the next release and implement it if required.
+2. Provide production release secrets and final app identifiers for EAS/App Store/Play.
+3. If desired, extend reporting with resolved-conflict history and longer-range analytics.

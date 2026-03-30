@@ -6,10 +6,12 @@ import { api, getErrorMessage } from '../api/client';
 import { clearAppCache, clearSession, loadSession, saveAddressState, saveQueue, saveSession } from '../storage';
 import type {
   Address,
+  AddressRequestRecord,
   AddressState,
   GpsStatus,
   OutcomeDefinition,
   QueuedVisit,
+  RecentVisitRecord,
   Role,
   Turf,
   TurfSession,
@@ -34,6 +36,7 @@ type AppContextValue = {
   addresses: Address[];
   progress: TurfSnapshot['progress'];
   queue: QueuedVisit[];
+  addressRequests: AddressRequestRecord[];
   statusMessage: string | null;
   errorMessage: string | null;
   login: (email: string, password: string) => Promise<void>;
@@ -45,6 +48,10 @@ type AppContextValue = {
   completeTurf: () => Promise<void>;
   endTurf: () => Promise<void>;
   submitVisit: (addressId: string, outcomeCode: VisitResult, notes?: string) => Promise<void>;
+  listRecentVisits: (addressId?: string) => Promise<RecentVisitRecord[]>;
+  correctVisit: (visitId: string, outcomeCode: VisitResult, notes: string | undefined, reason: string) => Promise<void>;
+  submitAddressRequest: (payload: { addressLine1: string; city: string; state: string; zip?: string; notes?: string }) => Promise<void>;
+  refreshAddressRequests: () => Promise<void>;
   syncQueue: () => Promise<void>;
   getAddressById: (addressId: string) => Address | undefined;
 };
@@ -155,6 +162,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [progress, setProgress] = useState<TurfSnapshot['progress']>({ completed: 0, total: 0, pendingSync: 0 });
   const [queue, setQueue] = useState<QueuedVisit[]>([]);
+  const [addressRequests, setAddressRequests] = useState<AddressRequestRecord[]>([]);
   const [addressState, setAddressState] = useState<Record<string, AddressState>>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -176,10 +184,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         if (sessionData.token) {
           try {
-            const [me, snapshot, nextOutcomes] = await Promise.all([
+            const [me, snapshot, nextOutcomes, ownAddressRequests] = await Promise.all([
               api.me(sessionData.token),
               api.myTurf(sessionData.token),
-              api.listOutcomes(sessionData.token)
+              api.listOutcomes(sessionData.token),
+              api.myAddressRequests(sessionData.token)
             ]);
             if (!mounted) {
               return;
@@ -192,12 +201,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
               setUser(null);
               setOutcomes([]);
               setQueue([]);
+              setAddressRequests([]);
               setAddressState({});
               return;
             }
 
             setUser(me);
             setOutcomes(nextOutcomes);
+            setAddressRequests(ownAddressRequests);
             applySnapshot(snapshot, sessionData.addressState);
           } catch (error) {
             setErrorMessage(getErrorMessage(error));
@@ -205,10 +216,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setToken(null);
             setUser(null);
             setOutcomes([]);
+            setAddressRequests([]);
           }
         } else {
           setUser(null);
           setOutcomes([]);
+          setAddressRequests([]);
         }
       } finally {
         if (mounted) {
@@ -268,6 +281,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     applySnapshot(snapshot, addressState);
   }
 
+  async function refreshAddressRequests() {
+    if (!token) {
+      return;
+    }
+
+    const requests = await api.myAddressRequests(token);
+    setAddressRequests(requests);
+  }
+
   async function performTurfAction(
     request: (authToken: string, payload: { turfId: string; latitude?: number | null; longitude?: number | null }) => Promise<unknown>,
     successMessage: string,
@@ -304,11 +326,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToken(authToken);
     setUser(response.user);
     await saveSession(authToken, response.user);
-    const [snapshot, nextOutcomes] = await Promise.all([
+    const [snapshot, nextOutcomes, ownAddressRequests] = await Promise.all([
       api.myTurf(authToken),
-      api.listOutcomes(authToken)
+      api.listOutcomes(authToken),
+      api.myAddressRequests(authToken)
     ]);
     setOutcomes(nextOutcomes);
+    setAddressRequests(ownAddressRequests);
     applySnapshot(snapshot, addressState);
     setStatusMessage('Signed in. Turf snapshot loaded.');
   }
@@ -322,6 +346,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAddresses([]);
     setProgress({ completed: 0, total: 0, pendingSync: 0 });
     setQueue([]);
+    setAddressRequests([]);
     setAddressState({});
     setStatusMessage(null);
     setErrorMessage(null);
@@ -468,6 +493,64 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function listRecentVisits(addressId?: string) {
+    if (!token) {
+      throw new Error('Sign in before loading recent visits.');
+    }
+
+    return api.listRecentVisits(token, addressId ? { addressId } : undefined);
+  }
+
+  async function correctVisit(
+    visitId: string,
+    outcomeCode: VisitResult,
+    notes: string | undefined,
+    reason: string
+  ) {
+    if (!token) {
+      throw new Error('Sign in before correcting a visit.');
+    }
+
+    await api.correctVisit(token, visitId, {
+      outcomeCode,
+      notes: notes?.trim() || undefined,
+      reason
+    });
+    setStatusMessage('Visit correction submitted.');
+    await refreshTurf();
+  }
+
+  async function submitAddressRequest(payload: {
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string;
+    notes?: string;
+  }) {
+    if (!token || !turf) {
+      throw new Error('You need an assigned turf before requesting a missing address.');
+    }
+
+    const location = await captureLocation();
+    await api.submitAddressRequest(token, {
+      turfId: turf.id,
+      addressLine1: payload.addressLine1.trim(),
+      city: payload.city.trim(),
+      state: payload.state.trim().toUpperCase(),
+      zip: payload.zip?.trim() || undefined,
+      notes: payload.notes?.trim() || undefined,
+      latitude: location.latitude ?? null,
+      longitude: location.longitude ?? null
+    });
+
+    await refreshAddressRequests();
+    setStatusMessage(
+      location.gpsStatus === 'verified'
+        ? 'Missing address request submitted for review.'
+        : 'Missing address request submitted with a GPS warning.'
+    );
+  }
+
   async function syncQueue() {
     if (!token || syncingRef.current || queue.length === 0) {
       return;
@@ -578,6 +661,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addresses,
     progress,
     queue,
+    addressRequests,
     statusMessage,
     errorMessage,
     login,
@@ -589,6 +673,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     completeTurf,
     endTurf,
     submitVisit,
+    listRecentVisits,
+    correctVisit,
+    submitAddressRequest,
+    refreshAddressRequests,
     syncQueue,
     getAddressById,
   };

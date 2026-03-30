@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'node:crypto';
@@ -29,6 +29,17 @@ export class AuthService {
   private readonly loginLockoutMinutes = Number(process.env.LOGIN_LOCKOUT_MINUTES ?? 15);
   private readonly mfaChallengeTtlMinutes = Number(process.env.MFA_CHALLENGE_TTL_MINUTES ?? 10);
   private readonly mfaIssuer = process.env.MFA_ISSUER ?? 'PROACTIVE FCS';
+
+  private getImpersonationSessionStore() {
+    return (this.prisma as PrismaService & {
+      impersonationSession: {
+        findFirst: (...args: any[]) => Promise<any>;
+        updateMany: (...args: any[]) => Promise<any>;
+        create: (...args: any[]) => Promise<any>;
+        update: (...args: any[]) => Promise<any>;
+      };
+    }).impersonationSession;
+  }
 
   private buildSafeUser(user: {
     id: string;
@@ -242,6 +253,10 @@ export class AuthService {
       role: user.role,
       user: this.buildSafeUser(user)
     };
+  }
+
+  private async issueAccessToken(payload: Record<string, unknown>) {
+    return this.jwtService.signAsync(payload);
   }
 
   async validateUser(email: string, password: string) {
@@ -522,6 +537,156 @@ export class AuthService {
     });
 
     return { success: true, setupRequiredOnNextLogin: this.requiresMfa(user) };
+  }
+
+  async getActiveImpersonation(actorUserId: string) {
+    const session = await this.getImpersonationSessionStore().findFirst({
+      where: {
+        actorUserId,
+        endedAt: null
+      },
+      include: {
+        targetUser: true
+      },
+      orderBy: { startedAt: 'desc' }
+    });
+
+    if (!session) {
+      return null;
+    }
+
+    return {
+      id: session.id,
+      startedAt: session.startedAt,
+      reasonText: session.reasonText,
+      targetUser: this.buildSafeUser(session.targetUser)
+    };
+  }
+
+  async startImpersonation(actorUserId: string, targetUserId: string, reasonText?: string) {
+    const actor = await this.usersService.findById(actorUserId);
+    if (actor.role !== UserRole.admin) {
+      throw new ForbiddenException('Only admins can start impersonation sessions');
+    }
+
+    const targetUser = await this.usersService.findById(targetUserId);
+    if (targetUser.role === UserRole.admin) {
+      throw new BadRequestException('Admins cannot impersonate other admin accounts');
+    }
+    if (targetUser.organizationId !== actor.organizationId) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.getImpersonationSessionStore().updateMany({
+      where: {
+        actorUserId,
+        endedAt: null
+      },
+      data: {
+        endedAt: new Date()
+      }
+    });
+
+    const session = await this.getImpersonationSessionStore().create({
+      data: {
+        actorUserId,
+        targetUserId,
+        organizationId: actor.organizationId ?? null,
+        campaignId: null,
+        reasonText: reasonText?.trim() || null
+      },
+      include: {
+        targetUser: true
+      }
+    });
+    const accessToken = await this.issueAccessToken({
+      ...this.buildJwtPayload(targetUser),
+      impersonationSessionId: session.id,
+      impersonatorUserId: actor.id,
+      impersonatorEmail: actor.email,
+      impersonatorRole: actor.role,
+      impersonatorName: `${actor.firstName} ${actor.lastName}`.trim(),
+      impersonationStartedAt: session.startedAt.toISOString(),
+      impersonationReasonText: session.reasonText ?? null
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      actionType: 'impersonation_started',
+      entityType: 'impersonation_session',
+      entityId: session.id,
+      reasonText: reasonText?.trim() || undefined,
+      newValuesJson: {
+        targetUserId,
+        targetRole: targetUser.role
+      }
+    });
+
+    return {
+      accessToken,
+      token: accessToken,
+      role: targetUser.role,
+      user: {
+        ...this.buildSafeUser(session.targetUser),
+        impersonation: {
+          sessionId: session.id,
+          actorUserId: actor.id,
+          actorEmail: actor.email,
+          actorRole: actor.role,
+          actorName: `${actor.firstName} ${actor.lastName}`.trim(),
+          startedAt: session.startedAt,
+          reasonText: session.reasonText
+        }
+      }
+    };
+  }
+
+  async stopImpersonation(actorUserId: string, sessionId: string) {
+    const session = await this.getImpersonationSessionStore().findFirst({
+      where: {
+        id: sessionId,
+        actorUserId,
+        endedAt: null
+      },
+      include: {
+        targetUser: true
+      }
+    });
+
+    if (!session) {
+      throw new NotFoundException('Impersonation session not found');
+    }
+
+    const endedSession = await this.getImpersonationSessionStore().update({
+      where: { id: sessionId },
+      data: {
+        endedAt: new Date()
+      },
+      include: {
+        targetUser: true
+      }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      actionType: 'impersonation_stopped',
+      entityType: 'impersonation_session',
+      entityId: sessionId,
+      oldValuesJson: {
+        targetUserId: session.targetUserId
+      }
+    });
+
+    return {
+      success: true,
+      session: {
+        id: endedSession.id,
+        startedAt: endedSession.startedAt,
+        endedAt: endedSession.endedAt,
+        reasonText: endedSession.reasonText,
+        targetUser: this.buildSafeUser(endedSession.targetUser)
+      }
+    };
   }
 
   async refresh(refreshToken: string) {

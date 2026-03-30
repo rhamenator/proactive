@@ -24,6 +24,27 @@ export interface User {
   role: Role;
 }
 
+export interface AddressRequestRecord {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt: string;
+  reviewedAt?: string | null;
+  reviewReason?: string | null;
+  notes?: string | null;
+  requestedAddress: {
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  turf: {
+    id: string;
+    name: string;
+  };
+}
+
 export interface Turf {
   id: string;
   name: string;
@@ -106,6 +127,26 @@ export interface QueuedVisit {
     state: string;
     zip?: string | null;
     vanId?: string | null;
+  };
+}
+
+export interface RecentVisitRecord {
+  id: string;
+  visitTime: string;
+  outcomeCode: string;
+  outcomeLabel: string;
+  result: string;
+  notes?: string | null;
+  address: {
+    id: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+  };
+  turf: {
+    id: string;
+    name: string;
   };
 }
 

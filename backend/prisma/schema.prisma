@@ -73,6 +73,12 @@ enum MfaChallengePurpose {
   verify
 }
 
+enum AddressRequestStatus {
+  pending
+  approved
+  rejected
+}
+
 model User {
   id           String          @id @default(uuid()) @db.Uuid
   firstName    String          @map("first_name")
@@ -101,6 +107,11 @@ model User {
   exportBatches ExportBatch[]  @relation("ExportBatchesInitiated")
   mfaChallenges MfaChallengeToken[]
   mfaBackupCodes MfaBackupCode[]
+  impersonationSessionsStarted ImpersonationSession[] @relation("ImpersonationActor")
+  impersonationSessionsTargeted ImpersonationSession[] @relation("ImpersonationTarget")
+  submittedAddressRequests AddressRequest[] @relation("AddressRequestSubmitter")
+  reviewedAddressRequests AddressRequest[] @relation("AddressRequestReviewer")
+  visitCorrections VisitCorrection[] @relation("VisitCorrectionActor")
   refreshTokens AuthRefreshToken[]
   activationTokens ActivationToken[]
   resetTokens   PasswordResetToken[]
@@ -123,6 +134,9 @@ model Organization {
   visits      VisitLog[]
   auditLogs   AuditLog[]
   outcomes    OutcomeDefinition[]
+  addressRequests AddressRequest[]
+  impersonationSessions ImpersonationSession[]
+  visitCorrections VisitCorrection[]
 
   @@map("organizations")
 }
@@ -141,6 +155,9 @@ model Campaign {
   sessions       TurfSession[]
   visits         VisitLog[]
   outcomes       OutcomeDefinition[]
+  addressRequests AddressRequest[]
+  impersonationSessions ImpersonationSession[]
+  visitCorrections VisitCorrection[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -191,6 +208,7 @@ model Turf {
   sessions     TurfSession[]
   visits       VisitLog[]
   exportBatches ExportBatch[]
+  addressRequests AddressRequest[]
 
   @@index([organizationId])
   @@index([campaignId])
@@ -215,6 +233,7 @@ model Address {
   turf          Turf        @relation(fields: [turfId], references: [id], onDelete: Cascade)
   visitLogs     VisitLog[]
   geofenceResults VisitGeofenceResult[]
+  requestedFrom AddressRequest[] @relation("AddressRequestApprovedAddress")
 
   @@index([turfId])
   @@index([organizationId])
@@ -313,6 +332,7 @@ model VisitLog {
   session               TurfSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   canvasser             User        @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
   geofenceResult        VisitGeofenceResult?
+  corrections           VisitCorrection[]
 
   @@index([turfId])
   @@index([addressId])
@@ -416,6 +436,84 @@ model ExportBatch {
   @@index([initiatedByUserId])
   @@index([createdAt])
   @@map("export_batches")
+}
+
+model ImpersonationSession {
+  id             String    @id @default(uuid()) @db.Uuid
+  actorUserId    String    @map("actor_user_id") @db.Uuid
+  targetUserId   String    @map("target_user_id") @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  campaignId     String?   @map("campaign_id") @db.Uuid
+  reasonText     String?   @map("reason_text")
+  startedAt      DateTime  @default(now()) @map("started_at")
+  endedAt        DateTime? @map("ended_at")
+  actorUser      User      @relation("ImpersonationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  targetUser     User      @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, endedAt])
+  @@index([targetUserId, endedAt])
+  @@index([organizationId])
+  @@index([campaignId])
+  @@map("impersonation_sessions")
+}
+
+model VisitCorrection {
+  id             String   @id @default(uuid()) @db.Uuid
+  visitLogId      String   @map("visit_log_id") @db.Uuid
+  actorUserId     String   @map("actor_user_id") @db.Uuid
+  organizationId  String?  @map("organization_id") @db.Uuid
+  campaignId      String?  @map("campaign_id") @db.Uuid
+  reasonText      String   @map("reason_text")
+  oldValuesJson   Json     @map("old_values_json")
+  newValuesJson   Json     @map("new_values_json")
+  createdAt       DateTime @default(now()) @map("created_at")
+  visitLog        VisitLog @relation(fields: [visitLogId], references: [id], onDelete: Cascade)
+  actorUser       User     @relation("VisitCorrectionActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign        Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([visitLogId])
+  @@index([actorUserId])
+  @@index([organizationId])
+  @@index([campaignId])
+  @@map("visit_corrections")
+}
+
+model AddressRequest {
+  id                String               @id @default(uuid()) @db.Uuid
+  turfId            String               @map("turf_id") @db.Uuid
+  organizationId    String?              @map("organization_id") @db.Uuid
+  campaignId        String?              @map("campaign_id") @db.Uuid
+  requestedByUserId String               @map("requested_by_user_id") @db.Uuid
+  reviewedByUserId  String?              @map("reviewed_by_user_id") @db.Uuid
+  approvedAddressId String?              @map("approved_address_id") @db.Uuid
+  status            AddressRequestStatus @default(pending)
+  addressLine1      String               @map("address_line1")
+  city              String
+  state             String
+  zip               String?
+  latitude          Decimal?             @db.Decimal(9, 6)
+  longitude         Decimal?             @db.Decimal(9, 6)
+  notes             String?
+  submittedAt       DateTime             @default(now()) @map("submitted_at")
+  reviewedAt        DateTime?            @map("reviewed_at")
+  reviewReason      String?              @map("review_reason")
+  turf              Turf                 @relation(fields: [turfId], references: [id], onDelete: Cascade)
+  organization      Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign          Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  requestedByUser   User                 @relation("AddressRequestSubmitter", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  reviewedByUser    User?                @relation("AddressRequestReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  approvedAddress   Address?             @relation("AddressRequestApprovedAddress", fields: [approvedAddressId], references: [id], onDelete: SetNull)
+
+  @@index([turfId])
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([requestedByUserId])
+  @@index([reviewedByUserId])
+  @@index([status])
+  @@map("address_requests")
 }
 
 model MfaChallengeToken {

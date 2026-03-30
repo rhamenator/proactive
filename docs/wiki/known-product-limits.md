@@ -4,15 +4,13 @@
 
 - admin dashboard supports `admin` and `supervisor`
 - mobile app supports `canvasser` only by design
+- impersonated `canvasser` sessions in the dashboard are intentionally limited to the field-preview/account experience, not the full admin navigation surface
 
 ## Current Workflow Gaps
 
-- no audited visit-correction workflow yet
 - no dedicated resolved-conflicts history screen yet
 - org-level scope is enforced, but deeper campaign/team/geography scope rules are not yet implemented
-- no impersonation workflow or impersonation banner yet
-- no requested-address submission/review workflow yet
-- reporting is operational but not yet the full filtered analytics/reporting suite described by the client
+- reporting is operational and filtered, but not yet the full long-range analytics suite described by the client
 - MFA backup codes are implemented, but richer break-glass support is not yet implemented
 - signed mobile binaries still require external Expo/Apple/Google release credentials
 

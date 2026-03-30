@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '../components/Button';
@@ -14,12 +14,50 @@ import type { VisitResult } from '../types';
 type Props = NativeStackScreenProps<RootStackParamList, 'AddressDetail'>;
 
 export function AddressDetailScreen({ navigation, route }: Props) {
-  const { getAddressById, outcomes, submitVisit } = useApp();
+  const { getAddressById, outcomes, submitVisit, listRecentVisits, correctVisit } = useApp();
   const [selected, setSelected] = useState<VisitResult | null>(null);
   const [notes, setNotes] = useState('');
+  const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [recentVisitId, setRecentVisitId] = useState<string | null>(null);
 
   const address = getAddressById(route.params.addressId);
+  const activeOutcome = useMemo(
+    () => outcomes.find((item) => item.code === selected),
+    [outcomes, selected]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadRecent() {
+      try {
+        const recent = await listRecentVisits(route.params.addressId);
+        if (!mounted) {
+          return;
+        }
+
+        const latest = recent[0];
+        if (latest) {
+          setRecentVisitId(latest.id);
+          setSelected(latest.outcomeCode);
+          setNotes(latest.notes ?? '');
+        } else {
+          setRecentVisitId(null);
+        }
+      } catch {
+        if (mounted) {
+          setRecentVisitId(null);
+        }
+      }
+    }
+
+    void loadRecent();
+
+    return () => {
+      mounted = false;
+    };
+  }, [listRecentVisits, route.params.addressId]);
 
   async function handleSubmit() {
     if (!address || !selected) {
@@ -29,7 +67,15 @@ export function AddressDetailScreen({ navigation, route }: Props) {
 
     setLoading(true);
     try {
-      await submitVisit(address.id, selected, notes);
+      if (recentVisitId) {
+        if (!reason.trim()) {
+          Alert.alert('Add a reason', 'Corrections require a short audit reason.');
+          return;
+        }
+        await correctVisit(recentVisitId, selected, notes, reason);
+      } else {
+        await submitVisit(address.id, selected, notes);
+      }
       navigation.goBack();
     } catch (error) {
       Alert.alert('Unable to submit', error instanceof Error ? error.message : 'Please try again.');
@@ -67,6 +113,9 @@ export function AddressDetailScreen({ navigation, route }: Props) {
 
         <Card style={styles.resultCard}>
           <Text style={styles.section}>Result</Text>
+          {recentVisitId ? (
+            <Text style={styles.copy}>You are correcting your most recent submission for this address.</Text>
+          ) : null}
           <View style={styles.grid}>
             {outcomes.filter((item) => item.isActive).map((item) => {
               const active = selected === item.code;
@@ -87,7 +136,7 @@ export function AddressDetailScreen({ navigation, route }: Props) {
           <Text style={styles.section}>Notes</Text>
           <TextInput
             multiline
-            placeholder="Optional notes for the field report"
+            placeholder={activeOutcome?.requiresNote ? 'Notes required for this outcome' : 'Optional notes for the field report'}
             placeholderTextColor={colors.muted}
             value={notes}
             onChangeText={setNotes}
@@ -95,9 +144,22 @@ export function AddressDetailScreen({ navigation, route }: Props) {
           />
         </Card>
 
+        {recentVisitId ? (
+          <Card style={styles.notesCard}>
+            <Text style={styles.section}>Correction Reason</Text>
+            <TextInput
+              placeholder="Why are you correcting this visit?"
+              placeholderTextColor={colors.muted}
+              value={reason}
+              onChangeText={setReason}
+              style={styles.reasonInput}
+            />
+          </Card>
+        ) : null}
+
         <View style={styles.actions}>
           <Button
-            label="Submit Visit"
+            label={recentVisitId ? 'Save Correction' : 'Submit Visit'}
             onPress={() => void handleSubmit()}
             loading={loading}
             disabled={!selected}
@@ -164,6 +226,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.cream,
     textAlignVertical: 'top',
+    fontSize: typography.body,
+  },
+  reasonInput: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    color: colors.text,
+    backgroundColor: colors.cream,
     fontSize: typography.body,
   },
   actions: {

@@ -169,6 +169,11 @@ export function DashboardScreen({ navigation }: Props) {
               label="Open Address List"
               onPress={() => navigation.navigate('AddressList')}
             />
+            <Button
+              label="Request Missing Address"
+              onPress={() => navigation.navigate('AddressRequest')}
+              variant="secondary"
+            />
             <Button label="Sync Queue" onPress={() => void syncQueue()} variant="secondary" loading={isSyncing} />
             <Button label="Review Queue" onPress={() => navigation.navigate('Queue')} variant="ghost" />
           </View>
