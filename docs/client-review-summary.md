@@ -1,0 +1,117 @@
+# PROACTIVE Field Canvassing System: Review Handoff
+
+## What Has Been Completed
+
+The application suite has been built and brought to a review-ready state across all major surfaces:
+
+- **Backend API**
+  - Authentication, refresh/logout, password reset, activation, lockout, and MFA
+  - Admin/supervisor impersonation support with audit tracking
+  - Turf creation, assignment, lifecycle management, and field session tracking
+  - Visit logging with offline-safe sync metadata, idempotency, GPS validation, and audit history
+  - GPS review and override workflow
+  - Sync-conflict review and resolution workflow
+  - Configurable visit outcomes
+  - Requested-address submission and review workflow
+  - Reporting endpoints for overview, productivity, GPS exceptions, and audit activity
+  - VAN export, internal master export, and export batch history
+
+- **Admin Dashboard**
+  - Dashboard and operational summary views
+  - Turf management and assignment
+  - Field-user management for supervisors and canvassers
+  - MFA account management
+  - Outcomes management
+  - GPS review
+  - Sync-conflict review
+  - Reports pages
+  - Requested-address review
+  - Visit correction workflow
+  - Impersonation-aware admin experience with visible banner
+  - Field-preview mode for impersonated canvasser support sessions
+
+- **Mobile App**
+  - Canvasser login and turf workflow
+  - Address list and visit submission
+  - Offline queueing and retry behavior
+  - GPS capture and warning handling
+  - Missing-address request submission
+  - Recent-visit correction support within policy limits
+
+- **Quality and Release Guardrails**
+  - Automated test coverage across backend, admin dashboard, and mobile utility layers
+  - CI/build verification paths
+  - Dependency vulnerability cleanup
+  - Documentation, wiki, help docs, and updated gap analysis
+  - Trusted GitHub-based build/release workflow scaffolding
+
+## Verification Completed
+
+The current codebase passed the main validation checks:
+
+- `npm run verify`
+- Prisma client generation and migration deployment
+- Backend build
+- Admin dashboard build
+- Mobile typecheck
+- Backend Jest suite
+- Admin dashboard Vitest suite
+- Mobile Vitest suite
+- `npm audit --omit=dev`
+- `git diff --check`
+
+## What You Need To Do Now
+
+To review and move toward deployment, the remaining steps are primarily client-side decisions and credentials, not core development.
+
+### 1. Review The Application Behavior
+
+Please review:
+
+- Admin dashboard workflows
+- Field/mobile workflow
+- Reporting views
+- GPS review flow
+- Sync-conflict flow
+- Visit correction behavior
+- Requested-address review behavior
+- Impersonation behavior and banner wording
+
+### 2. Confirm Remaining Business Decisions
+
+Please confirm whether you want any of the following added before release:
+
+- Deeper campaign/team/geography scoping
+- Additional reporting depth beyond the first implemented reporting slice
+- Any changes to impersonation policy, correction windows, or review permissions
+
+### 3. Provide Production Release Inputs
+
+For final signed mobile release builds, we still need:
+
+- `EXPO_OWNER`
+- `EAS_PROJECT_ID`
+- Final iOS bundle identifier
+- Final Android application ID
+- Apple signing / App Store Connect credentials
+- Google Play credentials, if Play distribution will be used
+- Final production API base URLs
+
+### 4. Perform Acceptance Review
+
+Please review the system against your expected operational flow and provide:
+
+- Any functional defects
+- Any policy mismatches
+- Any wording/UI changes
+- Any missing reports or exports
+- Any deployment/environment requirements not yet supplied
+
+## Current Status
+
+The system is now ready for client review and ready for controlled internal/pilot use.
+
+The only major items still outside the repository are:
+
+- Final release credentials for signed mobile binaries
+- Any additional scope decisions you want included before production rollout
