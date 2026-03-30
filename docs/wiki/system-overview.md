@@ -31,11 +31,13 @@ Path: [admin-dashboard](/home/rich/dev/proactive/admin-dashboard)
 
 Responsibilities:
 
-- admin login
+- admin and supervisor login
 - dashboard summary
 - canvasser and field-user management
 - turf creation/import/reassignment/reopen flows
-- export initiation
+- GPS review, sync-conflict review, and reporting
+- policy, CSV-profile, team, and retention management
+- export initiation and history review
 
 ### Mobile App
 
@@ -53,22 +55,18 @@ Responsibilities:
 
 Operationally exposed:
 
-- `admin` on the dashboard
+- `admin` and `supervisor` on the dashboard
 - `canvasser` on mobile
-
-Partially implemented but not fully product-complete:
-
-- `supervisor`
 
 ## Main User Flows
 
-### Admin flow
+### Dashboard flow
 
-1. Log in to the admin dashboard.
-2. Create or import turf data.
-3. Create or invite field users.
-4. Assign a turf.
-5. Monitor progress and exports.
+1. Log in to the admin dashboard as an admin or supervisor.
+2. Review dashboard status, assigned teams/regions, and policy defaults.
+3. Create or import turf data, or review/import duplicate batches as allowed by role.
+4. Assign or reassign turf work within allowed scope.
+5. Monitor progress, GPS exceptions, sync conflicts, and exports.
 
 ### Canvasser flow
 

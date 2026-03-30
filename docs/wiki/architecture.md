@@ -92,6 +92,7 @@ Geofence detail is stored separately for audit/review workflows.
 - dashboard supports `admin` and `supervisor`
 - mobile app is canvasser-only
 - admin MFA is enforced during login, with account-level setup and disable flows
-- supervisor/admin operational access is organization-scoped
-- deeper campaign/team/geography scoping is not yet implemented
+- sensitive admin/supervisor actions require a fresh MFA confirmation
+- supervisor/admin operational access is policy-driven across organization, campaign, team, and region scopes
+- more specialized geography hierarchy beyond the current campaign/team/region model is not yet implemented
 - signed mobile binaries still depend on external Expo/App Store/Play credentials

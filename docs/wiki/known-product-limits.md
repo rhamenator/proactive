@@ -9,7 +9,7 @@
 ## Current Workflow Gaps
 
 - no dedicated resolved-conflicts history screen yet
-- org-level scope is enforced, but deeper campaign/team/geography scope rules are not yet implemented
+- more specialized geography hierarchy beyond the current campaign/team/region scope model is not yet implemented
 - reporting is operational and filtered, but not yet the full long-range analytics suite described by the client
 - MFA backup codes are implemented, but richer break-glass support is not yet implemented
 - signed mobile binaries still require external Expo/Apple/Google release credentials
