@@ -534,7 +534,7 @@ describe('VisitsService', () => {
     prisma.visitLog.findFirst.mockResolvedValue(
       buildCorrectableVisit({
         canvasserId: 'user-1',
-        visitTime: new Date(Date.now() - 10 * 60 * 1000)
+        visitTime: new Date(Date.now() - 5 * 60 * 1000)
       })
     );
     prisma.outcomeDefinition.findFirst.mockResolvedValue({
