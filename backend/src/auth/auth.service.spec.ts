@@ -308,10 +308,10 @@ describe('AuthService', () => {
     expect(result).toEqual(
       expect.objectContaining({
         success: true,
-        resetToken: expect.any(String),
         expiresAt: expect.any(Date)
       })
     );
+    expect(result).not.toHaveProperty('resetToken');
   });
 
   it('activates a valid account token and issues a session', async () => {
@@ -340,11 +340,19 @@ describe('AuthService', () => {
       firstName: 'Morgan',
       lastName: 'Supervisor',
       email: 'morgan@example.com',
-      role: UserRole.supervisor
+      role: UserRole.supervisor,
+      actorUserId: 'admin-1'
     });
 
     expect(result.user).toBe(invitedUser);
     expect(result.activationToken).toEqual(expect.any(String));
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: 'admin-1',
+        actionType: 'field_user_invited',
+        entityId: invitedUser.id
+      })
+    );
   });
 
   it('initializes MFA setup with a persisted temporary secret', async () => {

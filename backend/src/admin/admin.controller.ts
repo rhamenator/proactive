@@ -150,6 +150,7 @@ export class AdminController {
   async inviteCanvasser(@Body() body: InviteCanvasserDto, @CurrentUser() user: JwtUserPayload) {
     return this.authService.inviteCanvasser({
       ...body,
+      actorUserId: user.sub,
       organizationId: await this.resolveOrganizationId(user)
     });
   }

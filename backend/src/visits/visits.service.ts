@@ -425,7 +425,7 @@ export class VisitsService {
           result: this.normalizeLegacyResult(outcomeDefinition.code),
           outcomeCode: outcomeDefinition.code,
           outcomeLabel: outcomeDefinition.label,
-          contactMade: input.contactMade ?? false,
+          contactMade: outcomeDefinition.code === 'talked_to_voter',
           notes: input.notes,
           latitude: input.latitude,
           longitude: input.longitude,

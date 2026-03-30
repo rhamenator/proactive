@@ -29,6 +29,7 @@ export class AuthService {
   private readonly loginLockoutMinutes = Number(process.env.LOGIN_LOCKOUT_MINUTES ?? 15);
   private readonly mfaChallengeTtlMinutes = Number(process.env.MFA_CHALLENGE_TTL_MINUTES ?? 10);
   private readonly mfaIssuer = process.env.MFA_ISSUER ?? 'PROACTIVE FCS';
+  private readonly exposeResetTokens = process.env.EXPOSE_RESET_TOKENS === 'true';
 
   private getImpersonationSessionStore() {
     return (this.prisma as PrismaService & {
@@ -783,11 +784,16 @@ export class AuthService {
       entityId: user.id
     });
 
-    return {
+    const response = {
       success: true,
-      resetToken: token,
       expiresAt: this.minutesFromNow(this.passwordResetTtlMinutes)
-    };
+    } as { success: true; expiresAt: Date; resetToken?: string };
+
+    if (this.exposeResetTokens) {
+      response.resetToken = token;
+    }
+
+    return response;
   }
 
   async completePasswordReset(token: string, password: string) {
@@ -883,6 +889,7 @@ export class AuthService {
     lastName: string;
     email: string;
     role?: UserRole;
+    actorUserId: string;
     organizationId?: string | null;
   }) {
     const placeholderPasswordHash = await bcrypt.hash(this.createOpaqueToken(), 10);
@@ -893,7 +900,7 @@ export class AuthService {
     const activation = await this.createActivationForUser(user.id);
 
     await this.auditService.log({
-      actorUserId: user.id,
+      actorUserId: input.actorUserId,
       actionType: 'field_user_invited',
       entityType: 'user',
       entityId: user.id,

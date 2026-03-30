@@ -83,7 +83,9 @@ describe('AdminController', () => {
     await controller.updateCanvasser('user-1', { isActive: false }, user);
 
     expect(usersService.createCanvasser).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 'org-1' }));
-    expect(authService.inviteCanvasser).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 'org-1' }));
+    expect(authService.inviteCanvasser).toHaveBeenCalledWith(
+      expect.objectContaining({ actorUserId: 'admin-1', organizationId: 'org-1' })
+    );
     expect(usersService.updateCanvasser).toHaveBeenCalledWith('user-1', {
       isActive: false,
       organizationId: 'org-1'
