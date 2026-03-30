@@ -15,7 +15,7 @@ The application suite has been built and brought to a review-ready state across 
   - Sync-conflict review and resolution workflow
   - Configurable visit outcomes
   - Requested-address submission and review workflow
-  - Dedicated CSV import service with import modes and duplicate skip/error/merge handling
+  - Dedicated CSV import service with import modes, duplicate skip/error/merge handling, batch history, downloadable source artifacts, and row-level import tracing
   - Reporting endpoints for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
   - VAN export, internal master export, export batch history, historical CSV re-download, and row-traceable export artifacts
 
@@ -32,6 +32,7 @@ The application suite has been built and brought to a review-ready state across 
   - Campaign-aware report filtering
   - Requested-address review
   - Visit correction workflow
+  - Import-history visibility and source CSV download for recent batches
   - Impersonation-aware admin experience with visible banner
   - Field-preview mode for impersonated canvasser support sessions
 

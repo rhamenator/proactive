@@ -26,9 +26,10 @@ The system now covers the main operational v1 workflow:
 - filtered reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, and audit activity
 - campaign-aware reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
 - VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
+- CSV import batch history, downloadable source artifacts, and row-level import outcome tracing
 - CI, build verification, regression tests, and GitHub release-build automation
 
-The remaining gaps are now mostly in deeper import breadth, fine-grained authorization policy, and release inputs rather than missing operational screens. Canonical household modeling, retention metadata, and on-device SQLite persistence are now in place.
+The remaining gaps are now mostly in deeper import-policy breadth, fine-grained authorization policy, and release inputs rather than missing operational screens. Canonical household modeling, retention metadata, on-device SQLite persistence, and import/export audit history are now in place.
 
 ## What Is In Place
 
@@ -47,6 +48,7 @@ The remaining gaps are now mostly in deeper import breadth, fine-grained authori
 - canonical `Household` records with turf-level address membership rows that preserve existing `addressId` contracts
 - retention / lifecycle metadata on core operational tables, including users, turfs, address memberships, visits, and address requests
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
+- import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
 - a dedicated `ImportsService` and `/imports/csv` path with import modes plus duplicate skip/error/merge handling
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
 - mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
@@ -189,7 +191,6 @@ Remaining non-blocking enhancements:
 
 ## Recommended Next Sequence
 
-1. Decide whether v1 production needs fuller CSV/VAN import parity beyond the current import baseline.
-2. Decide whether v1.x needs richer CSV/VAN parity such as import review queues, lineage, and additional mapping rules.
-3. Decide whether explicit admin archive/delete workflows should ship now or after pilot review.
-4. Provide production release secrets and final app identifiers for EAS/App Store/Play.
+1. Decide whether v1.x needs richer CSV/VAN parity such as ambiguous-duplicate review queues, more source-specific mappings, or import lineage beyond the current batch/row audit trail.
+2. Decide whether explicit admin archive/delete workflows should ship now or after pilot review.
+3. Provide production release secrets and final app identifiers for EAS/App Store/Play.

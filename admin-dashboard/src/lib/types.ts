@@ -499,9 +499,39 @@ export interface FieldUserRecord extends SafeUser {
 export type CanvasserRecord = FieldUserRecord;
 
 export interface TurfAddressImportResult {
+  importBatchId: string;
+  filename: string;
+  mode: 'create_only' | 'upsert';
+  duplicateStrategy: 'skip' | 'error' | 'merge';
   turfsCreated: number;
   addressesImported: number;
+  invalidRowsSkipped?: number;
+  duplicateRowsSkipped?: number;
+  duplicateRowsMerged?: number;
   turfs: TurfListItem[];
+}
+
+export interface ImportBatchRecord {
+  id: string;
+  filename: string;
+  mode: string;
+  duplicateStrategy: string;
+  rowCount: number;
+  importedCount: number;
+  mergedCount: number;
+  invalidCount: number;
+  duplicateSkippedCount: number;
+  createdAt: string;
+  initiatedByUser?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: Role;
+  } | null;
+  _count?: {
+    rows: number;
+  };
 }
 
 export interface TurfSessionSnapshot {

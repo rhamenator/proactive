@@ -481,6 +481,11 @@ th {
   gap: 0.35rem;
 }
 
+.import-history-item {
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-md);
+}
+
 .split {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);

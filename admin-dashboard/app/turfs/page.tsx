@@ -6,7 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input, TextArea } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
-import type { CanvasserRecord, TurfListItem } from '../../src/lib/types';
+import type { CanvasserRecord, ImportBatchRecord, TurfListItem } from '../../src/lib/types';
 
 const mappingFields = [
   ['vanId', 'VAN ID'],
@@ -25,6 +25,7 @@ export default function TurfsPage() {
   const isAdmin = user?.role === 'admin';
   const [turfs, setTurfs] = useState<TurfListItem[]>([]);
   const [canvassers, setCanvassers] = useState<CanvasserRecord[]>([]);
+  const [importHistory, setImportHistory] = useState<ImportBatchRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -43,15 +44,20 @@ export default function TurfsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [nextTurfs, nextCanvassers] = await Promise.all([api.listTurfs(), api.listCanvassers()]);
+      const [nextTurfs, nextCanvassers, nextImportHistory] = await Promise.all([
+        api.listTurfs(),
+        api.listCanvassers(),
+        isAdmin ? api.listImportHistory() : Promise.resolve([])
+      ]);
       setTurfs(nextTurfs);
       setCanvassers(nextCanvassers);
+      setImportHistory(nextImportHistory);
     } catch (value) {
       setError(getErrorMessage(value));
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [api, isAdmin]);
 
   useEffect(() => {
     void load();
@@ -127,6 +133,23 @@ export default function TurfsPage() {
       setMapping({});
       setFallbackTurfName('');
       await load();
+    } catch (value) {
+      setError(getErrorMessage(value));
+    }
+  }
+
+  async function handleDownloadImport(batchId: string) {
+    setError(null);
+    try {
+      const result = await api.downloadImportBatch(batchId);
+      const url = URL.createObjectURL(result.blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = result.filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     } catch (value) {
       setError(getErrorMessage(value));
     }
@@ -263,6 +286,41 @@ export default function TurfsPage() {
           </Card>
           ) : null}
         </div>
+
+        {isAdmin ? (
+          <Card>
+            <div className="stack">
+              <div>
+                <p className="section-kicker">Import History</p>
+                <h2 className="heading-reset">Recent CSV batches</h2>
+                <p className="muted">Review recent imports and download the original source CSV for audit or replay.</p>
+              </div>
+
+              {!importHistory.length ? (
+                <p className="muted">No CSV imports have been recorded yet.</p>
+              ) : (
+                <div className="stack-tight">
+                  {importHistory.map((batch) => (
+                    <div className="inline-actions inline-actions-between card-subtle import-history-item" key={batch.id}>
+                      <div className="stack-tight">
+                        <strong>{batch.filename}</strong>
+                        <p className="muted margin-bottom-reset">
+                          {batch.importedCount} imported, {batch.mergedCount} merged, {batch.invalidCount} invalid, {batch.duplicateSkippedCount} skipped
+                        </p>
+                        <p className="muted margin-bottom-reset">
+                          {new Date(batch.createdAt).toLocaleString()} • {batch.mode} • {batch.duplicateStrategy}
+                        </p>
+                      </div>
+                      <Button type="button" variant="secondary" onClick={() => void handleDownloadImport(batch.id)}>
+                        Download Source
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
+        ) : null}
 
         <Card className="stack">
           <div className="inline-actions inline-actions-between">

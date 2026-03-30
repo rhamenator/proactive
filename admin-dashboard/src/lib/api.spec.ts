@@ -225,6 +225,10 @@ describe('admin api client', () => {
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
+          importBatchId: 'batch-1',
+          filename: 'import-batch-2026-03-30.csv',
+          mode: 'create_only',
+          duplicateStrategy: 'skip',
           turfsCreated: 1,
           addressesImported: 2,
           turfs: [{ id: 'turf-1', name: 'North Turf' }]
@@ -253,10 +257,64 @@ describe('admin api client', () => {
       })
     );
     expect(result).toEqual({
+      importBatchId: 'batch-1',
+      filename: 'import-batch-2026-03-30.csv',
+      mode: 'create_only',
+      duplicateStrategy: 'skip',
       turfsCreated: 1,
       addressesImported: 2,
       turfs: [{ id: 'turf-1', name: 'North Turf' }]
     });
+  });
+
+  it('lists and downloads import history', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              id: 'batch-1',
+              filename: 'import-batch-2026-03-30.csv',
+              mode: 'upsert',
+              duplicateStrategy: 'merge',
+              rowCount: 10,
+              importedCount: 8,
+              mergedCount: 1,
+              invalidCount: 1,
+              duplicateSkippedCount: 0,
+              createdAt: '2026-03-30T04:00:00.000Z'
+            }
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(new Blob(['address,city,state\n100 Main,Detroit,MI\n']), {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': 'attachment; filename="import-batch-2026-03-30.csv"'
+          }
+        })
+      );
+
+    const client = createApiClient('token-123');
+    const history = await client.listImportHistory();
+    const download = await client.downloadImportBatch('batch-1');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/imports/history', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3001/imports/history/batch-1/download', {
+      headers: {
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(history[0].id).toBe('batch-1');
+    expect(download.filename).toBe('import-batch-2026-03-30.csv');
   });
 
   it('supports outcome, GPS review, and sync conflict admin requests', async () => {

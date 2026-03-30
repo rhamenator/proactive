@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { TurfStatus } from '@prisma/client';
 import { parse } from 'csv-parse/sync';
 import { AuditService } from '../audit/audit.service';
+import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { CsvMapping, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -9,6 +11,7 @@ import { UsersService } from '../users/users.service';
 type ImportRow = Record<string, unknown>;
 type ImportMode = 'create_only' | 'upsert';
 type DuplicateStrategy = 'skip' | 'error' | 'merge';
+type RowImportStatus = 'created' | 'merged' | 'skipped_invalid' | 'skipped_duplicate';
 
 @Injectable()
 export class ImportsService {
@@ -17,6 +20,22 @@ export class ImportsService {
     private readonly usersService: UsersService,
     private readonly auditService: AuditService
   ) {}
+
+  private buildTimestampedFilename(prefix: string) {
+    const timestamp = new Date().toISOString().replace(/[:]/g, '-').replace(/\.\d{3}Z$/, 'Z');
+    return `${prefix}-${timestamp}.csv`;
+  }
+
+  private checksum(csv: string) {
+    return createHash('sha256').update(csv).digest('hex');
+  }
+
+  private buildScope(scope: AccessScope | { organizationId?: string | null; campaignId?: string | null }) {
+    return {
+      organizationId: scope.organizationId ?? null,
+      ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
+    } as const;
+  }
 
   private findDuplicateAddress(input: {
     turfId: string;
@@ -146,13 +165,13 @@ export class ImportsService {
       throw new BadRequestException('CSV file contains no rows');
     }
 
-    const groupedRows = new Map<string, ImportRow[]>();
-    for (const row of records) {
+    const groupedRows = new Map<string, Array<{ row: ImportRow; rowIndex: number }>>();
+    for (const [index, row] of records.entries()) {
       const resolvedTurfName = resolveMappedValue(row, 'turfName', input.mapping) ?? input.turfName ?? 'Imported Turf';
       if (!groupedRows.has(resolvedTurfName)) {
         groupedRows.set(resolvedTurfName, []);
       }
-      groupedRows.get(resolvedTurfName)!.push(row);
+      groupedRows.get(resolvedTurfName)!.push({ row, rowIndex: index + 1 });
     }
 
     const createdTurfs: string[] = [];
@@ -161,6 +180,15 @@ export class ImportsService {
     let invalidRowsSkipped = 0;
     let duplicateRowsSkipped = 0;
     let duplicateRowsMerged = 0;
+    const rowResults: Array<{
+      rowIndex: number;
+      turfName: string;
+      status: RowImportStatus;
+      reasonCode: string | null;
+      rawRowJson: ImportRow;
+      addressId: string | null;
+      householdId: string | null;
+    }> = [];
 
     for (const [turfName, rows] of groupedRows.entries()) {
       const existingTurf =
@@ -192,7 +220,7 @@ export class ImportsService {
       }
       turfs.push({ id: turf.id, name: turf.name });
 
-      for (const row of rows) {
+      for (const { row, rowIndex } of rows) {
         const addressLine1 = resolveMappedValue(row, 'addressLine1', input.mapping);
         const addressLine2 = resolveMappedValue(row, 'addressLine2', input.mapping);
         const unit = resolveMappedValue(row, 'unit', input.mapping);
@@ -210,6 +238,15 @@ export class ImportsService {
 
         if (!addressLine1 || !city || !state) {
           invalidRowsSkipped += 1;
+          rowResults.push({
+            rowIndex,
+            turfName,
+            status: 'skipped_invalid',
+            reasonCode: 'missing_required_fields',
+            rawRowJson: row,
+            addressId: null,
+            householdId: null
+          });
           continue;
         }
 
@@ -249,14 +286,32 @@ export class ImportsService {
               }
             });
             duplicateRowsMerged += 1;
+            rowResults.push({
+              rowIndex,
+              turfName,
+              status: 'merged',
+              reasonCode: 'duplicate_household',
+              rawRowJson: row,
+              addressId: duplicate.id,
+              householdId: household.id
+            });
             continue;
           }
 
           duplicateRowsSkipped += 1;
+          rowResults.push({
+            rowIndex,
+            turfName,
+            status: 'skipped_duplicate',
+            reasonCode: 'duplicate_household',
+            rawRowJson: row,
+            addressId: duplicate.id,
+            householdId: household.id
+          });
           continue;
         }
 
-        await this.prisma.address.create({
+        const createdAddress = await this.prisma.address.create({
           data: {
             turfId: turf.id,
             householdId: household.id,
@@ -272,10 +327,53 @@ export class ImportsService {
           }
         });
         addressesImported += 1;
+        rowResults.push({
+          rowIndex,
+          turfName,
+          status: 'created',
+          reasonCode: null,
+          rawRowJson: row,
+          addressId: createdAddress.id,
+          householdId: household.id
+        });
       }
     }
 
+    const filename = this.buildTimestampedFilename('import-batch');
+    const importBatch = await this.prisma.importBatch.create({
+      data: {
+        filename,
+        organizationId: creator.organizationId ?? null,
+        campaignId: creator.campaignId ?? null,
+        initiatedByUserId: input.createdById,
+        mode,
+        duplicateStrategy,
+        turfNameFallback: input.turfName ?? null,
+        rowCount: records.length,
+        importedCount: addressesImported,
+        mergedCount: duplicateRowsMerged,
+        invalidCount: invalidRowsSkipped,
+        duplicateSkippedCount: duplicateRowsSkipped,
+        mappingJson: (input.mapping ?? null) as never,
+        csvContent: input.csv,
+        sha256Checksum: this.checksum(input.csv),
+        rows: {
+          create: rowResults.map((row) => ({
+            rowIndex: row.rowIndex,
+            turfName: row.turfName,
+            status: row.status,
+            reasonCode: row.reasonCode,
+            rawRowJson: row.rawRowJson as never,
+            addressId: row.addressId,
+            householdId: row.householdId
+          }))
+        }
+      }
+    });
+
     const result = {
+      importBatchId: importBatch.id,
+      filename,
       mode,
       duplicateStrategy,
       turfsCreated: createdTurfs.length,
@@ -295,5 +393,57 @@ export class ImportsService {
     });
 
     return result;
+  }
+
+  async importHistory(scope: AccessScope) {
+    return this.prisma.importBatch.findMany({
+      where: this.buildScope(scope),
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        initiatedByUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            organizationId: true,
+            campaignId: true,
+            isActive: true,
+            status: true,
+            mfaEnabled: true,
+            invitedAt: true,
+            activatedAt: true,
+            lastLoginAt: true,
+            createdAt: true
+          }
+        },
+        _count: {
+          select: {
+            rows: true
+          }
+        }
+      }
+    });
+  }
+
+  async downloadImportBatch(batchId: string, scope: AccessScope) {
+    const batch = await this.prisma.importBatch.findFirst({
+      where: {
+        id: batchId,
+        ...this.buildScope(scope)
+      }
+    });
+
+    if (!batch || !batch.csvContent) {
+      throw new BadRequestException('Import batch not found');
+    }
+
+    return {
+      csv: batch.csvContent,
+      filename: batch.filename,
+      checksum: batch.sha256Checksum
+    };
   }
 }

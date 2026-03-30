@@ -11,6 +11,7 @@ import type {
   FieldUserRecord,
   GpsReviewItem,
   GpsExceptionsReport,
+  ImportBatchRecord,
   ImpersonationStartResponse,
   LoginResponse,
   RecentVisitRecord,
@@ -345,6 +346,12 @@ export function createApiClient(token?: string | null) {
     },
     downloadExportBatch(batchId: string) {
       return requestBlob(`/exports/history/${batchId}/download`, token);
+    },
+    listImportHistory() {
+      return requestJson<ImportBatchRecord[]>('/imports/history', {}, token);
+    },
+    downloadImportBatch(batchId: string) {
+      return requestBlob(`/imports/history/${batchId}/download`, token);
     },
     overrideGpsResult(visitLogId: string, reason: string) {
       return requestJson(`/admin/gps-review/${visitLogId}/override`, {

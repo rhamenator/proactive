@@ -111,6 +111,7 @@ model User {
   visits                        VisitLog[]
   auditLogs                     AuditLog[]             @relation("AuditActor")
   exportBatches                 ExportBatch[]          @relation("ExportBatchesInitiated")
+  importBatches                 ImportBatch[]          @relation("ImportBatchesInitiated")
   mfaChallenges                 MfaChallengeToken[]
   mfaBackupCodes                MfaBackupCode[]
   impersonationSessionsStarted  ImpersonationSession[] @relation("ImpersonationActor")
@@ -142,6 +143,7 @@ model Organization {
   visits                VisitLog[]
   auditLogs             AuditLog[]
   outcomes              OutcomeDefinition[]
+  importBatches         ImportBatch[]
   addressRequests       AddressRequest[]
   impersonationSessions ImpersonationSession[]
   visitCorrections      VisitCorrection[]
@@ -151,26 +153,27 @@ model Organization {
 }
 
 model Household {
-  id              String        @id @default(uuid()) @db.Uuid
-  organizationId  String?       @map("organization_id") @db.Uuid
-  addressLine1    String        @map("address_line1")
+  id              String           @id @default(uuid()) @db.Uuid
+  organizationId  String?          @map("organization_id") @db.Uuid
+  addressLine1    String           @map("address_line1")
   city            String
   state           String
   zip             String?
-  latitude        Decimal?      @db.Decimal(9, 6)
-  longitude       Decimal?      @db.Decimal(9, 6)
-  vanHouseholdId  String?       @map("van_household_id")
-  vanPersonId     String?       @map("van_person_id")
-  source          String        @default("csv_import")
-  approvalStatus  String        @default("approved") @map("approval_status")
-  legacyAddressId String?       @unique @map("legacy_address_id") @db.Uuid
-  deletedAt       DateTime?     @map("deleted_at")
-  deleteReason    String?       @map("delete_reason")
-  archivedAt      DateTime?     @map("archived_at")
-  purgeAt         DateTime?     @map("purge_at")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  latitude        Decimal?         @db.Decimal(9, 6)
+  longitude       Decimal?         @db.Decimal(9, 6)
+  vanHouseholdId  String?          @map("van_household_id")
+  vanPersonId     String?          @map("van_person_id")
+  source          String           @default("csv_import")
+  approvalStatus  String           @default("approved") @map("approval_status")
+  legacyAddressId String?          @unique @map("legacy_address_id") @db.Uuid
+  deletedAt       DateTime?        @map("deleted_at")
+  deleteReason    String?          @map("delete_reason")
+  archivedAt      DateTime?        @map("archived_at")
+  purgeAt         DateTime?        @map("purge_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   addresses       Address[]
+  importRows      ImportBatchRow[]
 
   @@index([organizationId])
   @@index([organizationId, addressLine1, city, state, zip])
@@ -198,6 +201,7 @@ model Campaign {
   impersonationSessions ImpersonationSession[]
   visitCorrections      VisitCorrection[]
   exportBatches         ExportBatch[]
+  importBatches         ImportBatch[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -286,6 +290,7 @@ model Address {
   visitLogs       VisitLog[]
   geofenceResults VisitGeofenceResult[]
   requestedFrom   AddressRequest[]      @relation("AddressRequestApprovedAddress")
+  importRows      ImportBatchRow[]
 
   @@index([turfId])
   @@index([householdId])
@@ -519,6 +524,57 @@ model ExportBatchVisit {
   @@unique([exportBatchId, visitLogId])
   @@index([visitLogId])
   @@map("export_batch_visits")
+}
+
+model ImportBatch {
+  id                    String           @id @default(uuid()) @db.Uuid
+  filename              String
+  organizationId        String?          @map("organization_id") @db.Uuid
+  campaignId            String?          @map("campaign_id") @db.Uuid
+  initiatedByUserId     String?          @map("initiated_by_user_id") @db.Uuid
+  mode                  String
+  duplicateStrategy     String           @map("duplicate_strategy")
+  turfNameFallback      String?          @map("turf_name_fallback")
+  rowCount              Int              @default(0) @map("row_count")
+  importedCount         Int              @default(0) @map("imported_count")
+  mergedCount           Int              @default(0) @map("merged_count")
+  invalidCount          Int              @default(0) @map("invalid_count")
+  duplicateSkippedCount Int              @default(0) @map("duplicate_skipped_count")
+  mappingJson           Json?            @map("mapping_json")
+  csvContent            String?          @map("csv_content")
+  sha256Checksum        String?          @map("sha256_checksum")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  organization          Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign              Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  initiatedByUser       User?            @relation("ImportBatchesInitiated", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
+  rows                  ImportBatchRow[]
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([initiatedByUserId])
+  @@index([createdAt])
+  @@map("import_batches")
+}
+
+model ImportBatchRow {
+  id            String      @id @default(uuid()) @db.Uuid
+  importBatchId String      @map("import_batch_id") @db.Uuid
+  rowIndex      Int         @map("row_index")
+  turfName      String?     @map("turf_name")
+  status        String
+  reasonCode    String?     @map("reason_code")
+  rawRowJson    Json?       @map("raw_row_json")
+  addressId     String?     @map("address_id") @db.Uuid
+  householdId   String?     @map("household_id") @db.Uuid
+  createdAt     DateTime    @default(now()) @map("created_at")
+  importBatch   ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  address       Address?    @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  household     Household?  @relation(fields: [householdId], references: [id], onDelete: SetNull)
+
+  @@index([importBatchId])
+  @@index([addressId])
+  @@index([householdId])
+  @@map("import_batch_rows")
 }
 
 model ImpersonationSession {

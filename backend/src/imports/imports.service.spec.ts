@@ -7,6 +7,11 @@ describe('ImportsService', () => {
       findFirst: jest.fn(),
       create: jest.fn()
     },
+    importBatch: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn()
+    },
     household: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -56,6 +61,14 @@ describe('ImportsService', () => {
     prisma.address.findFirst.mockResolvedValue(null);
     prisma.address.create.mockResolvedValue({});
     prisma.address.update.mockResolvedValue({});
+    prisma.importBatch.create.mockResolvedValue({ id: 'batch-1' });
+    prisma.importBatch.findMany.mockResolvedValue([{ id: 'batch-1' }]);
+    prisma.importBatch.findFirst.mockResolvedValue({
+      id: 'batch-1',
+      csvContent: 'address,city,state\n100 Main,Detroit,MI\n',
+      filename: 'import-batch.csv',
+      sha256Checksum: 'checksum-1'
+    });
     auditService.log.mockResolvedValue(undefined);
   });
 
@@ -83,6 +96,8 @@ describe('ImportsService', () => {
       })
     );
     expect(result).toEqual({
+      importBatchId: 'batch-1',
+      filename: expect.stringContaining('import-batch-'),
       mode: 'create_only',
       duplicateStrategy: 'skip',
       turfsCreated: 2,
@@ -141,6 +156,8 @@ describe('ImportsService', () => {
       })
     });
     expect(result).toEqual({
+      importBatchId: 'batch-1',
+      filename: expect.stringContaining('import-batch-'),
       mode: 'upsert',
       duplicateStrategy: 'merge',
       turfsCreated: 0,
@@ -174,5 +191,24 @@ describe('ImportsService', () => {
         ].join('\n')
       })
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('lists and downloads import history within scope', async () => {
+    const history = await service.importHistory({ organizationId: 'org-1', campaignId: null });
+    const batch = await service.downloadImportBatch('batch-1', { organizationId: 'org-1', campaignId: null });
+
+    expect(prisma.importBatch.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId: 'org-1' }
+      })
+    );
+    expect(prisma.importBatch.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'batch-1',
+        organizationId: 'org-1'
+      }
+    });
+    expect(history).toEqual([{ id: 'batch-1' }]);
+    expect(batch.filename).toBe('import-batch.csv');
   });
 });
