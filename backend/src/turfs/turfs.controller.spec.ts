@@ -6,7 +6,6 @@ describe('TurfsController', () => {
     listTurfs: jest.fn(),
     createTurf: jest.fn(),
     assignTurf: jest.fn(),
-    importCsv: jest.fn(),
     getTurfAddresses: jest.fn(),
     getMyTurf: jest.fn(),
     startSession: jest.fn(),
@@ -44,25 +43,6 @@ describe('TurfsController', () => {
     expect(turfsService.createTurf).toHaveBeenCalledWith({ name: 'North' }, 'admin-1');
     expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'canvasser-1', 'admin-1', undefined, scope);
     expect(turfsService.getTurfAddresses).toHaveBeenCalledWith('turf-1', scope);
-  });
-
-  it('delegates CSV import after parsing mapping JSON', async () => {
-    const file = {
-      buffer: Buffer.from('address,city,state\n100 Main,Detroit,MI\n')
-    } as Express.Multer.File;
-
-    await controller.importCsv(
-      file,
-      { turfName: 'North', mapping: JSON.stringify({ addressLine1: 'address' }) },
-      { sub: 'admin-1', email: 'admin@example.com', role: 'admin' as never }
-    );
-
-    expect(turfsService.importCsv).toHaveBeenCalledWith({
-      csv: 'address,city,state\n100 Main,Detroit,MI\n',
-      createdById: 'admin-1',
-      turfName: 'North',
-      mapping: { addressLine1: 'address' }
-    });
   });
 
   it('delegates canvasser turf and session actions', () => {

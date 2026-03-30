@@ -1,17 +1,12 @@
 import {
   Body,
-  BadRequestException,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
   Post,
-  UploadedFile,
-  UseGuards,
-  UseInterceptors
+  UseGuards
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import multer from 'multer';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RequireFreshMfa } from '../common/decorators/require-fresh-mfa.decorator';
@@ -24,7 +19,6 @@ import { resolveAccessScope } from '../common/utils/access-scope.util';
 import { UsersService } from '../users/users.service';
 import { AssignTurfDto } from './dto/assign-turf.dto';
 import { CreateTurfDto } from './dto/create-turf.dto';
-import { ImportCsvDto } from './dto/import-csv.dto';
 import { TurfSessionActionDto } from './dto/turf-session-action.dto';
 import { TurfsService } from './turfs.service';
 
@@ -64,36 +58,6 @@ export class TurfsController {
     @CurrentUser() user: JwtUserPayload
   ) {
     return this.turfsService.assignTurf(turfId, body.canvasserId, user.sub, undefined, await this.resolveScope(user));
-  }
-
-  @Post('turfs/import-csv')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.admin)
-  @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))
-  async importCsv(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: ImportCsvDto,
-    @CurrentUser() user: JwtUserPayload
-  ) {
-    if (!file) {
-      throw new BadRequestException('CSV file is required');
-    }
-
-    let mapping: Record<string, string> | undefined;
-    if (body.mapping) {
-      try {
-        mapping = JSON.parse(body.mapping) as Record<string, string>;
-      } catch {
-        throw new BadRequestException('mapping must be valid JSON');
-      }
-    }
-
-    return this.turfsService.importCsv({
-      csv: file.buffer.toString('utf8'),
-      createdById: user.sub,
-      turfName: body.turfName,
-      mapping
-    });
   }
 
   @Get('turfs/:id/addresses')

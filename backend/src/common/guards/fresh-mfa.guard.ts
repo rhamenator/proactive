@@ -1,14 +1,13 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
+import { getSensitiveMfaWindowMinutes } from '../../auth/sensitive-mfa.util';
 import { REQUIRE_FRESH_MFA_KEY } from '../decorators/require-fresh-mfa.decorator';
 import { JwtUserPayload } from '../interfaces/jwt-user-payload.interface';
 
 @Injectable()
 export class FreshMfaGuard implements CanActivate {
-  private readonly defaultFreshMfaMinutes = Number(
-    process.env.SENSITIVE_MFA_TTL_MINUTES ?? process.env.SENSITIVE_ACTION_MFA_WINDOW_MINUTES ?? 5
-  );
+  private readonly defaultFreshMfaMinutes = getSensitiveMfaWindowMinutes();
 
   constructor(private readonly reflector: Reflector) {}
 

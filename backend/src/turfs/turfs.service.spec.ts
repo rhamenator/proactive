@@ -399,42 +399,6 @@ describe('TurfsService', () => {
     );
   });
 
-  it('imports grouped CSV rows and skips incomplete addresses', async () => {
-    prisma.turf.create
-      .mockResolvedValueOnce({ id: 'turf-1', name: 'North Turf' })
-      .mockResolvedValueOnce({ id: 'turf-2', name: 'South Turf' });
-    prisma.address.create.mockResolvedValue({});
-    auditService.log.mockResolvedValue(undefined);
-
-    const result = await service.importCsv({
-      createdById: 'admin-1',
-      csv: [
-        'turf_name,address_line1,city,state,zip,van_id,latitude,longitude',
-        'North Turf,10 Main St,Grand Rapids,MI,49503,VAN-1,42.96,-85.67',
-        'North Turf,,Grand Rapids,MI,49503,VAN-2,42.96,-85.67',
-        'South Turf,22 Oak Ave,Grand Rapids,MI,49504,VAN-3,42.97,-85.68'
-      ].join('\n')
-    });
-
-    expect(prisma.turf.create).toHaveBeenCalledTimes(2);
-    expect(prisma.address.create).toHaveBeenCalledTimes(2);
-    expect(result).toEqual({
-      turfsCreated: 2,
-      addressesImported: 2,
-      turfs: [
-        { id: 'turf-1', name: 'North Turf' },
-        { id: 'turf-2', name: 'South Turf' }
-      ]
-    });
-    expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actorUserId: 'admin-1',
-        actionType: 'csv_import_completed',
-        entityType: 'turf_import'
-      })
-    );
-  });
-
   it('returns address completion status from the latest visit on a turf', async () => {
     prisma.turf.findFirst.mockResolvedValue({
       id: 'turf-1',

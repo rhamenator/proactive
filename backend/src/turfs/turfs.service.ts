@@ -7,27 +7,14 @@ import {
   type Prisma,
   type TurfSession
 } from '@prisma/client';
-import { parse } from 'csv-parse/sync';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
-import { CsvField, CsvMapping, normalizeHeader, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
+import { inferMappingFromHeaders } from '../common/utils/csv.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 
-type ImportRow = Record<string, unknown>;
 type PrismaWriter = PrismaService | Prisma.TransactionClient;
 type LifecycleStatus = 'open' | 'paused' | 'completed' | 'closed';
-
-const csvFieldHeaders: Record<CsvField, string[]> = {
-  vanId: ['van_id', 'van id', 'record id'],
-  addressLine1: ['address_line1', 'address line 1', 'street', 'street address', 'address'],
-  city: ['city'],
-  state: ['state'],
-  zip: ['zip', 'zipcode', 'postal'],
-  latitude: ['latitude', 'lat'],
-  longitude: ['longitude', 'lng', 'lon'],
-  turfName: ['turf_name', 'turf', 'district']
-};
 
 @Injectable()
 export class TurfsService {
@@ -340,93 +327,6 @@ export class TurfsService {
 
       return updated;
     });
-  }
-
-  async importCsv(input: {
-    csv: string;
-    createdById: string;
-    turfName?: string;
-    mapping?: CsvMapping;
-  }) {
-    const creator = await this.usersService.findById(input.createdById);
-    const records = parse(input.csv, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true
-    }) as ImportRow[];
-
-    if (records.length === 0) {
-      throw new BadRequestException('CSV file contains no rows');
-    }
-
-    const groupedRows = new Map<string, ImportRow[]>();
-    for (const row of records) {
-      const turfName =
-        resolveMappedValue(row, 'turfName', input.mapping) ?? input.turfName ?? 'Imported Turf';
-      if (!groupedRows.has(turfName)) {
-        groupedRows.set(turfName, []);
-      }
-      groupedRows.get(turfName)!.push(row);
-    }
-
-    const createdTurfs: string[] = [];
-    let addressCount = 0;
-    const importedTurfs = [];
-
-    for (const [turfName, rows] of groupedRows.entries()) {
-      const turf = await this.prisma.turf.create({
-        data: {
-          name: turfName,
-          description: `Imported from CSV on ${new Date().toISOString()}`,
-          createdById: input.createdById,
-          organizationId: creator.organizationId ?? null,
-          status: TurfStatus.unassigned
-        }
-      });
-      createdTurfs.push(turf.id);
-      importedTurfs.push(turf);
-
-      for (const row of rows) {
-        const addressLine1 = resolveMappedValue(row, 'addressLine1', input.mapping);
-        const city = resolveMappedValue(row, 'city', input.mapping);
-        const state = resolveMappedValue(row, 'state', input.mapping);
-        if (!addressLine1 || !city || !state) {
-          continue;
-        }
-
-        await this.prisma.address.create({
-          data: {
-            turfId: turf.id,
-            organizationId: turf.organizationId,
-            campaignId: turf.campaignId,
-            addressLine1,
-            city,
-            state,
-            zip: resolveMappedValue(row, 'zip', input.mapping),
-            vanId: resolveMappedValue(row, 'vanId', input.mapping),
-            latitude: toOptionalNumber(resolveMappedValue(row, 'latitude', input.mapping)),
-            longitude: toOptionalNumber(resolveMappedValue(row, 'longitude', input.mapping))
-          }
-        });
-        addressCount += 1;
-      }
-    }
-
-    const result = {
-      turfsCreated: createdTurfs.length,
-      addressesImported: addressCount,
-      turfs: importedTurfs
-    };
-
-    await this.auditService.log({
-      actorUserId: input.createdById,
-      actionType: 'csv_import_completed',
-      entityType: 'turf_import',
-      entityId: createdTurfs[0] ?? 'none',
-      newValuesJson: result
-    });
-
-    return result;
   }
 
   async getTurfAddresses(turfId: string, scope: AccessScope) {
@@ -861,20 +761,6 @@ export class TurfsService {
   }
 
   inferMappingFromHeaders(headers: string[]) {
-    const normalizedHeaders = headers.map((header) => ({
-      header,
-      normalized: normalizeHeader(header)
-    }));
-
-    const mapping: CsvMapping = {};
-    for (const field of Object.keys(csvFieldHeaders) as CsvField[]) {
-      const match = normalizedHeaders.find((candidate) =>
-        csvFieldHeaders[field].some((alias) => candidate.normalized === normalizeHeader(alias))
-      );
-      if (match) {
-        mapping[field] = match.header;
-      }
-    }
-    return mapping;
+    return inferMappingFromHeaders(headers);
   }
 }

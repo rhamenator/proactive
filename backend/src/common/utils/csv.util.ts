@@ -2,7 +2,11 @@ export type CsvMapping = Partial<Record<CsvField, string>>;
 
 export type CsvField =
   | 'vanId'
+  | 'vanPersonId'
+  | 'vanHouseholdId'
   | 'addressLine1'
+  | 'addressLine2'
+  | 'unit'
   | 'city'
   | 'state'
   | 'zip'
@@ -10,9 +14,13 @@ export type CsvField =
   | 'longitude'
   | 'turfName';
 
-const canonicalAliases: Record<CsvField, string[]> = {
+export const canonicalAliases: Record<CsvField, string[]> = {
   vanId: ['van_id', 'vanid', 'id', 'recordid'],
+  vanPersonId: ['van_person_id', 'personid', 'person_id', 'voterid'],
+  vanHouseholdId: ['van_household_id', 'householdid', 'household_id'],
   addressLine1: ['address_line1', 'address1', 'street', 'street_address', 'address'],
+  addressLine2: ['address_line2', 'address2', 'street2', 'address_line_2'],
+  unit: ['unit', 'apt', 'apartment', 'suite', 'unit_number'],
   city: ['city', 'town'],
   state: ['state', 'province'],
   zip: ['zip', 'zipcode', 'postal', 'postalcode'],
@@ -56,4 +64,23 @@ export function resolveMappedValue(
   }
 
   return undefined;
+}
+
+export function inferMappingFromHeaders(headers: string[]): CsvMapping {
+  const normalizedHeaders = headers.map((header) => ({
+    header,
+    normalized: normalizeHeader(header)
+  }));
+
+  const mapping: CsvMapping = {};
+  for (const field of Object.keys(canonicalAliases) as CsvField[]) {
+    const match = normalizedHeaders.find((candidate) =>
+      canonicalAliases[field].some((alias) => candidate.normalized === normalizeHeader(alias))
+    );
+    if (match) {
+      mapping[field] = match.header;
+    }
+  }
+
+  return mapping;
 }

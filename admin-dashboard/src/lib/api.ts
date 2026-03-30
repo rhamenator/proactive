@@ -435,7 +435,7 @@ export function createApiClient(token?: string | null) {
       if (payload.mapping) {
         formData.append('mapping', payload.mapping);
       }
-      return requestJson<TurfAddressImportResult>('/turfs/import-csv', {
+      return requestJson<TurfAddressImportResult>('/imports/csv', {
         method: 'POST',
         body: formData
       }, token);

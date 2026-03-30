@@ -221,6 +221,44 @@ describe('admin api client', () => {
     expect(result.blob.size).toBe(8);
   });
 
+  it('posts turf imports to the dedicated imports endpoint', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          turfsCreated: 1,
+          addressesImported: 2,
+          turfs: [{ id: 'turf-1', name: 'North Turf' }]
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+
+    const file = new File(['address,city,state\n100 Main,Detroit,MI\n'], 'import.csv', {
+      type: 'text/csv'
+    });
+
+    const result = await createApiClient('token-123').importTurfs({
+      file,
+      turfName: 'North Turf',
+      mapping: JSON.stringify({ addressLine1: 'address' })
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/imports/csv',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer token-123'
+        }
+      })
+    );
+    expect(result).toEqual({
+      turfsCreated: 1,
+      addressesImported: 2,
+      turfs: [{ id: 'turf-1', name: 'North Turf' }]
+    });
+  });
+
   it('supports outcome, GPS review, and sync conflict admin requests', async () => {
     fetchMock
       .mockResolvedValueOnce(

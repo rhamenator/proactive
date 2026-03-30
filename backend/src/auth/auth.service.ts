@@ -7,6 +7,7 @@ import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { buildOtpAuthUri, generateBase32Secret, verifyTotp } from './mfa.util';
+import { getSensitiveMfaWindowMinutes } from './sensitive-mfa.util';
 
 @Injectable()
 export class AuthService {
@@ -28,7 +29,7 @@ export class AuthService {
   private readonly loginLockoutThreshold = Number(process.env.LOGIN_LOCKOUT_THRESHOLD ?? 5);
   private readonly loginLockoutMinutes = Number(process.env.LOGIN_LOCKOUT_MINUTES ?? 15);
   private readonly mfaChallengeTtlMinutes = Number(process.env.MFA_CHALLENGE_TTL_MINUTES ?? 10);
-  private readonly sensitiveMfaTtlMinutes = Number(process.env.SENSITIVE_ACTION_MFA_WINDOW_MINUTES ?? 15);
+  private readonly sensitiveMfaTtlMinutes = getSensitiveMfaWindowMinutes();
   private readonly mfaIssuer = process.env.MFA_ISSUER ?? 'PROACTIVE FCS';
   private readonly exposeResetTokens = process.env.EXPOSE_RESET_TOKENS === 'true';
 

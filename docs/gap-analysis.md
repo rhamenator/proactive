@@ -28,7 +28,7 @@ The system now covers the main operational v1 workflow:
 - VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
 - CI, build verification, regression tests, and GitHub release-build automation
 
-The remaining gaps are now mostly in deeper architecture and release policy rather than missing operational screens. They are concentrated in offline-first storage depth, normalized household modeling, richer CSV import architecture, and external mobile signing inputs.
+The remaining gaps are now mostly in deeper architecture and release policy rather than missing operational screens. They are concentrated in offline-first storage depth, normalized household modeling, fuller CSV/VAN parity beyond the new import baseline, and external mobile signing inputs.
 
 ## What Is In Place
 
@@ -44,6 +44,7 @@ The remaining gaps are now mostly in deeper architecture and release policy rath
 - org/campaign scaffolding in the schema and user/session JWT payloads
 - requested-address persistence plus mobile submission and review workflow
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
+- a dedicated `ImportsService` and `/imports/csv` path with import modes plus duplicate skip/error/merge handling
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
 - mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
 - repo-wide `verify` command and GitHub Actions CI
@@ -177,7 +178,7 @@ Still blocked for full source-packet alignment:
 
 - deeper team/geography scope policy and enforcement if the client wants that in v1.x
 - stronger offline-first storage if the client insists on a true local database in v1
-- fuller CSV import architecture if the client insists on full CSV/VAN packet parity in v1
+- fuller CSV/VAN import parity if the client insists on every import-side rule from the packet in v1
 - household normalization and retention metadata if the client insists on full schema-packet parity in v1
 - final signed mobile app distribution without real external signing credentials
 
@@ -187,6 +188,6 @@ Remaining non-blocking enhancements:
 
 ## Recommended Next Sequence
 
-1. Decide whether v1 production needs a true on-device database and/or fuller CSV import architecture.
+1. Decide whether v1 production needs a true on-device database and/or fuller CSV/VAN import parity.
 2. Decide whether household normalization and retention metadata belong in v1.x or the post-pilot schema roadmap.
 3. Provide production release secrets and final app identifiers for EAS/App Store/Play.
