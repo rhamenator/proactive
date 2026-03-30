@@ -229,6 +229,36 @@ export class AdminController {
     });
   }
 
+  @Patch('canvassers/:id/archive')
+  @RequireFreshMfa()
+  async archiveCanvasser(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.adminService.archiveFieldUser({
+      userId: id,
+      actorUserId: user.sub,
+      scope: await this.resolveScope(user),
+      reasonText: body.reason
+    });
+  }
+
+  @Patch('canvassers/:id/delete')
+  @RequireFreshMfa()
+  async deleteCanvasser(
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.adminService.deleteFieldUser({
+      userId: id,
+      actorUserId: user.sub,
+      scope: await this.resolveScope(user),
+      reasonText: body.reason
+    });
+  }
+
   @Post('turfs/:id/reassign')
   @Roles(UserRole.admin, UserRole.supervisor)
   @RequireFreshMfa()
@@ -255,5 +285,25 @@ export class AdminController {
     @CurrentUser() user: JwtUserPayload
   ) {
     return this.turfsService.reopenTurf(turfId, user.sub, body.reason, await this.resolveScope(user));
+  }
+
+  @Post('turfs/:id/archive')
+  @RequireFreshMfa()
+  async archiveTurf(
+    @Param('id', ParseUUIDPipe) turfId: string,
+    @Body() body: { reason?: string },
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.turfsService.archiveTurf(turfId, user.sub, body.reason, await this.resolveScope(user));
+  }
+
+  @Post('turfs/:id/delete')
+  @RequireFreshMfa()
+  async deleteTurf(
+    @Param('id', ParseUUIDPipe) turfId: string,
+    @Body() body: { reason: string },
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.turfsService.deleteTurf(turfId, user.sub, body.reason, await this.resolveScope(user));
   }
 }

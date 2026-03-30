@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, SyncStatus, UserRole } from '@prisma/client';
+import { AssignmentStatus, Prisma, SyncStatus, UserRole } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -50,7 +51,8 @@ const syncConflictReviewInclude = {
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly policiesService: PoliciesService
+    private readonly policiesService: PoliciesService,
+    private readonly auditService: AuditService
   ) {}
 
   private scopeWhere(scope: AccessScope) {
@@ -58,6 +60,14 @@ export class AdminService {
       organizationId: scope.organizationId,
       ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
     } as const;
+  }
+
+  private buildPurgeAt(days?: number | null) {
+    if (!days || days <= 0) {
+      return null;
+    }
+
+    return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   }
 
   private syncConflictWhere(scope: AccessScope): Prisma.VisitLogWhereInput {
@@ -175,6 +185,7 @@ export class AdminService {
     return this.prisma.user.findMany({
       where: {
         ...this.scopeWhere(scope),
+        deletedAt: null,
         role: {
           in: [UserRole.supervisor, UserRole.canvasser]
         }
@@ -243,6 +254,172 @@ export class AdminService {
     }
   ) {
     return this.policiesService.upsertPolicy(scope, input);
+  }
+
+  async archiveFieldUser(input: {
+    userId: string;
+    actorUserId: string;
+    scope: AccessScope;
+    reasonText?: string;
+  }) {
+    const policy = await this.policiesService.getEffectivePolicy(input.scope);
+    const reasonText = input.reasonText?.trim() || undefined;
+    if (policy.requireArchiveReason && !reasonText) {
+      throw new BadRequestException('An archive reason is required by the current policy');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const fieldUser = await tx.user.findFirst({
+        where: {
+          id: input.userId,
+          ...this.scopeWhere(input.scope),
+          role: { in: [UserRole.supervisor, UserRole.canvasser] },
+          deletedAt: null
+        }
+      });
+
+      if (!fieldUser) {
+        throw new NotFoundException('Field user not found');
+      }
+      if (fieldUser.id === input.actorUserId) {
+        throw new BadRequestException('You cannot archive your own account');
+      }
+
+      const [openSessions, openAssignments] = await Promise.all([
+        tx.turfSession.count({
+          where: {
+            canvasserId: fieldUser.id,
+            endTime: null
+          }
+        }),
+        tx.turfAssignment.count({
+          where: {
+            canvasserId: fieldUser.id,
+            status: { in: [AssignmentStatus.assigned, AssignmentStatus.active] }
+          }
+        })
+      ]);
+
+      if (openSessions > 0 || openAssignments > 0) {
+        throw new BadRequestException('Close active sessions and assignments before archiving this field user');
+      }
+
+      const updated = await tx.user.update({
+        where: { id: fieldUser.id },
+        data: {
+          isActive: false,
+          status: 'archived',
+          archivedAt: new Date(),
+          purgeAt: this.buildPurgeAt(policy.retentionPurgeDays)
+        }
+      });
+
+      await this.auditService.log(
+        {
+          actorUserId: input.actorUserId,
+          actionType: 'field_user_archived',
+          entityType: 'user',
+          entityId: fieldUser.id,
+          reasonText,
+          oldValuesJson: {
+            status: fieldUser.status,
+            isActive: fieldUser.isActive
+          },
+          newValuesJson: {
+            status: updated.status,
+            archivedAt: updated.archivedAt,
+            purgeAt: updated.purgeAt
+          }
+        },
+        tx
+      );
+
+      return updated;
+    });
+  }
+
+  async deleteFieldUser(input: {
+    userId: string;
+    actorUserId: string;
+    scope: AccessScope;
+    reasonText: string;
+  }) {
+    const reasonText = input.reasonText.trim();
+    if (!reasonText) {
+      throw new BadRequestException('A delete reason is required');
+    }
+
+    const policy = await this.policiesService.getEffectivePolicy(input.scope);
+
+    return this.prisma.$transaction(async (tx) => {
+      const fieldUser = await tx.user.findFirst({
+        where: {
+          id: input.userId,
+          ...this.scopeWhere(input.scope),
+          role: { in: [UserRole.supervisor, UserRole.canvasser] },
+          deletedAt: null
+        }
+      });
+
+      if (!fieldUser) {
+        throw new NotFoundException('Field user not found');
+      }
+      if (fieldUser.id === input.actorUserId) {
+        throw new BadRequestException('You cannot delete your own account');
+      }
+
+      const [openSessions, openAssignments] = await Promise.all([
+        tx.turfSession.count({
+          where: {
+            canvasserId: fieldUser.id,
+            endTime: null
+          }
+        }),
+        tx.turfAssignment.count({
+          where: {
+            canvasserId: fieldUser.id,
+            status: { in: [AssignmentStatus.assigned, AssignmentStatus.active] }
+          }
+        })
+      ]);
+
+      if (openSessions > 0 || openAssignments > 0) {
+        throw new BadRequestException('Close active sessions and assignments before deleting this field user');
+      }
+
+      const updated = await tx.user.update({
+        where: { id: fieldUser.id },
+        data: {
+          isActive: false,
+          status: 'deleted',
+          deletedAt: new Date(),
+          deleteReason: reasonText,
+          purgeAt: this.buildPurgeAt(policy.retentionPurgeDays)
+        }
+      });
+
+      await this.auditService.log(
+        {
+          actorUserId: input.actorUserId,
+          actionType: 'field_user_deleted',
+          entityType: 'user',
+          entityId: fieldUser.id,
+          reasonText,
+          oldValuesJson: {
+            status: fieldUser.status,
+            isActive: fieldUser.isActive
+          },
+          newValuesJson: {
+            status: updated.status,
+            deletedAt: updated.deletedAt,
+            purgeAt: updated.purgeAt
+          }
+        },
+        tx
+      );
+
+      return updated;
+    });
   }
 
   async upsertOutcomeDefinition(input: {

@@ -52,6 +52,7 @@ The remaining gaps are now mostly in deeper import-policy breadth, fine-grained 
 - import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
 - a dedicated `ImportsService` and `/imports/csv` path with import modes plus duplicate skip/error/merge handling
 - operational policy records with organization/campaign fallback for import defaults, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
+- explicit admin archive/delete workflows for field users and turfs, protected by fresh MFA and backed by audit logging
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
 - mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
 - repo-wide `verify` command and GitHub Actions CI
@@ -113,23 +114,24 @@ What remains:
 - decide which policy defaults the client wants to ship with at organization level versus campaign-specific override
 - extend the policy surface further only if the client wants more ambiguous rules exposed for runtime administration
 
-### 4. Household normalization and retention metadata are now modeled, but delete/archive workflows are still policy-light
+### 4. Household normalization and retention metadata are now modeled, with first-pass archive/delete workflows in place
 
 Current state:
 
 - canonical households now exist as reusable records, while the existing `addresses` table acts as the turf-membership layer and preserves current API contracts
 - soft-delete / retention metadata are now modeled on the primary operational tables
+- admins can now archive or soft-delete field users and turfs through MFA-protected workflows that honor retention defaults and archive-reason policy
 - exports now store the generated CSV and per-row membership, which closes the most important auditability gap
 
 Why it matters:
 
 - the schema is now much closer to the stricter client packet without forcing a breaking client rewrite
-- remaining work in this area is operational policy: whether admins need explicit archive/delete tools and retention jobs in v1.x
+- remaining work in this area is operational depth: broader coverage beyond the first workflows and optional automated purge jobs
 
 What remains:
 
-- decide whether v1.x needs explicit admin archive/delete workflows and automated purge jobs
-- if yes, add those actions on top of the new metadata rather than changing the schema again
+- decide whether archive/delete tooling should be extended beyond field users and turfs to additional entities in v1.x
+- decide whether automated purge jobs should ship on top of the existing retention metadata
 
 ### 5. Signed mobile binaries still depend on external release credentials
 
@@ -195,6 +197,6 @@ Remaining non-blocking enhancements:
 ## Recommended Next Sequence
 
 1. Decide whether v1.x needs richer CSV/VAN parity such as ambiguous-duplicate review queues, more source-specific mappings, or import lineage beyond the current batch/row audit trail.
-2. Decide whether explicit admin archive/delete workflows should ship now or after pilot review.
+2. Decide whether archive/delete tooling should expand beyond field users and turfs in v1.x.
 3. Set the initial organization/campaign policy defaults in the new Policies screen before broader review.
 4. Provide production release secrets and final app identifiers for EAS/App Store/Play.

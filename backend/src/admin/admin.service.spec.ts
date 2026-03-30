@@ -8,7 +8,9 @@ describe('AdminService', () => {
     $transaction: jest.fn(),
     user: {
       count: jest.fn(),
-      findMany: jest.fn()
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn()
     },
     turf: {
       count: jest.fn(),
@@ -61,8 +63,11 @@ describe('AdminService', () => {
     getManageablePolicy: jest.fn(),
     upsertPolicy: jest.fn()
   };
+  const auditService = {
+    log: jest.fn()
+  };
 
-  const service = new AdminService(prisma as never, policiesService as never);
+  const service = new AdminService(prisma as never, policiesService as never, auditService as never);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -129,11 +134,16 @@ describe('AdminService', () => {
     expect(prisma.user.findMany).toHaveBeenCalledWith({
       where: {
         organizationId: 'org-1',
+        deletedAt: null,
         role: {
           in: [UserRole.supervisor, UserRole.canvasser]
         }
       },
-      select: expect.any(Object),
+      select: expect.objectContaining({
+        id: true,
+        email: true,
+        status: true
+      }),
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }]
     });
     expect(result).toHaveLength(1);
@@ -165,6 +175,53 @@ describe('AdminService', () => {
       { id: 'campaign-outcome', code: 'knocked', label: 'Campaign Knocked', displayOrder: 1 },
       { id: 'org-outcome', code: 'refused', label: 'Refused', displayOrder: 2 }
     ]);
+  });
+
+  it('archives a field user when the policy and scope allow it', async () => {
+    policiesService.getEffectivePolicy.mockResolvedValue({ requireArchiveReason: true, retentionPurgeDays: 30 });
+    prisma.user.findFirst.mockResolvedValue({
+      id: 'user-2',
+      organizationId: 'org-1',
+      status: 'active',
+      isActive: true
+    });
+    prisma.turfSession.count.mockResolvedValue(0);
+    prisma.turfAssignment.count.mockResolvedValue(0);
+    prisma.user.update.mockResolvedValue({
+      id: 'user-2',
+      status: 'archived',
+      archivedAt: new Date(),
+      purgeAt: new Date()
+    });
+    prisma.$transaction.mockImplementation(async (callback) => callback(prisma));
+
+    const result = await service.archiveFieldUser({
+      userId: 'user-2',
+      actorUserId: 'admin-1',
+      scope,
+      reasonText: 'No longer active'
+    });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-2' },
+      data: expect.objectContaining({
+        status: 'archived',
+        isActive: false
+      })
+    });
+    expect(auditService.log).toHaveBeenCalled();
+    expect(result.status).toBe('archived');
+  });
+
+  it('requires a delete reason when deleting a field user', async () => {
+    await expect(
+      service.deleteFieldUser({
+        userId: 'user-2',
+        actorUserId: 'admin-1',
+        scope,
+        reasonText: '   '
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('creates and updates outcome definitions with normalized values', async () => {

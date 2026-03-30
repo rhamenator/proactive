@@ -10,6 +10,7 @@ import {
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { inferMappingFromHeaders } from '../common/utils/csv.util';
+import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 
@@ -21,7 +22,8 @@ export class TurfsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly policiesService: PoliciesService
   ) {}
 
   private toLifecycleStatus(status: TurfStatus): LifecycleStatus {
@@ -63,11 +65,20 @@ export class TurfsService {
     } as const;
   }
 
+  private buildPurgeAt(days?: number | null) {
+    if (!days || days <= 0) {
+      return null;
+    }
+
+    return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  }
+
   private async findScopedTurf(db: PrismaWriter, turfId: string, scope: AccessScope) {
     return db.turf.findFirst({
       where: {
         id: turfId,
-        ...this.scopeWhere(scope)
+        ...this.scopeWhere(scope),
+        deletedAt: null
       }
     });
   }
@@ -133,7 +144,10 @@ export class TurfsService {
 
   async listTurfs(scope: AccessScope) {
     const turfs = await this.prisma.turf.findMany({
-      where: this.scopeWhere(scope),
+      where: {
+        ...this.scopeWhere(scope),
+        deletedAt: null
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {
@@ -329,6 +343,167 @@ export class TurfsService {
     });
   }
 
+  async archiveTurf(
+    turfId: string,
+    actorUserId: string,
+    reasonText?: string,
+    scope: AccessScope = { organizationId: null, campaignId: null }
+  ) {
+    const policy = await this.policiesService.getEffectivePolicy(scope);
+    const normalizedReason = reasonText?.trim() || undefined;
+    if (policy.requireArchiveReason && !normalizedReason) {
+      throw new BadRequestException('An archive reason is required by the current policy');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const turf = await this.findScopedTurf(tx, turfId, scope);
+      if (!turf) {
+        throw new NotFoundException('Turf not found');
+      }
+
+      const openSessionCount = await tx.turfSession.count({
+        where: {
+          turfId,
+          endTime: null
+        }
+      });
+      if (openSessionCount > 0) {
+        throw new BadRequestException('Cannot archive a turf with an open session');
+      }
+
+      const now = new Date();
+      await tx.turfAssignment.updateMany({
+        where: {
+          turfId,
+          status: { in: [AssignmentStatus.assigned, AssignmentStatus.active] }
+        },
+        data: {
+          status: AssignmentStatus.removed,
+          unassignedAt: now,
+          reassignmentReason: normalizedReason ?? 'archived'
+        }
+      });
+
+      const updated = await tx.turf.update({
+        where: { id: turfId },
+        data: {
+          status: TurfStatus.archived,
+          archivedAt: now,
+          purgeAt: this.buildPurgeAt(policy.retentionPurgeDays)
+        }
+      });
+
+      await this.auditService.log(
+        {
+          actorUserId,
+          actionType: 'turf_archived',
+          entityType: 'turf',
+          entityId: turfId,
+          reasonText: normalizedReason,
+          oldValuesJson: {
+            status: turf.status
+          },
+          newValuesJson: {
+            status: updated.status,
+            archivedAt: updated.archivedAt,
+            purgeAt: updated.purgeAt
+          }
+        },
+        tx
+      );
+
+      return updated;
+    });
+  }
+
+  async deleteTurf(
+    turfId: string,
+    actorUserId: string,
+    reasonText: string,
+    scope: AccessScope = { organizationId: null, campaignId: null }
+  ) {
+    const normalizedReason = reasonText.trim();
+    if (!normalizedReason) {
+      throw new BadRequestException('A delete reason is required');
+    }
+
+    const policy = await this.policiesService.getEffectivePolicy(scope);
+
+    return this.prisma.$transaction(async (tx) => {
+      const turf = await this.findScopedTurf(tx, turfId, scope);
+      if (!turf) {
+        throw new NotFoundException('Turf not found');
+      }
+
+      const openSessionCount = await tx.turfSession.count({
+        where: {
+          turfId,
+          endTime: null
+        }
+      });
+      if (openSessionCount > 0) {
+        throw new BadRequestException('Cannot delete a turf with an open session');
+      }
+
+      const now = new Date();
+      await tx.turfAssignment.updateMany({
+        where: {
+          turfId,
+          status: { in: [AssignmentStatus.assigned, AssignmentStatus.active] }
+        },
+        data: {
+          status: AssignmentStatus.removed,
+          unassignedAt: now,
+          reassignmentReason: normalizedReason
+        }
+      });
+
+      await tx.address.updateMany({
+        where: {
+          turfId,
+          deletedAt: null
+        },
+        data: {
+          deletedAt: now,
+          deleteReason: normalizedReason,
+          purgeAt: this.buildPurgeAt(policy.retentionPurgeDays)
+        }
+      });
+
+      const updated = await tx.turf.update({
+        where: { id: turfId },
+        data: {
+          status: TurfStatus.archived,
+          archivedAt: turf.archivedAt ?? now,
+          deletedAt: now,
+          deleteReason: normalizedReason,
+          purgeAt: this.buildPurgeAt(policy.retentionPurgeDays)
+        }
+      });
+
+      await this.auditService.log(
+        {
+          actorUserId,
+          actionType: 'turf_deleted',
+          entityType: 'turf',
+          entityId: turfId,
+          reasonText: normalizedReason,
+          oldValuesJson: {
+            status: turf.status
+          },
+          newValuesJson: {
+            status: updated.status,
+            deletedAt: updated.deletedAt,
+            purgeAt: updated.purgeAt
+          }
+        },
+        tx
+      );
+
+      return updated;
+    });
+  }
+
   async getTurfAddresses(turfId: string, scope: AccessScope) {
     const turf = await this.prisma.turf.findFirst({
       where: {
@@ -377,7 +552,10 @@ export class TurfsService {
     const assignment = await this.prisma.turfAssignment.findFirst({
       where: {
         canvasserId,
-        status: { in: [AssignmentStatus.assigned, AssignmentStatus.active] }
+        status: { in: [AssignmentStatus.assigned, AssignmentStatus.active] },
+        turf: {
+          deletedAt: null
+        }
       },
       orderBy: { assignedAt: 'desc' },
       include: {

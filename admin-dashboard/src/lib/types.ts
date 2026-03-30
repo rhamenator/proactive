@@ -9,6 +9,7 @@ export interface SafeUser {
   organizationId?: string | null;
   campaignId?: string | null;
   isActive: boolean;
+  status: string;
   createdAt: string;
   impersonation?: {
     sessionId: string;

@@ -10,11 +10,13 @@ describe('TurfsService', () => {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
-      create: jest.fn()
+      create: jest.fn(),
+      update: jest.fn()
     },
     turfSession: {
       findFirst: jest.fn(),
-      findMany: jest.fn()
+      findMany: jest.fn(),
+      count: jest.fn()
     },
     turfAssignment: {
       findFirst: jest.fn(),
@@ -23,7 +25,8 @@ describe('TurfsService', () => {
       create: jest.fn()
     },
     address: {
-      create: jest.fn()
+      create: jest.fn(),
+      updateMany: jest.fn()
     }
   };
   const usersService = {
@@ -32,8 +35,11 @@ describe('TurfsService', () => {
   const auditService = {
     log: jest.fn()
   };
+  const policiesService = {
+    getEffectivePolicy: jest.fn().mockResolvedValue({ requireArchiveReason: false, retentionPurgeDays: 30 })
+  };
 
-  const service = new TurfsService(prisma as never, usersService as never, auditService as never);
+  const service = new TurfsService(prisma as never, usersService as never, auditService as never, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -72,7 +78,7 @@ describe('TurfsService', () => {
       BadRequestException
     );
 
-    expect(tx.turf.findFirst).toHaveBeenCalledWith({ where: { id: 'turf-1', organizationId: null } });
+    expect(tx.turf.findFirst).toHaveBeenCalledWith({ where: { id: 'turf-1', organizationId: null, deletedAt: null } });
     expect(tx.turfSession.count).toHaveBeenCalledWith({
       where: {
         turfId: 'turf-1',
@@ -81,6 +87,42 @@ describe('TurfsService', () => {
     });
     expect(tx.turf.update).not.toHaveBeenCalled();
     expect(auditService.log).not.toHaveBeenCalled();
+  });
+
+  it('archives a turf after closing assignments and logging the action', async () => {
+    const tx = {
+      turf: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'turf-1',
+          organizationId: 'org-1',
+          status: TurfStatus.completed
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: 'turf-1',
+          status: TurfStatus.archived,
+          archivedAt: new Date(),
+          purgeAt: new Date()
+        })
+      },
+      turfSession: {
+        count: jest.fn().mockResolvedValue(0)
+      },
+      turfAssignment: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 })
+      }
+    };
+    prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+
+    const result = await service.archiveTurf('turf-1', 'admin-1', 'Closed after review', scope);
+
+    expect(tx.turf.update).toHaveBeenCalledWith({
+      where: { id: 'turf-1' },
+      data: expect.objectContaining({
+        status: TurfStatus.archived
+      })
+    });
+    expect(auditService.log).toHaveBeenCalled();
+    expect(result.status).toBe(TurfStatus.archived);
   });
 
   it('completes a turf when the last open session and assignment close', async () => {
@@ -255,7 +297,7 @@ describe('TurfsService', () => {
     const result = await service.listTurfs(scope);
 
     expect(prisma.turf.findMany).toHaveBeenCalledWith({
-      where: { organizationId: 'org-1' },
+      where: { organizationId: 'org-1', deletedAt: null },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {

@@ -10,6 +10,8 @@ describe('AdminController', () => {
     listCampaigns: jest.fn(),
     listOutcomeDefinitions: jest.fn(),
     getOperationalPolicy: jest.fn(),
+    archiveFieldUser: jest.fn(),
+    deleteFieldUser: jest.fn(),
     gpsReviewQueue: jest.fn(),
     syncConflictQueue: jest.fn(),
     overrideGpsResult: jest.fn(),
@@ -27,7 +29,9 @@ describe('AdminController', () => {
   };
   const turfsService = {
     assignTurf: jest.fn(),
-    reopenTurf: jest.fn()
+    reopenTurf: jest.fn(),
+    archiveTurf: jest.fn(),
+    deleteTurf: jest.fn()
   };
   const controller = new AdminController(
     adminService as never,
@@ -145,6 +149,54 @@ describe('AdminController', () => {
 
     expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'user-2', 'admin-1', 'Coverage', scope);
     expect(turfsService.reopenTurf).toHaveBeenCalledWith('turf-1', 'admin-1', 'Need more attempts', scope);
+  });
+
+  it('delegates field-user archive/delete and turf archive/delete actions', async () => {
+    await controller.archiveCanvasser(
+      'user-1',
+      { reason: 'No longer active' },
+      { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null }
+    );
+    await controller.deleteCanvasser(
+      'user-1',
+      { reason: 'Created in error' },
+      { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null }
+    );
+    await controller.archiveTurf(
+      '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
+      { reason: 'Closed after review' },
+      { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null }
+    );
+    await controller.deleteTurf(
+      '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
+      { reason: 'Created in error' },
+      { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null }
+    );
+
+    expect(adminService.archiveFieldUser).toHaveBeenCalledWith({
+      userId: 'user-1',
+      actorUserId: 'admin-1',
+      scope,
+      reasonText: 'No longer active'
+    });
+    expect(adminService.deleteFieldUser).toHaveBeenCalledWith({
+      userId: 'user-1',
+      actorUserId: 'admin-1',
+      scope,
+      reasonText: 'Created in error'
+    });
+    expect(turfsService.archiveTurf).toHaveBeenCalledWith(
+      '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
+      'admin-1',
+      'Closed after review',
+      scope
+    );
+    expect(turfsService.deleteTurf).toHaveBeenCalledWith(
+      '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
+      'admin-1',
+      'Created in error',
+      scope
+    );
   });
 
   it('delegates outcome management, GPS override, and sync conflict resolution actions', async () => {

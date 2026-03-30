@@ -187,6 +187,48 @@ export default function TurfsPage() {
     }
   }
 
+  async function handleArchive(turfId: string, turfName: string) {
+    const reason = window.prompt(
+      `Archive ${turfName}? Enter a reason if required by policy:`,
+      'Closed after review'
+    );
+
+    if (reason === null) {
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+    try {
+      await runSensitiveAction('archive a turf', (freshApi) => freshApi.archiveTurf(turfId, reason || undefined));
+      setMessage('Turf archived.');
+      await load();
+    } catch (value) {
+      setError(getErrorMessage(value));
+    }
+  }
+
+  async function handleDelete(turfId: string, turfName: string) {
+    const reason = window.prompt(
+      `Soft-delete ${turfName}. Enter a reason:`,
+      'Superseded or created in error'
+    );
+
+    if (reason === null) {
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+    try {
+      await runSensitiveAction('delete a turf', (freshApi) => freshApi.deleteTurf(turfId, reason));
+      setMessage('Turf deleted.');
+      await load();
+    } catch (value) {
+      setError(getErrorMessage(value));
+    }
+  }
+
   const headerOptions = useMemo(() => headers.map((header) => <option key={header} value={header}>{header}</option>), [headers]);
 
   return (
@@ -395,6 +437,26 @@ export default function TurfsPage() {
                           <div className="inline-actions">
                             <Button variant="ghost" onClick={() => void handleReopen(turf.id)}>
                               Reopen
+                            </Button>
+                            {isAdmin ? (
+                              <>
+                                <Button variant="ghost" onClick={() => void handleArchive(turf.id, turf.name)}>
+                                  Archive
+                                </Button>
+                                <Button variant="danger" onClick={() => void handleDelete(turf.id, turf.name)}>
+                                  Delete
+                                </Button>
+                              </>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        {isAdmin && turf.lifecycleStatus !== 'closed' ? (
+                          <div className="inline-actions">
+                            <Button variant="ghost" onClick={() => void handleArchive(turf.id, turf.name)}>
+                              Archive
+                            </Button>
+                            <Button variant="danger" onClick={() => void handleDelete(turf.id, turf.name)}>
+                              Delete
                             </Button>
                           </div>
                         ) : null}

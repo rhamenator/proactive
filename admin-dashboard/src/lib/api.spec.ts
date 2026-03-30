@@ -465,6 +465,73 @@ describe('admin api client', () => {
     expect(updated.sourceScope).toBe('campaign');
   });
 
+  it('supports field-user and turf archive/delete admin requests', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'user-1', status: 'archived' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'user-1', status: 'deleted' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'turf-1', status: 'archived' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'turf-1', status: 'archived', deletedAt: '2026-03-30T00:00:00.000Z' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      );
+
+    const client = createApiClient('token-123');
+    await client.archiveCanvasser('user-1', 'No longer active');
+    await client.deleteCanvasser('user-1', 'Created in error');
+    await client.archiveTurf('turf-1', 'Closed after review');
+    await client.deleteTurf('turf-1', 'Superseded');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/admin/canvassers/user-1/archive', {
+      method: 'PATCH',
+      body: JSON.stringify({ reason: 'No longer active' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3001/admin/canvassers/user-1/delete', {
+      method: 'PATCH',
+      body: JSON.stringify({ reason: 'Created in error' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, 'http://localhost:3001/admin/turfs/turf-1/archive', {
+      method: 'POST',
+      body: JSON.stringify({ reason: 'Closed after review' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(4, 'http://localhost:3001/admin/turfs/turf-1/delete', {
+      method: 'POST',
+      body: JSON.stringify({ reason: 'Superseded' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123'
+      }
+    });
+  });
+
   it('supports campaign-aware reports and export downloads', async () => {
     fetchMock
       .mockResolvedValueOnce(

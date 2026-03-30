@@ -15,7 +15,7 @@ const roleLabels: Record<FieldUserRecord['role'], string> = {
 };
 
 export default function CanvassersPage() {
-  const { user, startImpersonation, impersonation } = useAuth();
+  const { user, startImpersonation, impersonation, runSensitiveAction } = useAuth();
   const api = useAuthedApi();
   const isAdmin = user?.role === 'admin';
   const [users, setUsers] = useState<FieldUserRecord[]>([]);
@@ -171,6 +171,48 @@ export default function CanvassersPage() {
 
     try {
       await startImpersonation(target.id, reason);
+    } catch (value) {
+      setError(getErrorMessage(value));
+    }
+  }
+
+  async function handleArchiveUser(target: FieldUserRecord) {
+    const reason = window.prompt(
+      `Archive ${target.firstName} ${target.lastName}? Enter a reason if required by policy:`,
+      'No longer active in field operations'
+    );
+
+    if (reason === null) {
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+    try {
+      await runSensitiveAction('archive a field user', (freshApi) => freshApi.archiveCanvasser(target.id, reason || undefined));
+      setMessage(`${target.firstName} ${target.lastName} archived.`);
+      await load();
+    } catch (value) {
+      setError(getErrorMessage(value));
+    }
+  }
+
+  async function handleDeleteUser(target: FieldUserRecord) {
+    const reason = window.prompt(
+      `Soft-delete ${target.firstName} ${target.lastName}. Enter a reason:`,
+      'Removed from organization roster'
+    );
+
+    if (reason === null) {
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+    try {
+      await runSensitiveAction('delete a field user', (freshApi) => freshApi.deleteCanvasser(target.id, reason));
+      setMessage(`${target.firstName} ${target.lastName} deleted.`);
+      await load();
     } catch (value) {
       setError(getErrorMessage(value));
     }
@@ -341,8 +383,8 @@ export default function CanvassersPage() {
                     </div>
                     <div className="inline-actions">
                       <Badge tone="default">{roleLabels[user.role]}</Badge>
-                      <Badge tone={user.isActive ? 'success' : 'warning'}>
-                        {user.isActive ? 'Active' : 'Inactive'}
+                      <Badge tone={user.status === 'archived' ? 'warning' : user.isActive ? 'success' : 'default'}>
+                        {user.status}
                       </Badge>
                     </div>
                   </div>
@@ -356,6 +398,7 @@ export default function CanvassersPage() {
                         id={`campaign-edit-${user.id}`}
                         className="select"
                         value={campaignEdits[user.id] ?? ''}
+                        disabled={user.status === 'archived'}
                         onChange={(event) =>
                           setCampaignEdits((current) => ({
                             ...current,
@@ -370,18 +413,24 @@ export default function CanvassersPage() {
                   ) : null}
                   {isAdmin ? (
                     <div className="inline-actions">
-                      <Button variant="secondary" onClick={() => void handleCampaignUpdate(user)}>
+                      <Button variant="secondary" onClick={() => void handleCampaignUpdate(user)} disabled={user.status === 'archived'}>
                         Update Campaign
                       </Button>
                       <Button
                         variant="ghost"
                         onClick={() => void handleImpersonate(user)}
-                        disabled={Boolean(impersonation)}
+                        disabled={Boolean(impersonation) || user.status === 'archived'}
                       >
                         Impersonate
                       </Button>
-                      <Button variant="secondary" onClick={() => void toggleActive(user)}>
+                      <Button variant="secondary" onClick={() => void toggleActive(user)} disabled={user.status === 'archived'}>
                         {user.isActive ? 'Deactivate' : 'Reactivate'}
+                      </Button>
+                      <Button variant="ghost" onClick={() => void handleArchiveUser(user)} disabled={user.status === 'archived'}>
+                        Archive
+                      </Button>
+                      <Button variant="danger" onClick={() => void handleDeleteUser(user)}>
+                        Delete
                       </Button>
                     </div>
                   ) : null}

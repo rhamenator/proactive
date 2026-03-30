@@ -23,6 +23,7 @@ The application suite has been built and brought to a review-ready state across 
   - Dashboard and operational summary views
   - Turf management and assignment
   - Field-user management for supervisors and canvassers
+  - MFA-protected archive/delete workflows for field users and turfs
   - MFA account management
   - Sensitive-action MFA confirmation flow for exports, overrides, conflict resolution, and turf control changes
   - Policy management for configurable operational defaults such as import behavior, MFA freshness, retention planning, and organization outcome fallback
@@ -92,7 +93,7 @@ Please confirm whether you want any of the following added before release:
 
 - Any additional CSV/VAN import rules beyond the current review-ready baseline with import modes and duplicate handling
 - Deeper team/geography scoping beyond the current organization-and-campaign scope
-- Whether you want explicit admin archive/delete workflows and retention-job automation on top of the new retention metadata
+- Whether you want archive/delete workflows expanded beyond field users and turfs, plus retention-job automation on top of the new retention metadata
 - Any changes to impersonation policy, correction windows, or review permissions
 
 ### 3. Provide Production Release Inputs

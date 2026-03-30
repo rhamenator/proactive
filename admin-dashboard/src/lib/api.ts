@@ -418,6 +418,18 @@ export function createApiClient(token?: string | null) {
         body: JSON.stringify(payload)
       }, token);
     },
+    archiveCanvasser(id: string, reason?: string) {
+      return requestJson<FieldUserRecord>(`/admin/canvassers/${id}/archive`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason })
+      }, token);
+    },
+    deleteCanvasser(id: string, reason: string) {
+      return requestJson<FieldUserRecord>(`/admin/canvassers/${id}/delete`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason })
+      }, token);
+    },
     inviteCanvasser(payload: {
       firstName: string;
       lastName: string;
@@ -454,6 +466,18 @@ export function createApiClient(token?: string | null) {
     reopenTurf(turfId: string) {
       return requestJson(`/admin/turfs/${turfId}/reopen`, {
         method: 'POST'
+      }, token);
+    },
+    archiveTurf(turfId: string, reason?: string) {
+      return requestJson<TurfListItem>(`/admin/turfs/${turfId}/archive`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      }, token);
+    },
+    deleteTurf(turfId: string, reason: string) {
+      return requestJson<TurfListItem>(`/admin/turfs/${turfId}/delete`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
       }, token);
     },
     importTurfs(payload: { file: File; turfName?: string; mapping?: string }) {
