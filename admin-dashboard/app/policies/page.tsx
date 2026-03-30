@@ -198,6 +198,7 @@ export default function PoliciesPage() {
                       setForm((current) => current ? { ...current, defaultImportMode: event.target.value as PolicyForm['defaultImportMode'] } : current)
                     }
                   >
+                    <option value="replace_turf_membership">Replace turf membership only</option>
                     <option value="create_only">Create only</option>
                     <option value="upsert">Upsert</option>
                   </Select>

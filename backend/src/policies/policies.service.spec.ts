@@ -29,7 +29,7 @@ describe('PoliciesService', () => {
         campaignId: null,
         sourceScope: 'default',
         explicitRecord: false,
-        defaultImportMode: 'create_only',
+        defaultImportMode: 'replace_turf_membership',
         defaultDuplicateStrategy: 'skip',
         allowOrgOutcomeFallback: true
       })
@@ -103,6 +103,6 @@ describe('PoliciesService', () => {
         retentionPurgeDays: 90
       })
     });
-    expect(result.defaultImportMode).toBe('create_only');
+    expect(result.defaultImportMode).toBe('replace_turf_membership');
   });
 });

@@ -40,7 +40,7 @@ export interface OperationalPolicyRecord {
   sourceScope: 'default' | 'organization' | 'campaign';
   explicitRecord: boolean;
   inheritedFromOrganization: boolean;
-  defaultImportMode: 'create_only' | 'upsert';
+  defaultImportMode: 'create_only' | 'upsert' | 'replace_turf_membership';
   defaultDuplicateStrategy: 'skip' | 'error' | 'merge';
   sensitiveMfaWindowMinutes: number;
   retentionArchiveDays?: number | null;
@@ -518,10 +518,11 @@ export type CanvasserRecord = FieldUserRecord;
 export interface TurfAddressImportResult {
   importBatchId: string;
   filename: string;
-  mode: 'create_only' | 'upsert';
+  mode: 'create_only' | 'upsert' | 'replace_turf_membership';
   duplicateStrategy: 'skip' | 'error' | 'merge';
   turfsCreated: number;
   addressesImported: number;
+  replacedMembershipsRemoved?: number;
   invalidRowsSkipped?: number;
   duplicateRowsSkipped?: number;
   duplicateRowsMerged?: number;
@@ -536,6 +537,7 @@ export interface ImportBatchRecord {
   rowCount: number;
   importedCount: number;
   mergedCount: number;
+  removedCount?: number;
   invalidCount: number;
   duplicateSkippedCount: number;
   createdAt: string;

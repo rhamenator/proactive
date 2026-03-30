@@ -244,7 +244,7 @@ export class AdminService {
     scope: AccessScope,
     input: {
       campaignId?: string | null;
-      defaultImportMode?: 'create_only' | 'upsert';
+      defaultImportMode?: 'create_only' | 'upsert' | 'replace_turf_membership';
       defaultDuplicateStrategy?: 'skip' | 'error' | 'merge';
       sensitiveMfaWindowMinutes?: number;
       retentionArchiveDays?: number | null;

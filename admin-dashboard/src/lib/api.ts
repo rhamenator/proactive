@@ -480,7 +480,13 @@ export function createApiClient(token?: string | null) {
         body: JSON.stringify({ reason })
       }, token);
     },
-    importTurfs(payload: { file: File; turfName?: string; mapping?: string }) {
+    importTurfs(payload: {
+      file: File;
+      turfName?: string;
+      mapping?: string;
+      mode?: TurfAddressImportResult['mode'];
+      duplicateStrategy?: TurfAddressImportResult['duplicateStrategy'];
+    }) {
       const formData = new FormData();
       formData.append('file', payload.file);
       if (payload.turfName) {
@@ -488,6 +494,12 @@ export function createApiClient(token?: string | null) {
       }
       if (payload.mapping) {
         formData.append('mapping', payload.mapping);
+      }
+      if (payload.mode) {
+        formData.append('mode', payload.mode);
+      }
+      if (payload.duplicateStrategy) {
+        formData.append('duplicateStrategy', payload.duplicateStrategy);
       }
       return requestJson<TurfAddressImportResult>('/imports/csv', {
         method: 'POST',

@@ -227,10 +227,11 @@ describe('admin api client', () => {
         JSON.stringify({
           importBatchId: 'batch-1',
           filename: 'import-batch-2026-03-30.csv',
-          mode: 'create_only',
-          duplicateStrategy: 'skip',
+          mode: 'replace_turf_membership',
+          duplicateStrategy: 'merge',
           turfsCreated: 1,
           addressesImported: 2,
+          replacedMembershipsRemoved: 3,
           turfs: [{ id: 'turf-1', name: 'North Turf' }]
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -244,7 +245,9 @@ describe('admin api client', () => {
     const result = await createApiClient('token-123').importTurfs({
       file,
       turfName: 'North Turf',
-      mapping: JSON.stringify({ addressLine1: 'address' })
+      mapping: JSON.stringify({ addressLine1: 'address' }),
+      mode: 'replace_turf_membership',
+      duplicateStrategy: 'merge'
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -259,10 +262,11 @@ describe('admin api client', () => {
     expect(result).toEqual({
       importBatchId: 'batch-1',
       filename: 'import-batch-2026-03-30.csv',
-      mode: 'create_only',
-      duplicateStrategy: 'skip',
+      mode: 'replace_turf_membership',
+      duplicateStrategy: 'merge',
       turfsCreated: 1,
       addressesImported: 2,
+      replacedMembershipsRemoved: 3,
       turfs: [{ id: 'turf-1', name: 'North Turf' }]
     });
   });
@@ -280,6 +284,7 @@ describe('admin api client', () => {
               rowCount: 10,
               importedCount: 8,
               mergedCount: 1,
+              removedCount: 2,
               invalidCount: 1,
               duplicateSkippedCount: 0,
               createdAt: '2026-03-30T04:00:00.000Z'

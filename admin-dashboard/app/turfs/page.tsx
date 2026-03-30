@@ -10,7 +10,11 @@ import type { CanvasserRecord, ImportBatchRecord, TurfListItem } from '../../src
 
 const mappingFields = [
   ['vanId', 'VAN ID'],
+  ['vanPersonId', 'VAN Person ID'],
+  ['vanHouseholdId', 'VAN Household ID'],
   ['addressLine1', 'Address'],
+  ['addressLine2', 'Address Line 2'],
+  ['unit', 'Unit / Apartment'],
   ['city', 'City'],
   ['state', 'State'],
   ['zip', 'ZIP'],
@@ -37,6 +41,8 @@ export default function TurfsPage() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [fallbackTurfName, setFallbackTurfName] = useState('');
+  const [importMode, setImportMode] = useState<'create_only' | 'upsert' | 'replace_turf_membership'>('replace_turf_membership');
+  const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'error' | 'merge'>('skip');
 
   const [assignmentSelection, setAssignmentSelection] = useState<Record<string, string>>({});
 
@@ -49,6 +55,11 @@ export default function TurfsPage() {
         api.listCanvassers(),
         isAdmin ? api.listImportHistory() : Promise.resolve([])
       ]);
+      if (isAdmin) {
+        const policy = await api.getOperationalPolicy();
+        setImportMode(policy.defaultImportMode);
+        setDuplicateStrategy(policy.defaultDuplicateStrategy);
+      }
       setTurfs(nextTurfs);
       setCanvassers(nextCanvassers);
       setImportHistory(nextImportHistory);
@@ -101,7 +112,11 @@ export default function TurfsPage() {
     for (const header of nextHeaders) {
       const normalized = header.toLowerCase().replace(/[^a-z0-9]+/g, '');
       if (normalized === 'vanid' || normalized === 'van_id') autoMapping.vanId = header;
+      if (['vanpersonid', 'van_person_id', 'personid', 'person_id', 'voterid'].includes(normalized)) autoMapping.vanPersonId = header;
+      if (['vanhouseholdid', 'van_household_id', 'householdid', 'household_id'].includes(normalized)) autoMapping.vanHouseholdId = header;
       if (['addressline1', 'address1', 'street', 'streetaddress', 'address'].includes(normalized)) autoMapping.addressLine1 = header;
+      if (['addressline2', 'address2', 'street2'].includes(normalized)) autoMapping.addressLine2 = header;
+      if (['unit', 'apt', 'apartment', 'suite', 'unitnumber'].includes(normalized)) autoMapping.unit = header;
       if (normalized === 'city') autoMapping.city = header;
       if (normalized === 'state') autoMapping.state = header;
       if (normalized === 'zip' || normalized === 'zipcode') autoMapping.zip = header;
@@ -125,9 +140,15 @@ export default function TurfsPage() {
       const result = await api.importTurfs({
         file: selectedFile,
         turfName: fallbackTurfName.trim() || undefined,
-        mapping: JSON.stringify(mapping)
+        mapping: JSON.stringify(mapping),
+        mode: importMode,
+        duplicateStrategy
       });
-      setMessage(`Imported ${result.addressesImported} addresses across ${result.turfsCreated} turf(s).`);
+      setMessage(
+        `Imported ${result.addressesImported} addresses across ${result.turfsCreated} turf(s)` +
+        `${result.duplicateRowsMerged ? `, merged ${result.duplicateRowsMerged}` : ''}` +
+        `${result.replacedMembershipsRemoved ? `, removed ${result.replacedMembershipsRemoved} prior memberships` : ''}.`
+      );
       setSelectedFile(null);
       setHeaders([]);
       setMapping({});
@@ -292,6 +313,36 @@ export default function TurfsPage() {
                 <Input id="fallback-turf" value={fallbackTurfName} onChange={(event) => setFallbackTurfName(event.target.value)} placeholder="Used if the CSV has no turf_name column" />
               </div>
 
+              <div className="grid two">
+                <div className="field-group">
+                  <label htmlFor="import-mode">Import mode</label>
+                  <select
+                    id="import-mode"
+                    className="select"
+                    value={importMode}
+                    onChange={(event) => setImportMode(event.target.value as typeof importMode)}
+                  >
+                    <option value="replace_turf_membership">Replace turf membership only</option>
+                    <option value="upsert">Upsert existing turf</option>
+                    <option value="create_only">Create new only</option>
+                  </select>
+                </div>
+
+                <div className="field-group">
+                  <label htmlFor="duplicate-strategy">Duplicate strategy</label>
+                  <select
+                    id="duplicate-strategy"
+                    className="select"
+                    value={duplicateStrategy}
+                    onChange={(event) => setDuplicateStrategy(event.target.value as typeof duplicateStrategy)}
+                  >
+                    <option value="skip">Skip duplicate household</option>
+                    <option value="merge">Merge duplicate household</option>
+                    <option value="error">Stop on duplicate household</option>
+                  </select>
+                </div>
+              </div>
+
               {headers.length ? (
                 <div className="grid two">
                   {mappingFields.map(([field, label]) => (
@@ -347,7 +398,7 @@ export default function TurfsPage() {
                       <div className="stack-tight">
                         <strong>{batch.filename}</strong>
                         <p className="muted margin-bottom-reset">
-                          {batch.importedCount} imported, {batch.mergedCount} merged, {batch.invalidCount} invalid, {batch.duplicateSkippedCount} skipped
+                          {batch.importedCount} imported, {batch.mergedCount} merged, {batch.removedCount ?? 0} removed, {batch.invalidCount} invalid, {batch.duplicateSkippedCount} skipped
                         </p>
                         <p className="muted margin-bottom-reset">
                           {new Date(batch.createdAt).toLocaleString()} • {batch.mode} • {batch.duplicateStrategy}

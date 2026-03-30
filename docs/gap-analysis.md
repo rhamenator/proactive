@@ -27,6 +27,7 @@ The system now covers the main operational v1 workflow:
 - campaign-aware reporting endpoints and dashboard reporting pages for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics
 - VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
 - CSV import batch history, downloadable source artifacts, and row-level import outcome tracing
+- richer CSV import handling with `replace_turf_membership` mode, duplicate skip/error/merge handling, and expanded VAN/person/household/unit mapping support
 - scoped operational policy records plus admin dashboard policy management for import defaults, sensitive MFA freshness, retention defaults, and outcome fallback behavior
 - CI, build verification, regression tests, and GitHub release-build automation
 
@@ -50,7 +51,7 @@ The remaining gaps are now mostly in deeper import-policy breadth, fine-grained 
 - retention / lifecycle metadata on core operational tables, including users, turfs, address memberships, visits, and address requests
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
 - import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
-- a dedicated `ImportsService` and `/imports/csv` path with import modes plus duplicate skip/error/merge handling
+- a dedicated `ImportsService` and `/imports/csv` path with import modes including replace-membership behavior, duplicate skip/error/merge handling, and expanded source-field mapping support
 - operational policy records with organization/campaign fallback for import defaults, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
 - explicit admin archive/delete workflows for field users and turfs, protected by fresh MFA and backed by audit logging
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
@@ -187,7 +188,7 @@ Safe for:
 Still blocked for full source-packet alignment:
 
 - deeper team/geography scope policy and enforcement if the client wants that in v1.x
-- fuller CSV/VAN import parity if the client insists on every import-side rule from the packet in v1
+- fuller CSV/VAN import parity if the client insists on ambiguous-duplicate review queues or more source-specific workflow rules beyond the current audited baseline
 - final signed mobile app distribution without real external signing credentials
 
 Remaining non-blocking enhancements:
@@ -196,7 +197,7 @@ Remaining non-blocking enhancements:
 
 ## Recommended Next Sequence
 
-1. Decide whether v1.x needs richer CSV/VAN parity such as ambiguous-duplicate review queues, more source-specific mappings, or import lineage beyond the current batch/row audit trail.
+1. Decide whether v1.x needs richer CSV/VAN parity such as ambiguous-duplicate review queues or more source-specific review rules beyond the current batch/row audit trail, replace-membership mode, and expanded field mapping support.
 2. Decide whether archive/delete tooling should expand beyond field users and turfs in v1.x.
 3. Set the initial organization/campaign policy defaults in the new Policies screen before broader review.
 4. Provide production release secrets and final app identifiers for EAS/App Store/Play.

@@ -4,7 +4,7 @@ import { getSensitiveMfaWindowMinutes } from '../auth/sensitive-mfa.util';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PrismaService } from '../prisma/prisma.service';
 
-export type ImportMode = 'create_only' | 'upsert';
+export type ImportMode = 'create_only' | 'upsert' | 'replace_turf_membership';
 export type DuplicateStrategy = 'skip' | 'error' | 'merge';
 export type PolicySourceScope = 'default' | 'organization' | 'campaign';
 
@@ -43,7 +43,7 @@ export class PoliciesService {
     const purgeDays = Number(process.env.RETENTION_PURGE_DAYS ?? '');
 
     return {
-      defaultImportMode: (process.env.DEFAULT_IMPORT_MODE === 'upsert' ? 'upsert' : 'create_only'),
+      defaultImportMode: this.normalizeImportMode(process.env.DEFAULT_IMPORT_MODE),
       defaultDuplicateStrategy: this.normalizeDuplicateStrategy(process.env.DEFAULT_IMPORT_DUPLICATE_STRATEGY),
       sensitiveMfaWindowMinutes: this.normalizePositiveInteger(getSensitiveMfaWindowMinutes(), 5, 'sensitiveMfaWindowMinutes'),
       retentionArchiveDays: Number.isFinite(archiveDays) && archiveDays > 0 ? archiveDays : null,
@@ -55,6 +55,14 @@ export class PoliciesService {
 
   private normalizeDuplicateStrategy(value: unknown): DuplicateStrategy {
     return value === 'error' || value === 'merge' ? value : 'skip';
+  }
+
+  private normalizeImportMode(value: unknown): ImportMode {
+    if (value === 'create_only' || value === 'upsert' || value === 'replace_turf_membership') {
+      return value;
+    }
+
+    return 'replace_turf_membership';
   }
 
   private normalizePositiveInteger(value: unknown, fallback: number, fieldName: string) {
@@ -118,7 +126,7 @@ export class PoliciesService {
     }
 
     return {
-      defaultImportMode: (record.defaultImportMode === 'upsert' ? 'upsert' : 'create_only') as ImportMode,
+      defaultImportMode: this.normalizeImportMode(record.defaultImportMode),
       defaultDuplicateStrategy: this.normalizeDuplicateStrategy(record.defaultDuplicateStrategy),
       sensitiveMfaWindowMinutes: this.normalizePositiveInteger(record.sensitiveMfaWindowMinutes, 5, 'sensitiveMfaWindowMinutes'),
       retentionArchiveDays: record.retentionArchiveDays ?? null,

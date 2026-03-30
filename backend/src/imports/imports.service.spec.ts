@@ -20,7 +20,8 @@ describe('ImportsService', () => {
     address: {
       findFirst: jest.fn(),
       create: jest.fn(),
-      update: jest.fn()
+      update: jest.fn(),
+      updateMany: jest.fn()
     }
   };
   const usersService = {
@@ -67,6 +68,7 @@ describe('ImportsService', () => {
     prisma.address.findFirst.mockResolvedValue(null);
     prisma.address.create.mockResolvedValue({});
     prisma.address.update.mockResolvedValue({});
+    prisma.address.updateMany.mockResolvedValue({ count: 0 });
     prisma.importBatch.create.mockResolvedValue({ id: 'batch-1' });
     prisma.importBatch.findMany.mockResolvedValue([{ id: 'batch-1' }]);
     prisma.importBatch.findFirst.mockResolvedValue({
@@ -108,6 +110,7 @@ describe('ImportsService', () => {
       duplicateStrategy: 'skip',
       turfsCreated: 2,
       addressesImported: 2,
+      replacedMembershipsRemoved: 0,
       invalidRowsSkipped: 1,
       duplicateRowsSkipped: 0,
       duplicateRowsMerged: 0,
@@ -168,11 +171,57 @@ describe('ImportsService', () => {
       duplicateStrategy: 'merge',
       turfsCreated: 0,
       addressesImported: 0,
+      replacedMembershipsRemoved: 0,
       invalidRowsSkipped: 0,
       duplicateRowsSkipped: 0,
       duplicateRowsMerged: 1,
       turfs: [{ id: 'turf-9', name: 'North Turf' }]
     });
+  });
+
+  it('replaces turf memberships not present in the latest batch when configured', async () => {
+    prisma.turf.findFirst.mockResolvedValue({
+      id: 'turf-9',
+      name: 'North Turf',
+      organizationId: 'org-1',
+      campaignId: 'campaign-1'
+    });
+    prisma.household.findFirst.mockResolvedValue({
+      id: 'household-1',
+      latitude: null,
+      longitude: null,
+      vanHouseholdId: 'HH-1',
+      vanPersonId: null
+    });
+    prisma.address.findFirst.mockResolvedValue({
+      id: 'address-1',
+      turfId: 'turf-9',
+      householdId: 'household-1'
+    });
+    prisma.address.updateMany.mockResolvedValue({ count: 3 });
+
+    const result = await service.importCsv({
+      createdById: 'admin-1',
+      mode: 'replace_turf_membership',
+      csv: [
+        'turf_name,address_line1,city,state,van_household_id',
+        'North Turf,10 Main St,Grand Rapids,MI,HH-1'
+      ].join('\n')
+    });
+
+    expect(prisma.address.updateMany).toHaveBeenCalledWith({
+      where: {
+        turfId: 'turf-9',
+        deletedAt: null,
+        householdId: {
+          notIn: ['household-1']
+        }
+      },
+      data: expect.objectContaining({
+        deleteReason: 'replace_turf_membership_import'
+      })
+    });
+    expect(result.replacedMembershipsRemoved).toBe(3);
   });
 
   it('rejects duplicate rows when duplicateStrategy is error', async () => {

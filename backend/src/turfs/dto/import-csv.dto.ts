@@ -11,8 +11,8 @@ export class ImportCsvDto {
   mapping?: string;
 
   @IsOptional()
-  @IsIn(['create_only', 'upsert'])
-  mode?: 'create_only' | 'upsert';
+  @IsIn(['create_only', 'upsert', 'replace_turf_membership'])
+  mode?: 'create_only' | 'upsert' | 'replace_turf_membership';
 
   @IsOptional()
   @IsIn(['skip', 'error', 'merge'])

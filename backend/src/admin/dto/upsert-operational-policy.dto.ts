@@ -6,8 +6,8 @@ export class UpsertOperationalPolicyDto {
   campaignId?: string | null;
 
   @IsOptional()
-  @IsIn(['create_only', 'upsert'])
-  defaultImportMode?: 'create_only' | 'upsert';
+  @IsIn(['create_only', 'upsert', 'replace_turf_membership'])
+  defaultImportMode?: 'create_only' | 'upsert' | 'replace_turf_membership';
 
   @IsOptional()
   @IsIn(['skip', 'error', 'merge'])

@@ -10,7 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 
 type ImportRow = Record<string, unknown>;
-type ImportMode = 'create_only' | 'upsert';
+type ImportMode = 'create_only' | 'upsert' | 'replace_turf_membership';
 type DuplicateStrategy = 'skip' | 'error' | 'merge';
 type RowImportStatus = 'created' | 'merged' | 'skipped_invalid' | 'skipped_duplicate';
 
@@ -37,6 +37,14 @@ export class ImportsService {
       organizationId: scope.organizationId ?? null,
       ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
     } as const;
+  }
+
+  private buildPurgeAt(days?: number | null) {
+    if (!days || days <= 0) {
+      return null;
+    }
+
+    return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   }
 
   private findDuplicateAddress(input: {
@@ -186,6 +194,7 @@ export class ImportsService {
     let invalidRowsSkipped = 0;
     let duplicateRowsSkipped = 0;
     let duplicateRowsMerged = 0;
+    let replacedMembershipsRemoved = 0;
     const rowResults: Array<{
       rowIndex: number;
       turfName: string;
@@ -198,7 +207,7 @@ export class ImportsService {
 
     for (const [turfName, rows] of groupedRows.entries()) {
       const existingTurf =
-        mode === 'upsert'
+        mode === 'upsert' || mode === 'replace_turf_membership'
           ? await this.prisma.turf.findFirst({
               where: {
                 name: turfName,
@@ -225,6 +234,7 @@ export class ImportsService {
         createdTurfs.push(turf.id);
       }
       turfs.push({ id: turf.id, name: turf.name });
+      const importedHouseholdIds = new Set<string>();
 
       for (const { row, rowIndex } of rows) {
         const addressLine1 = resolveMappedValue(row, 'addressLine1', input.mapping);
@@ -272,6 +282,7 @@ export class ImportsService {
           turfId: turf.id,
           householdId: household.id
         });
+        importedHouseholdIds.add(household.id);
 
         if (duplicate) {
           if (duplicateStrategy === 'error') {
@@ -343,6 +354,25 @@ export class ImportsService {
           householdId: household.id
         });
       }
+
+      if (mode === 'replace_turf_membership' && existingTurf && importedHouseholdIds.size > 0) {
+        const removed = await this.prisma.address.updateMany({
+          where: {
+            turfId: turf.id,
+            deletedAt: null,
+            householdId: {
+              notIn: Array.from(importedHouseholdIds)
+            }
+          },
+          data: {
+            deletedAt: new Date(),
+            deleteReason: 'replace_turf_membership_import',
+            purgeAt: this.buildPurgeAt(policy.retentionPurgeDays)
+          }
+        });
+
+        replacedMembershipsRemoved += removed.count;
+      }
     }
 
     const filename = this.buildTimestampedFilename('import-batch');
@@ -358,6 +388,7 @@ export class ImportsService {
         rowCount: records.length,
         importedCount: addressesImported,
         mergedCount: duplicateRowsMerged,
+        removedCount: replacedMembershipsRemoved,
         invalidCount: invalidRowsSkipped,
         duplicateSkippedCount: duplicateRowsSkipped,
         mappingJson: (input.mapping ?? null) as never,
@@ -387,6 +418,7 @@ export class ImportsService {
       invalidRowsSkipped,
       duplicateRowsSkipped,
       duplicateRowsMerged,
+      replacedMembershipsRemoved,
       turfs
     };
 

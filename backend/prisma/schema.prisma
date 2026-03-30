@@ -540,6 +540,7 @@ model ImportBatch {
   rowCount              Int              @default(0) @map("row_count")
   importedCount         Int              @default(0) @map("imported_count")
   mergedCount           Int              @default(0) @map("merged_count")
+  removedCount          Int              @default(0) @map("removed_count")
   invalidCount          Int              @default(0) @map("invalid_count")
   duplicateSkippedCount Int              @default(0) @map("duplicate_skipped_count")
   mappingJson           Json?            @map("mapping_json")
