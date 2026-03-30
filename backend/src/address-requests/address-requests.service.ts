@@ -243,6 +243,7 @@ export class AddressRequestsService {
   }
 
   private buildDuplicateWhere(input: {
+    organizationId: string | null;
     turfId: string;
     addressLine1: string;
     city: string;
@@ -250,7 +251,9 @@ export class AddressRequestsService {
     zip: string | null;
   }): Prisma.AddressWhereInput {
     return {
+      organizationId: input.organizationId,
       turfId: input.turfId,
+      deletedAt: null,
       addressLine1: {
         equals: input.addressLine1,
         mode: 'insensitive'
@@ -265,6 +268,80 @@ export class AddressRequestsService {
       },
       zip: input.zip
     };
+  }
+
+  private findMatchingHousehold(input: {
+    organizationId: string | null;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip: string | null;
+  }) {
+    if (!input.organizationId) {
+      throw new BadRequestException('Address requests require an organization-scoped actor');
+    }
+
+    return this.prisma.household.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        addressLine1: {
+          equals: input.addressLine1,
+          mode: 'insensitive'
+        },
+        city: {
+          equals: input.city,
+          mode: 'insensitive'
+        },
+        state: {
+          equals: input.state,
+          mode: 'insensitive'
+        },
+        zip: input.zip,
+        deletedAt: null
+      }
+    });
+  }
+
+  private async ensureHousehold(input: {
+    organizationId: string | null;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip: string | null;
+    latitude?: Prisma.Decimal | number | null;
+    longitude?: Prisma.Decimal | number | null;
+  }) {
+    const existing = await this.findMatchingHousehold(input);
+    if (existing) {
+      if (
+        (input.latitude !== null && input.latitude !== undefined && existing.latitude === null) ||
+        (input.longitude !== null && input.longitude !== undefined && existing.longitude === null)
+      ) {
+        return this.prisma.household.update({
+          where: { id: existing.id },
+          data: {
+            latitude: input.latitude ?? existing.latitude,
+            longitude: input.longitude ?? existing.longitude
+          }
+        });
+      }
+
+      return existing;
+    }
+
+    return this.prisma.household.create({
+      data: {
+        organizationId: input.organizationId!,
+        addressLine1: input.addressLine1,
+        city: input.city,
+        state: input.state,
+        zip: input.zip,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
+        source: 'field_request',
+        approvalStatus: 'approved'
+      }
+    });
   }
 
   private buildPendingDuplicateWhere(input: {
@@ -336,6 +413,7 @@ export class AddressRequestsService {
     const [existingAddress, existingPendingRequest] = await Promise.all([
       this.prisma.address.findFirst({
         where: this.buildDuplicateWhere({
+          organizationId: input.organizationId,
           turfId: input.turfId,
           ...normalized
         })
@@ -456,6 +534,7 @@ export class AddressRequestsService {
 
     const existingAddress = await this.prisma.address.findFirst({
       where: this.buildDuplicateWhere({
+        organizationId: request.organizationId,
         turfId: request.turf.id,
         ...normalized
       })
@@ -466,9 +545,20 @@ export class AddressRequestsService {
     }
 
     const approved = (await this.prisma.$transaction(async (tx) => {
+      const household = await this.ensureHousehold({
+        organizationId: request.organizationId,
+        addressLine1: normalized.addressLine1,
+        city: normalized.city,
+        state: normalized.state,
+        zip: normalized.zip,
+        latitude: request.latitude,
+        longitude: request.longitude
+      });
+
       const approvedAddress = await tx.address.create({
         data: {
           turfId: request.turf.id,
+          householdId: household.id,
           organizationId: request.organizationId,
           campaignId: request.campaignId,
           addressLine1: normalized.addressLine1,
@@ -476,7 +566,8 @@ export class AddressRequestsService {
           state: normalized.state,
           zip: normalized.zip,
           latitude: request.latitude,
-          longitude: request.longitude
+          longitude: request.longitude,
+          addedInField: true
         }
       });
 

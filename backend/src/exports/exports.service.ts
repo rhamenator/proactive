@@ -37,6 +37,7 @@ export class ExportsService {
     return this.prisma.visitLog.findMany({
       where: {
         ...this.buildScope(options ?? { organizationId: null }),
+        deletedAt: null,
         ...(options?.turfId ? { turfId: options.turfId } : {}),
         ...(options?.markExported === false ? {} : { vanExported: false })
       },

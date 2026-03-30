@@ -432,13 +432,16 @@ describe('TurfsService', () => {
     expect(prisma.turf.findFirst).toHaveBeenCalledWith({
       where: {
         id: 'turf-1',
-        organizationId: 'org-1'
+        organizationId: 'org-1',
+        deletedAt: null
       },
       include: {
         addresses: {
+          where: { deletedAt: null },
           orderBy: { addressLine1: 'asc' },
           include: {
             visitLogs: {
+              where: { deletedAt: null },
               orderBy: { visitTime: 'desc' },
               take: 1
             }

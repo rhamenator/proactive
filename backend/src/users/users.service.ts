@@ -95,12 +95,13 @@ export class UsersService {
   }
 
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+    const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+    return user?.deletedAt ? null : user;
   }
 
   async findById(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) {
+    if (!user || user.deletedAt) {
       throw new NotFoundException('User not found');
     }
     return user;
@@ -108,7 +109,10 @@ export class UsersService {
 
   async listCanvassers() {
     const users = await this.prisma.user.findMany({
-      where: { role: { in: [...fieldUserRoles] } },
+      where: {
+        role: { in: [...fieldUserRoles] },
+        deletedAt: null
+      },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }]
     });
     return users.map((user) => this.sanitize(user));
@@ -125,7 +129,7 @@ export class UsersService {
   }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (existing) {
+    if (existing && !existing.deletedAt) {
       throw new ConflictException('A user with this email already exists');
     }
     await this.validateCampaignScope(input.organizationId, input.campaignId);
@@ -162,7 +166,7 @@ export class UsersService {
     }>
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
-    if (!existing) {
+    if (!existing || existing.deletedAt) {
       throw new NotFoundException('User not found');
     }
     if (input.organizationId !== undefined && existing.organizationId !== input.organizationId) {
@@ -205,7 +209,7 @@ export class UsersService {
   }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (existing) {
+    if (existing && !existing.deletedAt) {
       throw new ConflictException('A user with this email already exists');
     }
     await this.validateCampaignScope(input.organizationId, input.campaignId);

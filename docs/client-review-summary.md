@@ -10,6 +10,7 @@ The application suite has been built and brought to a review-ready state across 
   - Admin/supervisor impersonation support with audit tracking
   - Turf creation, assignment, lifecycle management, and field session tracking
   - Visit logging with offline-safe sync metadata, idempotency, GPS validation, and audit history
+  - Canonical household records plus turf-level address membership for cross-turf/cross-campaign reuse without breaking current address workflows
   - GPS review and override workflow
   - Sync-conflict review and resolution workflow
   - Configurable visit outcomes
@@ -46,6 +47,7 @@ The application suite has been built and brought to a review-ready state across 
   - Automated test coverage across backend, admin dashboard, and mobile utility layers
   - CI/build verification paths
   - Dependency vulnerability cleanup
+  - Retention metadata on core operational records to support future archive/purge policy
   - Documentation, wiki, help docs, and updated gap analysis
   - Trusted GitHub-based build/release workflow scaffolding
 
@@ -87,7 +89,7 @@ Please confirm whether you want any of the following added before release:
 
 - Any additional CSV/VAN import rules beyond the current review-ready baseline with import modes and duplicate handling
 - Deeper team/geography scoping beyond the current organization-and-campaign scope
-- Household normalization / retention-policy schema work beyond the current operational model
+- Whether you want explicit admin archive/delete workflows and retention-job automation on top of the new retention metadata
 - Any changes to impersonation policy, correction windows, or review permissions
 
 ### 3. Provide Production Release Inputs

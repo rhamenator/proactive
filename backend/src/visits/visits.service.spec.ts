@@ -506,6 +506,7 @@ describe('VisitsService', () => {
     expect(prisma.visitLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
+          deletedAt: null,
           organizationId: 'org-1',
           turfId: 'turf-1'
         }

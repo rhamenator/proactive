@@ -333,13 +333,16 @@ export class TurfsService {
     const turf = await this.prisma.turf.findFirst({
       where: {
         id: turfId,
-        ...this.scopeWhere(scope)
+        ...this.scopeWhere(scope),
+        deletedAt: null
       },
       include: {
         addresses: {
+          where: { deletedAt: null },
           orderBy: { addressLine1: 'asc' },
           include: {
             visitLogs: {
+              where: { deletedAt: null },
               orderBy: { visitTime: 'desc' },
               take: 1
             }
@@ -381,9 +384,11 @@ export class TurfsService {
         turf: {
           include: {
             addresses: {
+              where: { deletedAt: null },
               orderBy: { addressLine1: 'asc' },
               include: {
                 visitLogs: {
+                  where: { deletedAt: null },
                   orderBy: { visitTime: 'desc' },
                   take: 1
                 }

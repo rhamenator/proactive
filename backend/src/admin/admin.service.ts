@@ -69,16 +69,16 @@ export class AdminService {
   async dashboardSummary(scope: AccessScope) {
     const organizationScope = this.scopeWhere(scope);
     const [users, turfs, addresses, assignments, activeSessions, visits] = await Promise.all([
-      this.prisma.user.count({ where: organizationScope }),
-      this.prisma.turf.count({ where: organizationScope }),
-      this.prisma.address.count({ where: organizationScope }),
+      this.prisma.user.count({ where: { ...organizationScope, deletedAt: null } }),
+      this.prisma.turf.count({ where: { ...organizationScope, deletedAt: null } }),
+      this.prisma.address.count({ where: { ...organizationScope, deletedAt: null } }),
       this.prisma.turfAssignment.count({ where: organizationScope }),
       this.prisma.turfSession.count({ where: { ...organizationScope, endTime: null } }),
-      this.prisma.visitLog.count({ where: organizationScope })
+      this.prisma.visitLog.count({ where: { ...organizationScope, deletedAt: null } })
     ]);
 
     const completedAddresses = await this.prisma.visitLog.findMany({
-      where: organizationScope,
+      where: { ...organizationScope, deletedAt: null },
       distinct: ['addressId'],
       select: { addressId: true }
     });
@@ -102,12 +102,16 @@ export class AdminService {
     const perTurf = await this.prisma.turf.findMany({
       where: organizationScope,
       include: {
-        addresses: true,
+        addresses: {
+          where: { deletedAt: null }
+        },
         assignments: true,
         sessions: {
           where: { endTime: null }
         },
-        visits: true
+        visits: {
+          where: { deletedAt: null }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -115,9 +119,9 @@ export class AdminService {
     return {
       totals: {
         users,
-        admins: await this.prisma.user.count({ where: { ...organizationScope, role: UserRole.admin } }),
-        supervisors: await this.prisma.user.count({ where: { ...organizationScope, role: UserRole.supervisor } }),
-        canvassers: await this.prisma.user.count({ where: { ...organizationScope, role: UserRole.canvasser } }),
+        admins: await this.prisma.user.count({ where: { ...organizationScope, role: UserRole.admin, deletedAt: null } }),
+        supervisors: await this.prisma.user.count({ where: { ...organizationScope, role: UserRole.supervisor, deletedAt: null } }),
+        canvassers: await this.prisma.user.count({ where: { ...organizationScope, role: UserRole.canvasser, deletedAt: null } }),
         turfs,
         addresses,
         assignments,
@@ -151,8 +155,12 @@ export class AdminService {
         },
         turf: {
           include: {
-            addresses: true,
-            visits: true
+            addresses: {
+              where: { deletedAt: null }
+            },
+            visits: {
+              where: { deletedAt: null }
+            }
           }
         }
       }

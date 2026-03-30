@@ -61,6 +61,7 @@ describe('ExportsService', () => {
 
     expect(prisma.visitLog.findMany).toHaveBeenCalledWith({
       where: {
+        deletedAt: null,
         organizationId: 'org-1',
         turfId: 'turf-1',
         vanExported: false
@@ -123,7 +124,7 @@ describe('ExportsService', () => {
     });
 
     expect(prisma.visitLog.findMany).toHaveBeenCalledWith({
-      where: { organizationId: 'org-1' },
+      where: { deletedAt: null, organizationId: 'org-1' },
       orderBy: { visitTime: 'asc' },
       include: {
         address: true,

@@ -22,6 +22,11 @@ describe('AddressRequestsService', () => {
     address: {
       findFirst: jest.fn()
     },
+    household: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
+    },
     $transaction: jest.fn()
   };
   const auditService = {
@@ -73,6 +78,9 @@ describe('AddressRequestsService', () => {
     prisma.turfAssignment.findFirst.mockResolvedValue({ id: 'assignment-1' });
     prisma.turfSession.findFirst.mockResolvedValue(null);
     prisma.address.findFirst.mockResolvedValue(null);
+    prisma.household.findFirst.mockResolvedValue(null);
+    prisma.household.create.mockResolvedValue({ id: 'household-1' });
+    prisma.household.update.mockResolvedValue({ id: 'household-1' });
     prisma.addressRequest.findFirst.mockResolvedValue(null);
     prisma.addressRequest.findMany.mockResolvedValue([requestRecord]);
     prisma.addressRequest.create.mockResolvedValue(requestRecord);
@@ -100,6 +108,11 @@ describe('AddressRequestsService', () => {
     });
     prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
       const tx = {
+        household: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue({ id: 'household-1' }),
+          update: jest.fn().mockResolvedValue({ id: 'household-1' })
+        },
         address: {
           create: jest.fn().mockResolvedValue({ id: 'address-1' })
         },
@@ -217,6 +230,25 @@ describe('AddressRequestsService', () => {
         state: 'MI'
       })
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('reuses an existing household record when approving a request', async () => {
+    prisma.addressRequest.findFirst.mockResolvedValue(requestRecord);
+    prisma.household.findFirst.mockResolvedValue({
+      id: 'household-1',
+      latitude: null,
+      longitude: null
+    });
+
+    await service.approveRequest({
+      requestId: 'request-1',
+      actorUserId: 'admin-1',
+      actorRole: UserRole.admin,
+      organizationId: 'org-1',
+      reason: 'Looks valid'
+    });
+
+    expect(prisma.$transaction).toHaveBeenCalled();
   });
 
   it('rejects submission when a matching pending request already exists', async () => {

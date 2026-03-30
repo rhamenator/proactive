@@ -140,7 +140,8 @@ export class ReportsService {
 
   private buildVisitWhere(filters: ReportFilters): Prisma.VisitLogWhereInput {
     const where: Prisma.VisitLogWhereInput = {
-      organizationId: filters.organizationId
+      organizationId: filters.organizationId,
+      deletedAt: null
     };
     if (filters.campaignId) {
       where.campaignId = filters.campaignId;

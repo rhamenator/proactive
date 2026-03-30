@@ -20,25 +20,105 @@ export class ImportsService {
 
   private findDuplicateAddress(input: {
     turfId: string;
-    vanId?: string | null;
+    householdId: string;
+  }) {
+    return this.prisma.address.findFirst({
+      where: {
+        turfId: input.turfId,
+        householdId: input.householdId,
+        deletedAt: null
+      }
+    });
+  }
+
+  private findMatchingHousehold(input: {
+    organizationId: string;
     addressLine1: string;
     city: string;
     state: string;
     zip?: string | null;
+    vanHouseholdId?: string | null;
+    vanPersonId?: string | null;
   }) {
-    return this.prisma.address.findFirst({
-      where: input.vanId
-        ? {
-            turfId: input.turfId,
-            vanId: input.vanId
+    if (input.vanHouseholdId) {
+      return this.prisma.household.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          vanHouseholdId: input.vanHouseholdId,
+          deletedAt: null
+        }
+      });
+    }
+
+    if (input.vanPersonId) {
+      return this.prisma.household.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          vanPersonId: input.vanPersonId,
+          deletedAt: null
+        }
+      });
+    }
+
+    return this.prisma.household.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        addressLine1: input.addressLine1,
+        city: input.city,
+        state: input.state,
+        zip: input.zip ?? null,
+        deletedAt: null
+      }
+    });
+  }
+
+  private async ensureHousehold(input: {
+    organizationId: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    vanHouseholdId?: string | null;
+    vanPersonId?: string | null;
+  }) {
+    const existing = await this.findMatchingHousehold(input);
+    if (existing) {
+      if (
+        (input.latitude !== null && input.latitude !== undefined && existing.latitude === null) ||
+        (input.longitude !== null && input.longitude !== undefined && existing.longitude === null) ||
+        (input.vanHouseholdId && !existing.vanHouseholdId) ||
+        (input.vanPersonId && !existing.vanPersonId)
+      ) {
+        return this.prisma.household.update({
+          where: { id: existing.id },
+          data: {
+            latitude: input.latitude ?? existing.latitude,
+            longitude: input.longitude ?? existing.longitude,
+            vanHouseholdId: input.vanHouseholdId ?? existing.vanHouseholdId,
+            vanPersonId: input.vanPersonId ?? existing.vanPersonId
           }
-        : {
-            turfId: input.turfId,
-            addressLine1: input.addressLine1,
-            city: input.city,
-            state: input.state,
-            zip: input.zip ?? null
-          }
+        });
+      }
+
+      return existing;
+    }
+
+    return this.prisma.household.create({
+      data: {
+        organizationId: input.organizationId,
+        addressLine1: input.addressLine1,
+        city: input.city,
+        state: input.state,
+        zip: input.zip,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        vanHouseholdId: input.vanHouseholdId,
+        vanPersonId: input.vanPersonId,
+        source: 'csv_import',
+        approvalStatus: 'approved'
+      }
     });
   }
 
@@ -51,6 +131,9 @@ export class ImportsService {
     duplicateStrategy?: DuplicateStrategy;
   }) {
     const creator = await this.usersService.findById(input.createdById);
+    if (!creator.organizationId) {
+      throw new BadRequestException('CSV imports require an organization-scoped admin account');
+    }
     const mode = input.mode ?? 'create_only';
     const duplicateStrategy = input.duplicateStrategy ?? 'skip';
     const records = parse(input.csv, {
@@ -116,10 +199,14 @@ export class ImportsService {
         const city = resolveMappedValue(row, 'city', input.mapping);
         const state = resolveMappedValue(row, 'state', input.mapping);
         const zip = resolveMappedValue(row, 'zip', input.mapping);
-        const vanId =
-          resolveMappedValue(row, 'vanId', input.mapping) ??
+        const vanPersonId =
+          resolveMappedValue(row, 'vanPersonId', input.mapping) ??
+          resolveMappedValue(row, 'vanId', input.mapping);
+        const vanHouseholdId =
           resolveMappedValue(row, 'vanHouseholdId', input.mapping) ??
-          resolveMappedValue(row, 'vanPersonId', input.mapping);
+          resolveMappedValue(row, 'vanId', input.mapping);
+        const latitude = toOptionalNumber(resolveMappedValue(row, 'latitude', input.mapping));
+        const longitude = toOptionalNumber(resolveMappedValue(row, 'longitude', input.mapping));
 
         if (!addressLine1 || !city || !state) {
           invalidRowsSkipped += 1;
@@ -127,13 +214,20 @@ export class ImportsService {
         }
 
         const combinedAddressLine1 = [addressLine1, addressLine2, unit].filter(Boolean).join(', ');
-        const duplicate = await this.findDuplicateAddress({
-          turfId: turf.id,
-          vanId,
+        const household = await this.ensureHousehold({
+          organizationId: creator.organizationId,
           addressLine1: combinedAddressLine1,
           city,
           state,
-          zip
+          zip,
+          latitude,
+          longitude,
+          vanHouseholdId,
+          vanPersonId
+        });
+        const duplicate = await this.findDuplicateAddress({
+          turfId: turf.id,
+          householdId: household.id
         });
 
         if (duplicate) {
@@ -149,9 +243,9 @@ export class ImportsService {
                 city,
                 state,
                 zip: zip ?? duplicate.zip,
-                vanId: vanId ?? duplicate.vanId,
-                latitude: toOptionalNumber(resolveMappedValue(row, 'latitude', input.mapping)) ?? duplicate.latitude,
-                longitude: toOptionalNumber(resolveMappedValue(row, 'longitude', input.mapping)) ?? duplicate.longitude
+                vanId: vanHouseholdId ?? vanPersonId ?? duplicate.vanId,
+                latitude: latitude ?? duplicate.latitude,
+                longitude: longitude ?? duplicate.longitude
               }
             });
             duplicateRowsMerged += 1;
@@ -165,15 +259,16 @@ export class ImportsService {
         await this.prisma.address.create({
           data: {
             turfId: turf.id,
+            householdId: household.id,
             organizationId: turf.organizationId,
             campaignId: turf.campaignId,
             addressLine1: combinedAddressLine1,
             city,
             state,
             zip,
-            vanId,
-            latitude: toOptionalNumber(resolveMappedValue(row, 'latitude', input.mapping)),
-            longitude: toOptionalNumber(resolveMappedValue(row, 'longitude', input.mapping))
+            vanId: vanHouseholdId ?? vanPersonId,
+            latitude,
+            longitude
           }
         });
         addressesImported += 1;

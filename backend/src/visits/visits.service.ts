@@ -151,6 +151,7 @@ export class VisitsService {
     return this.prisma.visitLog.findMany({
       where: {
         ...this.buildScopedWhere(input.scope),
+        deletedAt: null,
         ...(input.turfId ? { turfId: input.turfId } : {}),
         ...(canvasserId ? { canvasserId } : {}),
         ...(input.addressId ? { addressId: input.addressId } : {})
@@ -202,7 +203,8 @@ export class VisitsService {
     const visit = await this.prisma.visitLog.findFirst({
       where: {
         id: input.visitId,
-        ...this.buildScopedWhere(input.scope)
+        ...this.buildScopedWhere(input.scope),
+        deletedAt: null
       },
       include: {
         geofenceResult: true
@@ -332,7 +334,7 @@ export class VisitsService {
       include: { turf: true }
     });
 
-    if (!address) {
+    if (!address || address.deletedAt) {
       throw new BadRequestException('Address not found');
     }
 
@@ -393,7 +395,8 @@ export class VisitsService {
     const attemptsForAddress = await this.prisma.visitLog.count({
       where: {
         turfId: address.turfId,
-        addressId: address.id
+        addressId: address.id,
+        deletedAt: null
       }
     });
 
@@ -405,7 +408,8 @@ export class VisitsService {
       where: {
         turfId: address.turfId,
         addressId: address.id,
-        canvasserId: input.canvasserId
+        canvasserId: input.canvasserId,
+        deletedAt: null
       },
       orderBy: { visitTime: 'desc' }
     });

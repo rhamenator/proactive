@@ -7,6 +7,11 @@ describe('ImportsService', () => {
       findFirst: jest.fn(),
       create: jest.fn()
     },
+    household: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
+    },
     address: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -43,6 +48,11 @@ describe('ImportsService', () => {
         organizationId: 'org-1',
         campaignId: 'campaign-1'
       });
+    prisma.household.findFirst.mockResolvedValue(null);
+    prisma.household.create
+      .mockResolvedValueOnce({ id: 'household-1' })
+      .mockResolvedValueOnce({ id: 'household-2' });
+    prisma.household.update.mockResolvedValue({ id: 'household-1' });
     prisma.address.findFirst.mockResolvedValue(null);
     prisma.address.create.mockResolvedValue({});
     prisma.address.update.mockResolvedValue({});
@@ -66,6 +76,7 @@ describe('ImportsService', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           turfId: 'turf-1',
+          householdId: 'household-1',
           addressLine1: '10 Main St, Floor 2, Suite A',
           vanId: 'HH-1'
         })
@@ -92,6 +103,13 @@ describe('ImportsService', () => {
       name: 'North Turf',
       organizationId: 'org-1',
       campaignId: 'campaign-1'
+    });
+    prisma.household.findFirst.mockResolvedValue({
+      id: 'household-1',
+      latitude: 42.9,
+      longitude: -85.6,
+      vanHouseholdId: 'HH-1',
+      vanPersonId: null
     });
     prisma.address.findFirst.mockResolvedValue({
       id: 'address-1',
@@ -135,6 +153,13 @@ describe('ImportsService', () => {
   });
 
   it('rejects duplicate rows when duplicateStrategy is error', async () => {
+    prisma.household.findFirst.mockResolvedValue({
+      id: 'household-1',
+      latitude: null,
+      longitude: null,
+      vanHouseholdId: null,
+      vanPersonId: null
+    });
     prisma.address.findFirst.mockResolvedValue({
       id: 'address-1'
     });

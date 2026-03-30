@@ -123,34 +123,70 @@ async function main() {
       description: 'Starter turf for local development',
       createdById: admin.id,
       organizationId: organization.id,
-      campaignId: campaign.id,
-      addresses: {
-        create: [
-          {
-            organizationId: organization.id,
-            campaignId: campaign.id,
-            addressLine1: '100 Main St',
-            city: 'Grand Rapids',
-            state: 'MI',
-            zip: '49503',
-            latitude: 42.9634,
-            longitude: -85.6681,
-            vanId: 'VAN-1001'
-          },
-          {
-            organizationId: organization.id,
-            campaignId: campaign.id,
-            addressLine1: '102 Main St',
-            city: 'Grand Rapids',
-            state: 'MI',
-            zip: '49503',
-            latitude: 42.9635,
-            longitude: -85.6682,
-            vanId: 'VAN-1002'
-          }
-        ]
-      }
+      campaignId: campaign.id
     }
+  });
+
+  const households = await Promise.all([
+    prisma.household.create({
+      data: {
+        organizationId: organization.id,
+        addressLine1: '100 Main St',
+        city: 'Grand Rapids',
+        state: 'MI',
+        zip: '49503',
+        latitude: 42.9634,
+        longitude: -85.6681,
+        vanHouseholdId: 'VAN-1001',
+        source: 'seed',
+        approvalStatus: 'approved'
+      }
+    }),
+    prisma.household.create({
+      data: {
+        organizationId: organization.id,
+        addressLine1: '102 Main St',
+        city: 'Grand Rapids',
+        state: 'MI',
+        zip: '49503',
+        latitude: 42.9635,
+        longitude: -85.6682,
+        vanHouseholdId: 'VAN-1002',
+        source: 'seed',
+        approvalStatus: 'approved'
+      }
+    })
+  ]);
+
+  await prisma.address.createMany({
+    data: [
+      {
+        turfId: turf.id,
+        householdId: households[0].id,
+        organizationId: organization.id,
+        campaignId: campaign.id,
+        addressLine1: '100 Main St',
+        city: 'Grand Rapids',
+        state: 'MI',
+        zip: '49503',
+        latitude: 42.9634,
+        longitude: -85.6681,
+        vanId: 'VAN-1001'
+      },
+      {
+        turfId: turf.id,
+        householdId: households[1].id,
+        organizationId: organization.id,
+        campaignId: campaign.id,
+        addressLine1: '102 Main St',
+        city: 'Grand Rapids',
+        state: 'MI',
+        zip: '49503',
+        latitude: 42.9635,
+        longitude: -85.6682,
+        vanId: 'VAN-1002'
+      }
+    ]
   });
 
   await prisma.turfAssignment.create({

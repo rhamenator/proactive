@@ -80,43 +80,47 @@ enum AddressRequestStatus {
 }
 
 model User {
-  id           String          @id @default(uuid()) @db.Uuid
-  firstName    String          @map("first_name")
-  lastName     String          @map("last_name")
-  email        String          @unique
-  passwordHash String          @map("password_hash")
-  role         UserRole
-  organizationId String?       @map("organization_id") @db.Uuid
-  campaignId   String?         @map("campaign_id") @db.Uuid
-  isActive     Boolean         @default(true) @map("is_active")
-  status       String          @default("active")
-  mfaEnabled   Boolean         @default(false) @map("mfa_enabled")
-  mfaSecret    String?         @map("mfa_secret")
-  mfaTempSecret String?        @map("mfa_temp_secret")
-  failedLoginAttempts Int      @default(0) @map("failed_login_attempts")
-  lockedUntil  DateTime?       @map("locked_until")
-  invitedAt    DateTime?       @map("invited_at")
-  activatedAt  DateTime?       @map("activated_at")
-  lastLoginAt  DateTime?       @map("last_login_at")
-  createdAt    DateTime        @default(now()) @map("created_at")
-  organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  campaign     Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  createdTurfs Turf[]          @relation("TurfsCreated")
-  assignments  TurfAssignment[]
-  sessions     TurfSession[]
-  visits       VisitLog[]
-  auditLogs    AuditLog[]      @relation("AuditActor")
-  exportBatches ExportBatch[]  @relation("ExportBatchesInitiated")
-  mfaChallenges MfaChallengeToken[]
-  mfaBackupCodes MfaBackupCode[]
-  impersonationSessionsStarted ImpersonationSession[] @relation("ImpersonationActor")
+  id                            String                 @id @default(uuid()) @db.Uuid
+  firstName                     String                 @map("first_name")
+  lastName                      String                 @map("last_name")
+  email                         String                 @unique
+  passwordHash                  String                 @map("password_hash")
+  role                          UserRole
+  organizationId                String?                @map("organization_id") @db.Uuid
+  campaignId                    String?                @map("campaign_id") @db.Uuid
+  isActive                      Boolean                @default(true) @map("is_active")
+  status                        String                 @default("active")
+  mfaEnabled                    Boolean                @default(false) @map("mfa_enabled")
+  mfaSecret                     String?                @map("mfa_secret")
+  mfaTempSecret                 String?                @map("mfa_temp_secret")
+  failedLoginAttempts           Int                    @default(0) @map("failed_login_attempts")
+  lockedUntil                   DateTime?              @map("locked_until")
+  invitedAt                     DateTime?              @map("invited_at")
+  activatedAt                   DateTime?              @map("activated_at")
+  lastLoginAt                   DateTime?              @map("last_login_at")
+  deletedAt                     DateTime?              @map("deleted_at")
+  deleteReason                  String?                @map("delete_reason")
+  archivedAt                    DateTime?              @map("archived_at")
+  purgeAt                       DateTime?              @map("purge_at")
+  createdAt                     DateTime               @default(now()) @map("created_at")
+  organization                  Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign                      Campaign?              @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  createdTurfs                  Turf[]                 @relation("TurfsCreated")
+  assignments                   TurfAssignment[]
+  sessions                      TurfSession[]
+  visits                        VisitLog[]
+  auditLogs                     AuditLog[]             @relation("AuditActor")
+  exportBatches                 ExportBatch[]          @relation("ExportBatchesInitiated")
+  mfaChallenges                 MfaChallengeToken[]
+  mfaBackupCodes                MfaBackupCode[]
+  impersonationSessionsStarted  ImpersonationSession[] @relation("ImpersonationActor")
   impersonationSessionsTargeted ImpersonationSession[] @relation("ImpersonationTarget")
-  submittedAddressRequests AddressRequest[] @relation("AddressRequestSubmitter")
-  reviewedAddressRequests AddressRequest[] @relation("AddressRequestReviewer")
-  visitCorrections VisitCorrection[] @relation("VisitCorrectionActor")
-  refreshTokens AuthRefreshToken[]
-  activationTokens ActivationToken[]
-  resetTokens   PasswordResetToken[]
+  submittedAddressRequests      AddressRequest[]       @relation("AddressRequestSubmitter")
+  reviewedAddressRequests       AddressRequest[]       @relation("AddressRequestReviewer")
+  visitCorrections              VisitCorrection[]      @relation("VisitCorrectionActor")
+  refreshTokens                 AuthRefreshToken[]
+  activationTokens              ActivationToken[]
+  resetTokens                   PasswordResetToken[]
 
   @@index([organizationId])
   @@index([campaignId])
@@ -124,46 +128,76 @@ model User {
 }
 
 model Organization {
-  id          String             @id @default(uuid()) @db.Uuid
-  code        String             @unique
-  name        String
-  createdAt   DateTime           @default(now()) @map("created_at")
-  users       User[]
-  campaigns   Campaign[]
-  turfs       Turf[]
-  addresses   Address[]
-  assignments TurfAssignment[]
-  sessions    TurfSession[]
-  visits      VisitLog[]
-  auditLogs   AuditLog[]
-  outcomes    OutcomeDefinition[]
-  addressRequests AddressRequest[]
+  id                    String                 @id @default(uuid()) @db.Uuid
+  code                  String                 @unique
+  name                  String
+  createdAt             DateTime               @default(now()) @map("created_at")
+  users                 User[]
+  campaigns             Campaign[]
+  households            Household[]
+  turfs                 Turf[]
+  addresses             Address[]
+  assignments           TurfAssignment[]
+  sessions              TurfSession[]
+  visits                VisitLog[]
+  auditLogs             AuditLog[]
+  outcomes              OutcomeDefinition[]
+  addressRequests       AddressRequest[]
   impersonationSessions ImpersonationSession[]
-  visitCorrections VisitCorrection[]
-  exportBatches ExportBatch[]
+  visitCorrections      VisitCorrection[]
+  exportBatches         ExportBatch[]
 
   @@map("organizations")
 }
 
+model Household {
+  id              String        @id @default(uuid()) @db.Uuid
+  organizationId  String?       @map("organization_id") @db.Uuid
+  addressLine1    String        @map("address_line1")
+  city            String
+  state           String
+  zip             String?
+  latitude        Decimal?      @db.Decimal(9, 6)
+  longitude       Decimal?      @db.Decimal(9, 6)
+  vanHouseholdId  String?       @map("van_household_id")
+  vanPersonId     String?       @map("van_person_id")
+  source          String        @default("csv_import")
+  approvalStatus  String        @default("approved") @map("approval_status")
+  legacyAddressId String?       @unique @map("legacy_address_id") @db.Uuid
+  deletedAt       DateTime?     @map("deleted_at")
+  deleteReason    String?       @map("delete_reason")
+  archivedAt      DateTime?     @map("archived_at")
+  purgeAt         DateTime?     @map("purge_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  addresses       Address[]
+
+  @@index([organizationId])
+  @@index([organizationId, addressLine1, city, state, zip])
+  @@index([organizationId, vanHouseholdId])
+  @@index([organizationId, vanPersonId])
+  @@map("households")
+}
+
 model Campaign {
-  id             String             @id @default(uuid()) @db.Uuid
-  organizationId String             @map("organization_id") @db.Uuid
-  code           String
-  name           String
-  isActive       Boolean            @default(true) @map("is_active")
-  createdAt      DateTime           @default(now()) @map("created_at")
-  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  users          User[]
-  turfs          Turf[]
-  addresses      Address[]
-  assignments    TurfAssignment[]
-  sessions       TurfSession[]
-  visits         VisitLog[]
-  outcomes       OutcomeDefinition[]
-  addressRequests AddressRequest[]
+  id                    String                 @id @default(uuid()) @db.Uuid
+  organizationId        String                 @map("organization_id") @db.Uuid
+  code                  String
+  name                  String
+  isActive              Boolean                @default(true) @map("is_active")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users                 User[]
+  turfs                 Turf[]
+  addresses             Address[]
+  assignments           TurfAssignment[]
+  sessions              TurfSession[]
+  visits                VisitLog[]
+  outcomes              OutcomeDefinition[]
+  addressRequests       AddressRequest[]
   impersonationSessions ImpersonationSession[]
-  visitCorrections VisitCorrection[]
-  exportBatches  ExportBatch[]
+  visitCorrections      VisitCorrection[]
+  exportBatches         ExportBatch[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -171,18 +205,18 @@ model Campaign {
 }
 
 model OutcomeDefinition {
-  id                 String      @id @default(uuid()) @db.Uuid
-  organizationId     String?     @map("organization_id") @db.Uuid
-  campaignId         String?     @map("campaign_id") @db.Uuid
+  id                 String        @id @default(uuid()) @db.Uuid
+  organizationId     String?       @map("organization_id") @db.Uuid
+  campaignId         String?       @map("campaign_id") @db.Uuid
   code               String
   label              String
-  requiresNote       Boolean     @default(false) @map("requires_note")
-  isFinalDisposition Boolean     @default(true) @map("is_final_disposition")
-  displayOrder       Int         @default(0) @map("display_order")
-  isActive           Boolean     @default(true) @map("is_active")
-  createdAt          DateTime    @default(now()) @map("created_at")
+  requiresNote       Boolean       @default(false) @map("requires_note")
+  isFinalDisposition Boolean       @default(true) @map("is_final_disposition")
+  displayOrder       Int           @default(0) @map("display_order")
+  isActive           Boolean       @default(true) @map("is_active")
+  createdAt          DateTime      @default(now()) @map("created_at")
   organization       Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  campaign           Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  campaign           Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   visits             VisitLog[]
 
   @@index([organizationId])
@@ -193,28 +227,32 @@ model OutcomeDefinition {
 }
 
 model Turf {
-  id          String          @id @default(uuid()) @db.Uuid
-  name        String
-  description String?
-  organizationId String?      @map("organization_id") @db.Uuid
-  campaignId   String?        @map("campaign_id") @db.Uuid
-  status      TurfStatus      @default(unassigned)
-  isShared    Boolean         @default(false) @map("is_shared")
-  createdById  String?         @map("created_by") @db.Uuid
-  completedAt  DateTime?       @map("completed_at")
-  completedById String?        @map("completed_by") @db.Uuid
-  reopenedAt   DateTime?       @map("reopened_at")
-  reopenedById String?         @map("reopened_by") @db.Uuid
-  reopenedReason String?       @map("reopened_reason")
-  createdAt    DateTime        @default(now()) @map("created_at")
-  organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  campaign     Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  createdBy    User?           @relation("TurfsCreated", fields: [createdById], references: [id])
-  addresses    Address[]
-  assignments  TurfAssignment[]
-  sessions     TurfSession[]
-  visits       VisitLog[]
-  exportBatches ExportBatch[]
+  id              String           @id @default(uuid()) @db.Uuid
+  name            String
+  description     String?
+  organizationId  String?          @map("organization_id") @db.Uuid
+  campaignId      String?          @map("campaign_id") @db.Uuid
+  status          TurfStatus       @default(unassigned)
+  isShared        Boolean          @default(false) @map("is_shared")
+  createdById     String?          @map("created_by") @db.Uuid
+  completedAt     DateTime?        @map("completed_at")
+  completedById   String?          @map("completed_by") @db.Uuid
+  reopenedAt      DateTime?        @map("reopened_at")
+  reopenedById    String?          @map("reopened_by") @db.Uuid
+  reopenedReason  String?          @map("reopened_reason")
+  deletedAt       DateTime?        @map("deleted_at")
+  deleteReason    String?          @map("delete_reason")
+  archivedAt      DateTime?        @map("archived_at")
+  purgeAt         DateTime?        @map("purge_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign        Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  createdBy       User?            @relation("TurfsCreated", fields: [createdById], references: [id])
+  addresses       Address[]
+  assignments     TurfAssignment[]
+  sessions        TurfSession[]
+  visits          VisitLog[]
+  exportBatches   ExportBatch[]
   addressRequests AddressRequest[]
 
   @@index([organizationId])
@@ -223,46 +261,55 @@ model Turf {
 }
 
 model Address {
-  id            String      @id @default(uuid()) @db.Uuid
-  turfId        String      @map("turf_id") @db.Uuid
-  organizationId String?    @map("organization_id") @db.Uuid
-  campaignId    String?     @map("campaign_id") @db.Uuid
-  addressLine1  String      @map("address_line1")
-  city          String
-  state         String
-  zip           String?
-  latitude      Decimal?    @db.Decimal(9, 6)
-  longitude     Decimal?    @db.Decimal(9, 6)
-  vanId         String?     @map("van_id")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  campaign      Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  turf          Turf        @relation(fields: [turfId], references: [id], onDelete: Cascade)
-  visitLogs     VisitLog[]
+  id              String                @id @default(uuid()) @db.Uuid
+  turfId          String                @map("turf_id") @db.Uuid
+  householdId     String                @map("household_id") @db.Uuid
+  organizationId  String?               @map("organization_id") @db.Uuid
+  campaignId      String?               @map("campaign_id") @db.Uuid
+  addressLine1    String                @map("address_line1")
+  city            String
+  state           String
+  zip             String?
+  latitude        Decimal?              @db.Decimal(9, 6)
+  longitude       Decimal?              @db.Decimal(9, 6)
+  vanId           String?               @map("van_id")
+  addedInField    Boolean               @default(false) @map("added_in_field")
+  deletedAt       DateTime?             @map("deleted_at")
+  deleteReason    String?               @map("delete_reason")
+  archivedAt      DateTime?             @map("archived_at")
+  purgeAt         DateTime?             @map("purge_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  organization    Organization?         @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign        Campaign?             @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  turf            Turf                  @relation(fields: [turfId], references: [id], onDelete: Cascade)
+  household       Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  visitLogs       VisitLog[]
   geofenceResults VisitGeofenceResult[]
-  requestedFrom AddressRequest[] @relation("AddressRequestApprovedAddress")
+  requestedFrom   AddressRequest[]      @relation("AddressRequestApprovedAddress")
 
   @@index([turfId])
+  @@index([householdId])
   @@index([organizationId])
   @@index([campaignId])
+  @@index([turfId, householdId])
   @@map("addresses")
 }
 
 model TurfAssignment {
-  id           String           @id @default(uuid()) @db.Uuid
-  turfId       String           @map("turf_id") @db.Uuid
-  canvasserId  String           @map("canvasser_id") @db.Uuid
-  organizationId String?        @map("organization_id") @db.Uuid
-  campaignId   String?          @map("campaign_id") @db.Uuid
-  assignedByUserId String?      @map("assigned_by_user_id") @db.Uuid
-  assignedAt   DateTime         @default(now()) @map("assigned_at")
-  unassignedAt DateTime?        @map("unassigned_at")
-  reassignmentReason String?    @map("reassignment_reason")
-  status       AssignmentStatus @default(assigned)
-  organization Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  campaign     Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  turf         Turf             @relation(fields: [turfId], references: [id], onDelete: Cascade)
-  canvasser    User             @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
+  id                 String           @id @default(uuid()) @db.Uuid
+  turfId             String           @map("turf_id") @db.Uuid
+  canvasserId        String           @map("canvasser_id") @db.Uuid
+  organizationId     String?          @map("organization_id") @db.Uuid
+  campaignId         String?          @map("campaign_id") @db.Uuid
+  assignedByUserId   String?          @map("assigned_by_user_id") @db.Uuid
+  assignedAt         DateTime         @default(now()) @map("assigned_at")
+  unassignedAt       DateTime?        @map("unassigned_at")
+  reassignmentReason String?          @map("reassignment_reason")
+  status             AssignmentStatus @default(assigned)
+  organization       Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign           Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  turf               Turf             @relation(fields: [turfId], references: [id], onDelete: Cascade)
+  canvasser          User             @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
 
   @@index([turfId])
   @@index([canvasserId])
@@ -272,26 +319,26 @@ model TurfAssignment {
 }
 
 model TurfSession {
-  id         String    @id @default(uuid()) @db.Uuid
-  turfId     String    @map("turf_id") @db.Uuid
-  canvasserId String   @map("canvasser_id") @db.Uuid
-  organizationId String? @map("organization_id") @db.Uuid
-  campaignId String?  @map("campaign_id") @db.Uuid
-  startTime  DateTime  @map("start_time")
-  endTime    DateTime? @map("end_time")
-  status     SessionStatus    @default(active)
-  lastActivityAt DateTime? @map("last_activity_at")
-  pauseReason String?   @map("pause_reason")
-  endReason   String?   @map("end_reason")
-  startLat   Decimal?  @map("start_lat") @db.Decimal(9, 6)
-  startLng   Decimal?  @map("start_lng") @db.Decimal(9, 6)
-  endLat     Decimal?  @map("end_lat") @db.Decimal(9, 6)
-  endLng     Decimal?  @map("end_lng") @db.Decimal(9, 6)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  campaign     Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  turf       Turf      @relation(fields: [turfId], references: [id], onDelete: Cascade)
-  canvasser  User      @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
-  visits     VisitLog[]
+  id             String        @id @default(uuid()) @db.Uuid
+  turfId         String        @map("turf_id") @db.Uuid
+  canvasserId    String        @map("canvasser_id") @db.Uuid
+  organizationId String?       @map("organization_id") @db.Uuid
+  campaignId     String?       @map("campaign_id") @db.Uuid
+  startTime      DateTime      @map("start_time")
+  endTime        DateTime?     @map("end_time")
+  status         SessionStatus @default(active)
+  lastActivityAt DateTime?     @map("last_activity_at")
+  pauseReason    String?       @map("pause_reason")
+  endReason      String?       @map("end_reason")
+  startLat       Decimal?      @map("start_lat") @db.Decimal(9, 6)
+  startLng       Decimal?      @map("start_lng") @db.Decimal(9, 6)
+  endLat         Decimal?      @map("end_lat") @db.Decimal(9, 6)
+  endLng         Decimal?      @map("end_lng") @db.Decimal(9, 6)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign       Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  turf           Turf          @relation(fields: [turfId], references: [id], onDelete: Cascade)
+  canvasser      User          @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
+  visits         VisitLog[]
 
   @@index([turfId])
   @@index([canvasserId])
@@ -302,45 +349,49 @@ model TurfSession {
 }
 
 model VisitLog {
-  id                    String      @id @default(uuid()) @db.Uuid
-  turfId                String      @map("turf_id") @db.Uuid
-  addressId             String      @map("address_id") @db.Uuid
-  sessionId             String?     @map("session_id") @db.Uuid
-  canvasserId           String      @map("canvasser_id") @db.Uuid
-  organizationId        String?     @map("organization_id") @db.Uuid
-  campaignId            String?     @map("campaign_id") @db.Uuid
-  outcomeDefinitionId   String?     @map("outcome_definition_id") @db.Uuid
-  visitTime             DateTime    @default(now()) @map("visit_time")
-  clientCreatedAt       DateTime?   @map("client_created_at")
-  serverReceivedAt      DateTime    @default(now()) @map("server_received_at")
-  localRecordUuid       String?     @unique @map("local_record_uuid")
-  idempotencyKey        String?     @unique @map("idempotency_key")
-  syncStatus            SyncStatus  @default(synced) @map("sync_status")
-  syncConflictFlag      Boolean     @default(false) @map("sync_conflict_flag")
-  syncConflictReason    String?     @map("sync_conflict_reason")
-  source                VisitSource @default(mobile_app)
-  latitude              Decimal?    @db.Decimal(9, 6)
-  longitude             Decimal?    @db.Decimal(9, 6)
-  accuracyMeters        Decimal?    @map("accuracy_meters") @db.Decimal(8, 2)
-  gpsStatus             GpsStatus   @default(missing) @map("gps_status")
-  result                VisitResult
-  outcomeCode           String      @default("knocked") @map("outcome_code")
-  outcomeLabel          String      @default("Knocked") @map("outcome_label")
-  contactMade           Boolean     @default(false) @map("contact_made")
-  notes                 String?
-  vanExported           Boolean     @default(false) @map("van_exported")
-  geofenceValidated     Boolean     @default(true) @map("geofence_validated")
-  geofenceDistanceMeters Int?        @map("geofence_distance_meters")
-  organization          Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  campaign              Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  outcomeDefinition     OutcomeDefinition? @relation(fields: [outcomeDefinitionId], references: [id], onDelete: SetNull)
-  turf                  Turf        @relation(fields: [turfId], references: [id], onDelete: Cascade)
-  address               Address     @relation(fields: [addressId], references: [id], onDelete: Cascade)
-  session               TurfSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  canvasser             User        @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
-  geofenceResult        VisitGeofenceResult?
-  corrections           VisitCorrection[]
-  exportBatchVisits     ExportBatchVisit[]
+  id                     String               @id @default(uuid()) @db.Uuid
+  turfId                 String               @map("turf_id") @db.Uuid
+  addressId              String               @map("address_id") @db.Uuid
+  sessionId              String?              @map("session_id") @db.Uuid
+  canvasserId            String               @map("canvasser_id") @db.Uuid
+  organizationId         String?              @map("organization_id") @db.Uuid
+  campaignId             String?              @map("campaign_id") @db.Uuid
+  outcomeDefinitionId    String?              @map("outcome_definition_id") @db.Uuid
+  visitTime              DateTime             @default(now()) @map("visit_time")
+  clientCreatedAt        DateTime?            @map("client_created_at")
+  serverReceivedAt       DateTime             @default(now()) @map("server_received_at")
+  localRecordUuid        String?              @unique @map("local_record_uuid")
+  idempotencyKey         String?              @unique @map("idempotency_key")
+  syncStatus             SyncStatus           @default(synced) @map("sync_status")
+  syncConflictFlag       Boolean              @default(false) @map("sync_conflict_flag")
+  syncConflictReason     String?              @map("sync_conflict_reason")
+  source                 VisitSource          @default(mobile_app)
+  latitude               Decimal?             @db.Decimal(9, 6)
+  longitude              Decimal?             @db.Decimal(9, 6)
+  accuracyMeters         Decimal?             @map("accuracy_meters") @db.Decimal(8, 2)
+  gpsStatus              GpsStatus            @default(missing) @map("gps_status")
+  result                 VisitResult
+  outcomeCode            String               @default("knocked") @map("outcome_code")
+  outcomeLabel           String               @default("Knocked") @map("outcome_label")
+  contactMade            Boolean              @default(false) @map("contact_made")
+  notes                  String?
+  vanExported            Boolean              @default(false) @map("van_exported")
+  geofenceValidated      Boolean              @default(true) @map("geofence_validated")
+  geofenceDistanceMeters Int?                 @map("geofence_distance_meters")
+  deletedAt              DateTime?            @map("deleted_at")
+  deleteReason           String?              @map("delete_reason")
+  archivedAt             DateTime?            @map("archived_at")
+  purgeAt                DateTime?            @map("purge_at")
+  organization           Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign               Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  outcomeDefinition      OutcomeDefinition?   @relation(fields: [outcomeDefinitionId], references: [id], onDelete: SetNull)
+  turf                   Turf                 @relation(fields: [turfId], references: [id], onDelete: Cascade)
+  address                Address              @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  session                TurfSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  canvasser              User                 @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
+  geofenceResult         VisitGeofenceResult?
+  corrections            VisitCorrection[]
+  exportBatchVisits      ExportBatchVisit[]
 
   @@index([turfId])
   @@index([addressId])
@@ -354,26 +405,26 @@ model VisitLog {
 }
 
 model VisitGeofenceResult {
-  id                     String     @id @default(uuid()) @db.Uuid
-  visitLogId             String     @unique @map("visit_log_id") @db.Uuid
-  addressId              String     @map("address_id") @db.Uuid
-  targetLatitude         Decimal?   @map("target_latitude") @db.Decimal(9, 6)
-  targetLongitude        Decimal?   @map("target_longitude") @db.Decimal(9, 6)
-  capturedLatitude       Decimal?   @map("captured_latitude") @db.Decimal(9, 6)
-  capturedLongitude      Decimal?   @map("captured_longitude") @db.Decimal(9, 6)
-  accuracyMeters         Decimal?   @map("accuracy_meters") @db.Decimal(8, 2)
-  distanceFromTargetFeet Decimal?   @map("distance_from_target_feet") @db.Decimal(10, 2)
-  validationRadiusFeet   Int        @map("validation_radius_feet")
-  gpsStatus              GpsStatus  @map("gps_status")
-  failureReason          String?    @map("failure_reason")
-  capturedAt             DateTime?  @map("captured_at")
-  overrideFlag           Boolean    @default(false) @map("override_flag")
-  overrideReason         String?    @map("override_reason")
-  overrideByUserId       String?    @map("override_by_user_id") @db.Uuid
-  overrideAt             DateTime?  @map("override_at")
-  createdAt              DateTime   @default(now()) @map("created_at")
-  visitLog               VisitLog   @relation(fields: [visitLogId], references: [id], onDelete: Cascade)
-  address                Address    @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  id                     String    @id @default(uuid()) @db.Uuid
+  visitLogId             String    @unique @map("visit_log_id") @db.Uuid
+  addressId              String    @map("address_id") @db.Uuid
+  targetLatitude         Decimal?  @map("target_latitude") @db.Decimal(9, 6)
+  targetLongitude        Decimal?  @map("target_longitude") @db.Decimal(9, 6)
+  capturedLatitude       Decimal?  @map("captured_latitude") @db.Decimal(9, 6)
+  capturedLongitude      Decimal?  @map("captured_longitude") @db.Decimal(9, 6)
+  accuracyMeters         Decimal?  @map("accuracy_meters") @db.Decimal(8, 2)
+  distanceFromTargetFeet Decimal?  @map("distance_from_target_feet") @db.Decimal(10, 2)
+  validationRadiusFeet   Int       @map("validation_radius_feet")
+  gpsStatus              GpsStatus @map("gps_status")
+  failureReason          String?   @map("failure_reason")
+  capturedAt             DateTime? @map("captured_at")
+  overrideFlag           Boolean   @default(false) @map("override_flag")
+  overrideReason         String?   @map("override_reason")
+  overrideByUserId       String?   @map("override_by_user_id") @db.Uuid
+  overrideAt             DateTime? @map("override_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  visitLog               VisitLog  @relation(fields: [visitLogId], references: [id], onDelete: Cascade)
+  address                Address   @relation(fields: [addressId], references: [id], onDelete: Cascade)
 
   @@index([addressId])
   @@index([gpsStatus])
@@ -402,22 +453,22 @@ model SyncEvent {
 }
 
 model AuditLog {
-  id            String   @id @default(uuid()) @db.Uuid
-  actorUserId   String?  @map("actor_user_id") @db.Uuid
-  organizationId String? @map("organization_id") @db.Uuid
-  actionType    String   @map("action_type")
-  entityType    String   @map("entity_type")
-  entityId      String   @map("entity_id")
-  reasonCode    String?  @map("reason_code")
-  reasonText    String?  @map("reason_text")
-  oldValuesJson Json?    @map("old_values_json")
-  newValuesJson Json?    @map("new_values_json")
-  ipAddress     String?  @map("ip_address")
-  deviceId      String?  @map("device_id")
-  userAgent     String?  @map("user_agent")
-  createdAt     DateTime @default(now()) @map("created_at")
-  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  actorUser     User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  id             String        @id @default(uuid()) @db.Uuid
+  actorUserId    String?       @map("actor_user_id") @db.Uuid
+  organizationId String?       @map("organization_id") @db.Uuid
+  actionType     String        @map("action_type")
+  entityType     String        @map("entity_type")
+  entityId       String        @map("entity_id")
+  reasonCode     String?       @map("reason_code")
+  reasonText     String?       @map("reason_text")
+  oldValuesJson  Json?         @map("old_values_json")
+  newValuesJson  Json?         @map("new_values_json")
+  ipAddress      String?       @map("ip_address")
+  deviceId       String?       @map("device_id")
+  userAgent      String?       @map("user_agent")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actorUser      User?         @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([actorUserId])
   @@index([organizationId])
@@ -427,23 +478,23 @@ model AuditLog {
 }
 
 model ExportBatch {
-  id                String   @id @default(uuid()) @db.Uuid
-  profileCode       String   @map("profile_code")
+  id                String             @id @default(uuid()) @db.Uuid
+  profileCode       String             @map("profile_code")
   filename          String
-  organizationId    String?  @map("organization_id") @db.Uuid
-  campaignId        String?  @map("campaign_id") @db.Uuid
-  turfId            String?  @map("turf_id") @db.Uuid
-  initiatedByUserId String?  @map("initiated_by_user_id") @db.Uuid
-  markExported      Boolean  @default(false) @map("mark_exported")
-  rowCount          Int      @default(0) @map("row_count")
-  filterScopeJson   Json?    @map("filter_scope_json")
-  csvContent        String?  @map("csv_content")
-  sha256Checksum    String?  @map("sha256_checksum")
-  createdAt         DateTime @default(now()) @map("created_at")
-  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  campaign          Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  turf              Turf?    @relation(fields: [turfId], references: [id], onDelete: SetNull)
-  initiatedByUser   User?    @relation("ExportBatchesInitiated", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
+  organizationId    String?            @map("organization_id") @db.Uuid
+  campaignId        String?            @map("campaign_id") @db.Uuid
+  turfId            String?            @map("turf_id") @db.Uuid
+  initiatedByUserId String?            @map("initiated_by_user_id") @db.Uuid
+  markExported      Boolean            @default(false) @map("mark_exported")
+  rowCount          Int                @default(0) @map("row_count")
+  filterScopeJson   Json?              @map("filter_scope_json")
+  csvContent        String?            @map("csv_content")
+  sha256Checksum    String?            @map("sha256_checksum")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  organization      Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign          Campaign?          @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  turf              Turf?              @relation(fields: [turfId], references: [id], onDelete: SetNull)
+  initiatedByUser   User?              @relation("ExportBatchesInitiated", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
   exportedVisits    ExportBatchVisit[]
 
   @@index([profileCode])
@@ -456,14 +507,14 @@ model ExportBatch {
 }
 
 model ExportBatchVisit {
-  id            String      @id @default(uuid()) @db.Uuid
-  exportBatchId String      @map("export_batch_id") @db.Uuid
-  visitLogId    String      @map("visit_log_id") @db.Uuid
-  rowIndex      Int         @map("row_index")
-  rowSnapshotJson Json?     @map("row_snapshot_json")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  exportBatch   ExportBatch @relation(fields: [exportBatchId], references: [id], onDelete: Cascade)
-  visitLog      VisitLog    @relation(fields: [visitLogId], references: [id], onDelete: Cascade)
+  id              String      @id @default(uuid()) @db.Uuid
+  exportBatchId   String      @map("export_batch_id") @db.Uuid
+  visitLogId      String      @map("visit_log_id") @db.Uuid
+  rowIndex        Int         @map("row_index")
+  rowSnapshotJson Json?       @map("row_snapshot_json")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  exportBatch     ExportBatch @relation(fields: [exportBatchId], references: [id], onDelete: Cascade)
+  visitLog        VisitLog    @relation(fields: [visitLogId], references: [id], onDelete: Cascade)
 
   @@unique([exportBatchId, visitLogId])
   @@index([visitLogId])
@@ -471,18 +522,18 @@ model ExportBatchVisit {
 }
 
 model ImpersonationSession {
-  id             String    @id @default(uuid()) @db.Uuid
-  actorUserId    String    @map("actor_user_id") @db.Uuid
-  targetUserId   String    @map("target_user_id") @db.Uuid
-  organizationId String?   @map("organization_id") @db.Uuid
-  campaignId     String?   @map("campaign_id") @db.Uuid
-  reasonText     String?   @map("reason_text")
-  startedAt      DateTime  @default(now()) @map("started_at")
-  endedAt        DateTime? @map("ended_at")
-  actorUser      User      @relation("ImpersonationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
-  targetUser     User      @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  id             String        @id @default(uuid()) @db.Uuid
+  actorUserId    String        @map("actor_user_id") @db.Uuid
+  targetUserId   String        @map("target_user_id") @db.Uuid
+  organizationId String?       @map("organization_id") @db.Uuid
+  campaignId     String?       @map("campaign_id") @db.Uuid
+  reasonText     String?       @map("reason_text")
+  startedAt      DateTime      @default(now()) @map("started_at")
+  endedAt        DateTime?     @map("ended_at")
+  actorUser      User          @relation("ImpersonationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  targetUser     User          @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  campaign       Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([actorUserId, endedAt])
   @@index([targetUserId, endedAt])
@@ -492,19 +543,19 @@ model ImpersonationSession {
 }
 
 model VisitCorrection {
-  id             String   @id @default(uuid()) @db.Uuid
-  visitLogId      String   @map("visit_log_id") @db.Uuid
-  actorUserId     String   @map("actor_user_id") @db.Uuid
-  organizationId  String?  @map("organization_id") @db.Uuid
-  campaignId      String?  @map("campaign_id") @db.Uuid
-  reasonText      String   @map("reason_text")
-  oldValuesJson   Json     @map("old_values_json")
-  newValuesJson   Json     @map("new_values_json")
-  createdAt       DateTime @default(now()) @map("created_at")
-  visitLog        VisitLog @relation(fields: [visitLogId], references: [id], onDelete: Cascade)
-  actorUser       User     @relation("VisitCorrectionActor", fields: [actorUserId], references: [id], onDelete: Cascade)
-  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  campaign        Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  id             String        @id @default(uuid()) @db.Uuid
+  visitLogId     String        @map("visit_log_id") @db.Uuid
+  actorUserId    String        @map("actor_user_id") @db.Uuid
+  organizationId String?       @map("organization_id") @db.Uuid
+  campaignId     String?       @map("campaign_id") @db.Uuid
+  reasonText     String        @map("reason_text")
+  oldValuesJson  Json          @map("old_values_json")
+  newValuesJson  Json          @map("new_values_json")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  visitLog       VisitLog      @relation(fields: [visitLogId], references: [id], onDelete: Cascade)
+  actorUser      User          @relation("VisitCorrectionActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign       Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([visitLogId])
   @@index([actorUserId])
@@ -532,6 +583,8 @@ model AddressRequest {
   submittedAt       DateTime             @default(now()) @map("submitted_at")
   reviewedAt        DateTime?            @map("reviewed_at")
   reviewReason      String?              @map("review_reason")
+  archivedAt        DateTime?            @map("archived_at")
+  purgeAt           DateTime?            @map("purge_at")
   turf              Turf                 @relation(fields: [turfId], references: [id], onDelete: Cascade)
   organization      Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign          Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
@@ -577,41 +630,41 @@ model MfaBackupCode {
 }
 
 model AuthRefreshToken {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  tokenHash   String   @unique @map("token_hash")
-  expiresAt   DateTime @map("expires_at")
-  revokedAt   DateTime? @map("revoked_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  ipAddress   String?  @map("ip_address")
-  userAgent   String?  @map("user_agent")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  ipAddress String?   @map("ip_address")
+  userAgent String?   @map("user_agent")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("auth_refresh_tokens")
 }
 
 model ActivationToken {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  tokenHash   String   @unique @map("token_hash")
-  expiresAt   DateTime @map("expires_at")
-  usedAt      DateTime? @map("used_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("activation_tokens")
 }
 
 model PasswordResetToken {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  tokenHash   String   @unique @map("token_hash")
-  expiresAt   DateTime @map("expires_at")
-  usedAt      DateTime? @map("used_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("password_reset_tokens")

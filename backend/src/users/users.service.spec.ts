@@ -172,6 +172,7 @@ describe('UsersService', () => {
 
     expect(prisma.user.findMany).toHaveBeenCalledWith({
       where: {
+        deletedAt: null,
         role: {
           in: [UserRole.supervisor, UserRole.canvasser]
         }

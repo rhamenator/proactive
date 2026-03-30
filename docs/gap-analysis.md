@@ -28,7 +28,7 @@ The system now covers the main operational v1 workflow:
 - VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
 - CI, build verification, regression tests, and GitHub release-build automation
 
-The remaining gaps are now mostly in deeper architecture and release policy rather than missing operational screens. They are concentrated in normalized household modeling, fuller CSV/VAN parity beyond the new import baseline, and external mobile signing inputs.
+The remaining gaps are now mostly in deeper import breadth, fine-grained authorization policy, and release inputs rather than missing operational screens. Canonical household modeling, retention metadata, and on-device SQLite persistence are now in place.
 
 ## What Is In Place
 
@@ -44,6 +44,8 @@ The remaining gaps are now mostly in deeper architecture and release policy rath
 - org/campaign scaffolding in the schema and user/session JWT payloads
 - requested-address persistence plus mobile submission and review workflow
 - SQLite-backed on-device mobile persistence for auth state, queue state, and address state
+- canonical `Household` records with turf-level address membership rows that preserve existing `addressId` contracts
+- retention / lifecycle metadata on core operational tables, including users, turfs, address memberships, visits, and address requests
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
 - a dedicated `ImportsService` and `/imports/csv` path with import modes plus duplicate skip/error/merge handling
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
@@ -106,23 +108,23 @@ What remains:
 - decide whether the current strict per-action challenge should stay in place or whether a longer freshness window is preferable
 - extend sensitive-action coverage further only if the client wants more routes behind the same guard
 
-### 4. Normalized households, soft-delete/retention metadata, and deeper export lineage are still not full-packet complete
+### 4. Household normalization and retention metadata are now modeled, but delete/archive workflows are still policy-light
 
 Current state:
 
-- the current address model remains turf-owned rather than normalized into reusable households plus join tables
-- soft-delete and retention metadata are still not modeled on major operational tables
+- canonical households now exist as reusable records, while the existing `addresses` table acts as the turf-membership layer and preserves current API contracts
+- soft-delete / retention metadata are now modeled on the primary operational tables
 - exports now store the generated CSV and per-row membership, which closes the most important auditability gap
 
 Why it matters:
 
-- the system is operationally usable now, but future cross-campaign household reuse and retention-policy automation would require another schema evolution
-- this is an architectural completeness gap, not a current pilot blocker
+- the schema is now much closer to the stricter client packet without forcing a breaking client rewrite
+- remaining work in this area is operational policy: whether admins need explicit archive/delete tools and retention jobs in v1.x
 
 What remains:
 
-- decide whether household normalization and retention metadata belong in v1.x or a post-pilot schema revision
-- if yes, migrate from turf-owned addresses to reusable households and add archive/purge metadata
+- decide whether v1.x needs explicit admin archive/delete workflows and automated purge jobs
+- if yes, add those actions on top of the new metadata rather than changing the schema again
 
 ### 5. Signed mobile binaries still depend on external release credentials
 
@@ -179,7 +181,6 @@ Still blocked for full source-packet alignment:
 
 - deeper team/geography scope policy and enforcement if the client wants that in v1.x
 - fuller CSV/VAN import parity if the client insists on every import-side rule from the packet in v1
-- household normalization and retention metadata if the client insists on full schema-packet parity in v1
 - final signed mobile app distribution without real external signing credentials
 
 Remaining non-blocking enhancements:
@@ -189,5 +190,6 @@ Remaining non-blocking enhancements:
 ## Recommended Next Sequence
 
 1. Decide whether v1 production needs fuller CSV/VAN import parity beyond the current import baseline.
-2. Decide whether household normalization and retention metadata belong in v1.x or the post-pilot schema roadmap.
-3. Provide production release secrets and final app identifiers for EAS/App Store/Play.
+2. Decide whether v1.x needs richer CSV/VAN parity such as import review queues, lineage, and additional mapping rules.
+3. Decide whether explicit admin archive/delete workflows should ship now or after pilot review.
+4. Provide production release secrets and final app identifiers for EAS/App Store/Play.
