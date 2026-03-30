@@ -12,6 +12,11 @@ type PolicyForm = {
   defaultImportMode: OperationalPolicyRecord['defaultImportMode'];
   defaultDuplicateStrategy: OperationalPolicyRecord['defaultDuplicateStrategy'];
   sensitiveMfaWindowMinutes: number;
+  canvasserCorrectionWindowMinutes: number;
+  maxAttemptsPerHousehold: number;
+  minMinutesBetweenAttempts: number;
+  geofenceRadiusFeet: number;
+  gpsLowAccuracyMeters: number;
   retentionArchiveDays: string;
   retentionPurgeDays: string;
   requireArchiveReason: boolean;
@@ -23,6 +28,11 @@ function toForm(policy: OperationalPolicyRecord): PolicyForm {
     defaultImportMode: policy.defaultImportMode,
     defaultDuplicateStrategy: policy.defaultDuplicateStrategy,
     sensitiveMfaWindowMinutes: policy.sensitiveMfaWindowMinutes,
+    canvasserCorrectionWindowMinutes: policy.canvasserCorrectionWindowMinutes,
+    maxAttemptsPerHousehold: policy.maxAttemptsPerHousehold,
+    minMinutesBetweenAttempts: policy.minMinutesBetweenAttempts,
+    geofenceRadiusFeet: policy.geofenceRadiusFeet,
+    gpsLowAccuracyMeters: policy.gpsLowAccuracyMeters,
     retentionArchiveDays: policy.retentionArchiveDays ? String(policy.retentionArchiveDays) : '',
     retentionPurgeDays: policy.retentionPurgeDays ? String(policy.retentionPurgeDays) : '',
     requireArchiveReason: policy.requireArchiveReason,
@@ -109,6 +119,11 @@ export default function PoliciesPage() {
         defaultImportMode: form.defaultImportMode,
         defaultDuplicateStrategy: form.defaultDuplicateStrategy,
         sensitiveMfaWindowMinutes: form.sensitiveMfaWindowMinutes,
+        canvasserCorrectionWindowMinutes: form.canvasserCorrectionWindowMinutes,
+        maxAttemptsPerHousehold: form.maxAttemptsPerHousehold,
+        minMinutesBetweenAttempts: form.minMinutesBetweenAttempts,
+        geofenceRadiusFeet: form.geofenceRadiusFeet,
+        gpsLowAccuracyMeters: form.gpsLowAccuracyMeters,
         retentionArchiveDays: form.retentionArchiveDays ? Number(form.retentionArchiveDays) : null,
         retentionPurgeDays: form.retentionPurgeDays ? Number(form.retentionPurgeDays) : null,
         requireArchiveReason: form.requireArchiveReason,
@@ -237,6 +252,88 @@ export default function PoliciesPage() {
 
                 <div className="split">
                   <div className="field-group">
+                    <label htmlFor="correction-window">Canvasser correction window (minutes)</label>
+                    <Input
+                      id="correction-window"
+                      type="number"
+                      min={1}
+                      value={String(form.canvasserCorrectionWindowMinutes)}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, canvasserCorrectionWindowMinutes: Number(event.target.value || 1) } : current
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label htmlFor="max-attempts">Maximum attempts per household</label>
+                    <Input
+                      id="max-attempts"
+                      type="number"
+                      min={1}
+                      value={String(form.maxAttemptsPerHousehold)}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, maxAttemptsPerHousehold: Number(event.target.value || 1) } : current
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="split">
+                  <div className="field-group">
+                    <label htmlFor="between-attempts">Minimum minutes between attempts</label>
+                    <Input
+                      id="between-attempts"
+                      type="number"
+                      min={1}
+                      value={String(form.minMinutesBetweenAttempts)}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, minMinutesBetweenAttempts: Number(event.target.value || 1) } : current
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label htmlFor="geofence-radius">Geofence radius (feet)</label>
+                    <Input
+                      id="geofence-radius"
+                      type="number"
+                      min={1}
+                      value={String(form.geofenceRadiusFeet)}
+                      disabled={!isAdmin}
+                      onChange={(event) =>
+                        setForm((current) =>
+                          current ? { ...current, geofenceRadiusFeet: Number(event.target.value || 1) } : current
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="field-group">
+                  <label htmlFor="gps-low-accuracy">Low-accuracy threshold (meters)</label>
+                  <Input
+                    id="gps-low-accuracy"
+                    type="number"
+                    min={1}
+                    value={String(form.gpsLowAccuracyMeters)}
+                    disabled={!isAdmin}
+                    onChange={(event) =>
+                      setForm((current) =>
+                        current ? { ...current, gpsLowAccuracyMeters: Number(event.target.value || 1) } : current
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="split">
+                  <div className="field-group">
                     <label htmlFor="archive-days">Archive after days</label>
                     <Input
                       id="archive-days"
@@ -266,6 +363,7 @@ export default function PoliciesPage() {
 
                 <div className="inline-actions">
                   <Button
+                    type="button"
                     variant={form.requireArchiveReason ? 'secondary' : 'ghost'}
                     onClick={() =>
                       setForm((current) => current ? { ...current, requireArchiveReason: !current.requireArchiveReason } : current)
@@ -275,6 +373,7 @@ export default function PoliciesPage() {
                     {form.requireArchiveReason ? 'Archive reason required' : 'Archive reason optional'}
                   </Button>
                   <Button
+                    type="button"
                     variant={form.allowOrgOutcomeFallback ? 'secondary' : 'ghost'}
                     onClick={() =>
                       setForm((current) => current ? { ...current, allowOrgOutcomeFallback: !current.allowOrgOutcomeFallback } : current)
@@ -286,7 +385,7 @@ export default function PoliciesPage() {
                 </div>
 
                 <p className="muted">
-                  These defaults control import behavior, sensitive-action MFA freshness, retention planning, and whether campaign users inherit organization-level outcome definitions.
+                  These defaults control import behavior, field visit rules, sensitive-action MFA freshness, retention planning, and whether campaign users inherit organization-level outcome definitions.
                 </p>
 
                 {isAdmin ? (
@@ -294,7 +393,12 @@ export default function PoliciesPage() {
                     <Button type="submit" disabled={saving}>
                       {saving ? 'Saving...' : 'Save Policy'}
                     </Button>
-                    <Button variant="ghost" onClick={() => policy ? setForm(toForm(policy)) : null} disabled={saving}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => policy ? setForm(toForm(policy)) : null}
+                      disabled={saving}
+                    >
                       Reset Form
                     </Button>
                   </div>

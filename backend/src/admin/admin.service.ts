@@ -260,6 +260,11 @@ export class AdminService {
       defaultImportMode?: 'create_only' | 'upsert' | 'replace_turf_membership';
       defaultDuplicateStrategy?: 'skip' | 'error' | 'merge' | 'review';
       sensitiveMfaWindowMinutes?: number;
+      canvasserCorrectionWindowMinutes?: number;
+      maxAttemptsPerHousehold?: number;
+      minMinutesBetweenAttempts?: number;
+      geofenceRadiusFeet?: number;
+      gpsLowAccuracyMeters?: number;
       retentionArchiveDays?: number | null;
       retentionPurgeDays?: number | null;
       requireArchiveReason?: boolean;

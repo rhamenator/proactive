@@ -18,6 +18,11 @@ export type EffectiveOperationalPolicy = {
   defaultImportMode: ImportMode;
   defaultDuplicateStrategy: DuplicateStrategy;
   sensitiveMfaWindowMinutes: number;
+  canvasserCorrectionWindowMinutes: number;
+  maxAttemptsPerHousehold: number;
+  minMinutesBetweenAttempts: number;
+  geofenceRadiusFeet: number;
+  gpsLowAccuracyMeters: number;
   retentionArchiveDays: number | null;
   retentionPurgeDays: number | null;
   requireArchiveReason: boolean;
@@ -28,6 +33,11 @@ type PolicyUpdateInput = Partial<{
   defaultImportMode: ImportMode;
   defaultDuplicateStrategy: DuplicateStrategy;
   sensitiveMfaWindowMinutes: number;
+  canvasserCorrectionWindowMinutes: number;
+  maxAttemptsPerHousehold: number;
+  minMinutesBetweenAttempts: number;
+  geofenceRadiusFeet: number;
+  gpsLowAccuracyMeters: number;
   retentionArchiveDays: number | null;
   retentionPurgeDays: number | null;
   requireArchiveReason: boolean;
@@ -46,6 +56,34 @@ export class PoliciesService {
       defaultImportMode: this.normalizeImportMode(process.env.DEFAULT_IMPORT_MODE),
       defaultDuplicateStrategy: this.normalizeDuplicateStrategy(process.env.DEFAULT_IMPORT_DUPLICATE_STRATEGY),
       sensitiveMfaWindowMinutes: this.normalizePositiveInteger(getSensitiveMfaWindowMinutes(), 5, 'sensitiveMfaWindowMinutes'),
+      canvasserCorrectionWindowMinutes: this.normalizePositiveInteger(
+        process.env.CANVASSER_CORRECTION_WINDOW_MINUTES,
+        10,
+        'canvasserCorrectionWindowMinutes'
+      ),
+      maxAttemptsPerHousehold: this.normalizePositiveInteger(
+        process.env.MAX_ATTEMPTS_PER_HOUSEHOLD,
+        3,
+        'maxAttemptsPerHousehold'
+      ),
+      minMinutesBetweenAttempts: this.normalizePositiveInteger(
+        process.env.MIN_MINUTES_BETWEEN_ATTEMPTS,
+        5,
+        'minMinutesBetweenAttempts'
+      ),
+      geofenceRadiusFeet: this.normalizePositiveInteger(
+        process.env.GEOFENCE_RADIUS_FEET ??
+          (process.env.GEOFENCE_RADIUS_METERS
+            ? Math.round(Number(process.env.GEOFENCE_RADIUS_METERS) * 3.28084)
+            : undefined),
+        75,
+        'geofenceRadiusFeet'
+      ),
+      gpsLowAccuracyMeters: this.normalizePositiveInteger(
+        process.env.GPS_LOW_ACCURACY_METERS,
+        30,
+        'gpsLowAccuracyMeters'
+      ),
       retentionArchiveDays: Number.isFinite(archiveDays) && archiveDays > 0 ? archiveDays : null,
       retentionPurgeDays: Number.isFinite(purgeDays) && purgeDays > 0 ? purgeDays : null,
       requireArchiveReason: process.env.REQUIRE_ARCHIVE_REASON === 'true',
@@ -129,6 +167,19 @@ export class PoliciesService {
       defaultImportMode: this.normalizeImportMode(record.defaultImportMode),
       defaultDuplicateStrategy: this.normalizeDuplicateStrategy(record.defaultDuplicateStrategy),
       sensitiveMfaWindowMinutes: this.normalizePositiveInteger(record.sensitiveMfaWindowMinutes, 5, 'sensitiveMfaWindowMinutes'),
+      canvasserCorrectionWindowMinutes: this.normalizePositiveInteger(
+        record.canvasserCorrectionWindowMinutes,
+        10,
+        'canvasserCorrectionWindowMinutes'
+      ),
+      maxAttemptsPerHousehold: this.normalizePositiveInteger(record.maxAttemptsPerHousehold, 3, 'maxAttemptsPerHousehold'),
+      minMinutesBetweenAttempts: this.normalizePositiveInteger(
+        record.minMinutesBetweenAttempts,
+        5,
+        'minMinutesBetweenAttempts'
+      ),
+      geofenceRadiusFeet: this.normalizePositiveInteger(record.geofenceRadiusFeet, 75, 'geofenceRadiusFeet'),
+      gpsLowAccuracyMeters: this.normalizePositiveInteger(record.gpsLowAccuracyMeters, 30, 'gpsLowAccuracyMeters'),
       retentionArchiveDays: record.retentionArchiveDays ?? null,
       retentionPurgeDays: record.retentionPurgeDays ?? null,
       requireArchiveReason: record.requireArchiveReason,
@@ -246,6 +297,34 @@ export class PoliciesService {
         input.sensitiveMfaWindowMinutes === undefined
           ? current.sensitiveMfaWindowMinutes
           : this.normalizePositiveInteger(input.sensitiveMfaWindowMinutes, current.sensitiveMfaWindowMinutes, 'sensitiveMfaWindowMinutes'),
+      canvasserCorrectionWindowMinutes:
+        input.canvasserCorrectionWindowMinutes === undefined
+          ? current.canvasserCorrectionWindowMinutes
+          : this.normalizePositiveInteger(
+              input.canvasserCorrectionWindowMinutes,
+              current.canvasserCorrectionWindowMinutes,
+              'canvasserCorrectionWindowMinutes'
+            ),
+      maxAttemptsPerHousehold:
+        input.maxAttemptsPerHousehold === undefined
+          ? current.maxAttemptsPerHousehold
+          : this.normalizePositiveInteger(input.maxAttemptsPerHousehold, current.maxAttemptsPerHousehold, 'maxAttemptsPerHousehold'),
+      minMinutesBetweenAttempts:
+        input.minMinutesBetweenAttempts === undefined
+          ? current.minMinutesBetweenAttempts
+          : this.normalizePositiveInteger(
+              input.minMinutesBetweenAttempts,
+              current.minMinutesBetweenAttempts,
+              'minMinutesBetweenAttempts'
+            ),
+      geofenceRadiusFeet:
+        input.geofenceRadiusFeet === undefined
+          ? current.geofenceRadiusFeet
+          : this.normalizePositiveInteger(input.geofenceRadiusFeet, current.geofenceRadiusFeet, 'geofenceRadiusFeet'),
+      gpsLowAccuracyMeters:
+        input.gpsLowAccuracyMeters === undefined
+          ? current.gpsLowAccuracyMeters
+          : this.normalizePositiveInteger(input.gpsLowAccuracyMeters, current.gpsLowAccuracyMeters, 'gpsLowAccuracyMeters'),
       retentionArchiveDays: normalizedArchiveDays === undefined ? current.retentionArchiveDays : normalizedArchiveDays,
       retentionPurgeDays: normalizedPurgeDays === undefined ? current.retentionPurgeDays : normalizedPurgeDays,
       requireArchiveReason: input.requireArchiveReason ?? current.requireArchiveReason,

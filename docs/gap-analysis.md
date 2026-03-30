@@ -29,7 +29,7 @@ The system now covers the main operational v1 workflow:
 - CSV import batch history, downloadable source artifacts, and row-level import outcome tracing
 - richer CSV import handling with `replace_turf_membership` mode, duplicate skip/error/merge/review handling, and expanded VAN/person/household/unit mapping support
 - import duplicate-review queue with per-row pending review tracking, reviewer resolution, and audit-backed merge/skip outcomes
-- scoped operational policy records plus admin dashboard policy management for import defaults, sensitive MFA freshness, retention defaults, and outcome fallback behavior
+- scoped operational policy records plus admin dashboard policy management for import defaults, field visit/GPS thresholds, sensitive MFA freshness, retention defaults, and outcome fallback behavior
 - retention summary and cleanup workflow for purgeable artifacts and expired auth/security records, with optional env-driven automation
 - CI, build verification, regression tests, and GitHub release-build automation
 
@@ -54,7 +54,7 @@ The remaining gaps are now mostly in the remaining edges of import-policy breadt
 - export batch tracking, stored CSV artifacts, downloadable export history, per-row traceability, and two export profiles
 - import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
 - a dedicated `ImportsService` and `/imports/csv` path with import modes including replace-membership behavior, duplicate skip/error/merge/review handling, expanded source-field mapping support, and a review queue tied directly to import-batch rows
-- operational policy records with organization/campaign fallback for import defaults, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
+- operational policy records with organization/campaign fallback for import defaults, field visit/GPS thresholds, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
 - explicit admin archive/delete workflows for field users and turfs, protected by fresh MFA and backed by audit logging
 - admin retention summary and manual cleanup workflow for due address requests, import/export batches, and expired credential records
 - admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
@@ -106,7 +106,7 @@ Current state:
 - login MFA is enforced for admins and supervisors
 - backup codes exist and account-level MFA management exists
 - sensitive actions such as export generation, GPS overrides, turf reassignment/reopen, and conflict resolution now require a fresh MFA step-up challenge
-- the freshness window, import defaults, retention defaults, and org-outcome fallback behavior are now editable through scoped operational policy records and the dashboard policy page
+- the freshness window, canvasser correction window, attempt limits, GPS/geofence thresholds, import defaults, retention defaults, and org-outcome fallback behavior are now editable through scoped operational policy records and the dashboard policy page
 
 Why it matters:
 

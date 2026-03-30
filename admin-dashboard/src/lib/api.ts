@@ -328,6 +328,11 @@ export function createApiClient(token?: string | null) {
       defaultImportMode?: OperationalPolicyRecord['defaultImportMode'];
       defaultDuplicateStrategy?: OperationalPolicyRecord['defaultDuplicateStrategy'];
       sensitiveMfaWindowMinutes?: number;
+      canvasserCorrectionWindowMinutes?: number;
+      maxAttemptsPerHousehold?: number;
+      minMinutesBetweenAttempts?: number;
+      geofenceRadiusFeet?: number;
+      gpsLowAccuracyMeters?: number;
       retentionArchiveDays?: number | null;
       retentionPurgeDays?: number | null;
       requireArchiveReason?: boolean;

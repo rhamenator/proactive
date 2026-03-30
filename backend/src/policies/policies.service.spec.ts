@@ -31,6 +31,11 @@ describe('PoliciesService', () => {
         explicitRecord: false,
         defaultImportMode: 'replace_turf_membership',
         defaultDuplicateStrategy: 'skip',
+        canvasserCorrectionWindowMinutes: 10,
+        maxAttemptsPerHousehold: 3,
+        minMinutesBetweenAttempts: 5,
+        geofenceRadiusFeet: 75,
+        gpsLowAccuracyMeters: 30,
         allowOrgOutcomeFallback: true
       })
     );
@@ -44,6 +49,11 @@ describe('PoliciesService', () => {
         defaultImportMode: 'upsert',
         defaultDuplicateStrategy: 'merge',
         sensitiveMfaWindowMinutes: 12,
+        canvasserCorrectionWindowMinutes: 15,
+        maxAttemptsPerHousehold: 4,
+        minMinutesBetweenAttempts: 8,
+        geofenceRadiusFeet: 100,
+        gpsLowAccuracyMeters: 40,
         retentionArchiveDays: 30,
         retentionPurgeDays: 90,
         requireArchiveReason: true,
@@ -61,6 +71,11 @@ describe('PoliciesService', () => {
         defaultImportMode: 'upsert',
         defaultDuplicateStrategy: 'merge',
         sensitiveMfaWindowMinutes: 12,
+        canvasserCorrectionWindowMinutes: 15,
+        maxAttemptsPerHousehold: 4,
+        minMinutesBetweenAttempts: 8,
+        geofenceRadiusFeet: 100,
+        gpsLowAccuracyMeters: 40,
         allowOrgOutcomeFallback: false
       })
     );
@@ -80,6 +95,7 @@ describe('PoliciesService', () => {
       { organizationId: 'org-1', campaignId: null },
       {
         defaultImportMode: 'upsert',
+        canvasserCorrectionWindowMinutes: 20,
         retentionArchiveDays: 30,
         retentionPurgeDays: 90
       }
@@ -94,11 +110,13 @@ describe('PoliciesService', () => {
         organizationId: 'org-1',
         campaignId: null,
         defaultImportMode: 'upsert',
+        canvasserCorrectionWindowMinutes: 20,
         retentionArchiveDays: 30,
         retentionPurgeDays: 90
       }),
       update: expect.objectContaining({
         defaultImportMode: 'upsert',
+        canvasserCorrectionWindowMinutes: 20,
         retentionArchiveDays: 30,
         retentionPurgeDays: 90
       })

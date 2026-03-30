@@ -8,8 +8,6 @@ import { PoliciesService } from '../policies/policies.service';
 
 @Injectable()
 export class VisitsService {
-  private readonly canvasserCorrectionWindowMinutes = Number(process.env.CANVASSER_CORRECTION_WINDOW_MINUTES ?? 10);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
@@ -22,12 +20,8 @@ export class VisitsService {
     return allowed.has(normalized) ? (normalized as VisitResult) : VisitResult.other;
   }
 
-  private getCorrectionWindowMinutes() {
-    const parsed = Number.isFinite(this.canvasserCorrectionWindowMinutes)
-      ? this.canvasserCorrectionWindowMinutes
-      : Number.NaN;
-
-    return parsed > 0 ? parsed : 10;
+  private getCorrectionWindowMinutes(policy: { canvasserCorrectionWindowMinutes: number }) {
+    return policy.canvasserCorrectionWindowMinutes > 0 ? policy.canvasserCorrectionWindowMinutes : 10;
   }
 
   private buildCorrectionLockReason(visit: {
@@ -231,8 +225,12 @@ export class VisitsService {
         throw new ForbiddenException('You can only correct your own recent submissions');
       }
 
+      const correctionPolicy = await this.policiesService.getEffectivePolicy({
+        organizationId: visit.organizationId,
+        campaignId: visit.campaignId
+      });
       const ageMs = Date.now() - visit.visitTime.getTime();
-      if (ageMs > this.getCorrectionWindowMinutes() * 60 * 1000) {
+      if (ageMs > this.getCorrectionWindowMinutes(correctionPolicy) * 60 * 1000) {
         throw new ForbiddenException('The correction window for this visit has expired');
       }
     }
@@ -401,8 +399,12 @@ export class VisitsService {
         })
       )?.id;
 
-    const maxAttemptsPerHousehold = Number(process.env.MAX_ATTEMPTS_PER_HOUSEHOLD ?? 3);
-    const minMinutesBetweenAttempts = Number(process.env.MIN_MINUTES_BETWEEN_ATTEMPTS ?? 5);
+    const policy = await this.policiesService.getEffectivePolicy({
+      organizationId: address.organizationId ?? address.turf.organizationId,
+      campaignId: address.campaignId ?? address.turf.campaignId ?? null
+    });
+    const maxAttemptsPerHousehold = policy.maxAttemptsPerHousehold;
+    const minMinutesBetweenAttempts = policy.minMinutesBetweenAttempts;
     const attemptsForAddress = await this.prisma.visitLog.count({
       where: {
         turfId: address.turfId,
@@ -435,13 +437,9 @@ export class VisitsService {
       }
     }
 
-    const radiusFeet = process.env.GEOFENCE_RADIUS_FEET
-      ? Number(process.env.GEOFENCE_RADIUS_FEET)
-      : process.env.GEOFENCE_RADIUS_METERS
-        ? Number(process.env.GEOFENCE_RADIUS_METERS) * 3.28084
-        : 75;
+    const radiusFeet = policy.geofenceRadiusFeet;
     const radiusMeters = radiusFeet * 0.3048;
-    const accuracyThresholdMeters = Number(process.env.GPS_LOW_ACCURACY_METERS ?? 30);
+    const accuracyThresholdMeters = policy.gpsLowAccuracyMeters;
     let geofenceValidated = true;
     let geofenceDistanceMeters: number | undefined;
     let distanceFromTargetFeet: number | undefined;

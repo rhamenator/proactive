@@ -33,7 +33,14 @@ describe('VisitsService', () => {
     log: jest.fn()
   };
   const policiesService = {
-    getEffectivePolicy: jest.fn().mockResolvedValue({ allowOrgOutcomeFallback: true })
+    getEffectivePolicy: jest.fn().mockResolvedValue({
+      allowOrgOutcomeFallback: true,
+      canvasserCorrectionWindowMinutes: 10,
+      maxAttemptsPerHousehold: 3,
+      minMinutesBetweenAttempts: 5,
+      geofenceRadiusFeet: 75,
+      gpsLowAccuracyMeters: 30
+    })
   };
 
   const service = new VisitsService(prisma as never, auditService as never, policiesService as never);

@@ -21,6 +21,31 @@ export class UpsertOperationalPolicyDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  canvasserCorrectionWindowMinutes?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxAttemptsPerHousehold?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  minMinutesBetweenAttempts?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  geofenceRadiusFeet?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  gpsLowAccuracyMeters?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
   retentionArchiveDays?: number | null;
 
   @IsOptional()
