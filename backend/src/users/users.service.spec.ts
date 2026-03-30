@@ -21,6 +21,8 @@ function buildUser(overrides: Partial<Record<string, unknown>> = {}) {
     role: UserRole.canvasser,
     organizationId: null,
     campaignId: null,
+    teamId: null,
+    regionCode: null,
     isActive: true,
     status: 'active',
     mfaEnabled: false,
@@ -76,6 +78,14 @@ describe('UsersService', () => {
     await service.findByEmail(' Taylor@Example.com ');
 
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      include: {
+        team: {
+          select: {
+            id: true,
+            regionCode: true
+          }
+        }
+      },
       where: { email: 'taylor@example.com' }
     });
   });
@@ -102,7 +112,15 @@ describe('UsersService', () => {
         email: 'taylor@example.com',
         passwordHash: 'hashed-password',
         role: UserRole.canvasser
-      })
+      }),
+      include: {
+        team: {
+          select: {
+            id: true,
+            regionCode: true
+          }
+        }
+      }
     });
     expect(mockedBcrypt.hash).toHaveBeenCalledWith('Password123!', 10);
     expect(result.role).toBe(UserRole.canvasser);
@@ -123,7 +141,15 @@ describe('UsersService', () => {
     expect(prisma.user.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         role: UserRole.supervisor
-      })
+      }),
+      include: {
+        team: {
+          select: {
+            id: true,
+            regionCode: true
+          }
+        }
+      }
     });
     expect(result.role).toBe(UserRole.supervisor);
   });
@@ -222,7 +248,15 @@ describe('UsersService', () => {
         status: 'inactive',
         role: UserRole.supervisor,
         passwordHash: 'hashed-password'
-      })
+      }),
+      include: {
+        team: {
+          select: {
+            id: true,
+            regionCode: true
+          }
+        }
+      }
     });
     expect(result.role).toBe(UserRole.supervisor);
     expect(result.status).toBe('inactive');
@@ -286,7 +320,15 @@ describe('UsersService', () => {
         role: UserRole.supervisor,
         isActive: false,
         status: 'invited'
-      })
+      }),
+      include: {
+        team: {
+          select: {
+            id: true,
+            regionCode: true
+          }
+        }
+      }
     });
     expect(result.status).toBe('invited');
     expect(result.isActive).toBe(false);

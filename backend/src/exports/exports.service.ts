@@ -13,6 +13,8 @@ type ExportOptions = {
   actorUserId?: string;
   organizationId?: string | null;
   campaignId?: string | null;
+  teamId?: string | null;
+  regionCode?: string | null;
 };
 
 @Injectable()
@@ -31,7 +33,9 @@ export class ExportsService {
   private buildScope(scope: AccessScope | ExportOptions) {
     return {
       organizationId: scope.organizationId ?? null,
-      ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
+      ...(scope.campaignId ? { campaignId: scope.campaignId } : {}),
+      ...(scope.teamId ? { teamId: scope.teamId } : {}),
+      ...(scope.regionCode ? { regionCode: scope.regionCode } : {})
     } as const;
   }
 
@@ -85,6 +89,8 @@ export class ExportsService {
         filename: input.filename,
         organizationId: input.scope.organizationId,
         campaignId: input.scope.campaignId ?? null,
+        teamId: input.scope.teamId ?? null,
+        regionCode: input.scope.regionCode ?? null,
         turfId: input.turfId,
         initiatedByUserId: input.actorUserId ?? null,
         markExported: input.markExported,
@@ -92,7 +98,9 @@ export class ExportsService {
         filterScopeJson: {
           turfId: input.turfId ?? null,
           organizationId: input.scope.organizationId,
-          campaignId: input.scope.campaignId ?? null
+          campaignId: input.scope.campaignId ?? null,
+          teamId: input.scope.teamId ?? null,
+          regionCode: input.scope.regionCode ?? null
         },
         csvContent: input.csv,
         sha256Checksum: this.checksum(input.csv),
@@ -128,6 +136,8 @@ export class ExportsService {
             role: true,
             organizationId: true,
             campaignId: true,
+            teamId: true,
+            regionCode: true,
             isActive: true,
             status: true,
             mfaEnabled: true,
@@ -205,7 +215,9 @@ export class ExportsService {
 
     const scope = {
       organizationId: options?.organizationId ?? null,
-      campaignId: options?.campaignId ?? null
+      campaignId: options?.campaignId ?? null,
+      teamId: options?.teamId ?? null,
+      regionCode: options?.regionCode ?? null
     };
     await this.recordExportBatch({
       profileCode: 'van_compatible',
@@ -229,6 +241,8 @@ export class ExportsService {
         turfId: options?.turfId ?? null,
         organizationId: scope.organizationId,
         campaignId: scope.campaignId,
+        teamId: scope.teamId,
+        regionCode: scope.regionCode,
         markExported: options?.markExported ?? false,
         count: visits.length,
         profileCode: 'van_compatible'
@@ -290,7 +304,9 @@ export class ExportsService {
 
     const scope = {
       organizationId: options?.organizationId ?? null,
-      campaignId: options?.campaignId ?? null
+      campaignId: options?.campaignId ?? null,
+      teamId: options?.teamId ?? null,
+      regionCode: options?.regionCode ?? null
     };
     await this.recordExportBatch({
       profileCode: 'internal_master',
@@ -314,6 +330,8 @@ export class ExportsService {
         turfId: options?.turfId ?? null,
         organizationId: scope.organizationId,
         campaignId: scope.campaignId,
+        teamId: scope.teamId,
+        regionCode: scope.regionCode,
         markExported: false,
         count: visits.length,
         profileCode: 'internal_master'

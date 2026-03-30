@@ -6,7 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input, TextArea } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
-import type { CanvasserRecord, ImportBatchRecord, TurfListItem } from '../../src/lib/types';
+import type { CanvasserRecord, ImportBatchRecord, TeamRecord, TurfListItem } from '../../src/lib/types';
 
 const mappingFields = [
   ['vanId', 'VAN ID'],
@@ -29,6 +29,7 @@ export default function TurfsPage() {
   const isAdmin = user?.role === 'admin';
   const [turfs, setTurfs] = useState<TurfListItem[]>([]);
   const [canvassers, setCanvassers] = useState<CanvasserRecord[]>([]);
+  const [teams, setTeams] = useState<TeamRecord[]>([]);
   const [importHistory, setImportHistory] = useState<ImportBatchRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,23 +37,29 @@ export default function TurfsPage() {
 
   const [newTurfName, setNewTurfName] = useState('');
   const [newTurfDescription, setNewTurfDescription] = useState('');
+  const [newTurfTeamId, setNewTurfTeamId] = useState('');
+  const [newTurfRegionCode, setNewTurfRegionCode] = useState('');
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [fallbackTurfName, setFallbackTurfName] = useState('');
+  const [importTeamId, setImportTeamId] = useState('');
+  const [importRegionCode, setImportRegionCode] = useState('');
   const [importMode, setImportMode] = useState<'create_only' | 'upsert' | 'replace_turf_membership'>('replace_turf_membership');
   const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'error' | 'merge' | 'review'>('skip');
 
   const [assignmentSelection, setAssignmentSelection] = useState<Record<string, string>>({});
+  const [scopeSelection, setScopeSelection] = useState<Record<string, { teamId: string; regionCode: string }>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [nextTurfs, nextCanvassers, nextImportHistory] = await Promise.all([
+      const [nextTurfs, nextCanvassers, nextTeams, nextImportHistory] = await Promise.all([
         api.listTurfs(),
         api.listCanvassers(),
+        api.listTeams(),
         isAdmin ? api.listImportHistory() : Promise.resolve([])
       ]);
       if (isAdmin) {
@@ -62,7 +69,19 @@ export default function TurfsPage() {
       }
       setTurfs(nextTurfs);
       setCanvassers(nextCanvassers);
+      setTeams(nextTeams);
       setImportHistory(nextImportHistory);
+      setScopeSelection(
+        Object.fromEntries(
+          nextTurfs.map((turf) => [
+            turf.id,
+            {
+              teamId: turf.teamId ?? '',
+              regionCode: turf.regionCode ?? ''
+            }
+          ])
+        )
+      );
     } catch (value) {
       setError(getErrorMessage(value));
     } finally {
@@ -82,10 +101,14 @@ export default function TurfsPage() {
     try {
       await api.createTurf({
         name: newTurfName.trim(),
-        description: newTurfDescription.trim() || undefined
+        description: newTurfDescription.trim() || undefined,
+        teamId: newTurfTeamId || null,
+        regionCode: newTurfRegionCode.trim() || null
       });
       setNewTurfName('');
       setNewTurfDescription('');
+      setNewTurfTeamId('');
+      setNewTurfRegionCode('');
       setMessage('Turf created.');
       await load();
     } catch (value) {
@@ -142,7 +165,9 @@ export default function TurfsPage() {
         turfName: fallbackTurfName.trim() || undefined,
         mapping: JSON.stringify(mapping),
         mode: importMode,
-        duplicateStrategy
+        duplicateStrategy,
+        teamId: importTeamId || null,
+        regionCode: importRegionCode.trim() || null
       });
       setMessage(
         `Imported ${result.addressesImported} addresses across ${result.turfsCreated} turf(s)` +
@@ -154,6 +179,8 @@ export default function TurfsPage() {
       setHeaders([]);
       setMapping({});
       setFallbackTurfName('');
+      setImportTeamId('');
+      setImportRegionCode('');
       await load();
     } catch (value) {
       setError(getErrorMessage(value));
@@ -252,6 +279,21 @@ export default function TurfsPage() {
   }
 
   const headerOptions = useMemo(() => headers.map((header) => <option key={header} value={header}>{header}</option>), [headers]);
+  const teamById = useMemo(
+    () => new Map(teams.map((team) => [team.id, team])),
+    [teams]
+  );
+  const teamOptions = useMemo(
+    () =>
+      teams.map((team) => (
+        <option key={team.id} value={team.id}>
+          {team.name}
+          {team.code ? ` (${team.code})` : ''}
+          {team.regionCode ? ` • ${team.regionCode}` : ''}
+        </option>
+      )),
+    [teams]
+  );
 
   return (
     <ProtectedFrame title="Turfs And Imports" eyebrow="Core Admin Workflow">
@@ -276,6 +318,34 @@ export default function TurfsPage() {
               <div className="field-group">
                 <label htmlFor="turf-description">Description</label>
                 <TextArea id="turf-description" value={newTurfDescription} onChange={(event) => setNewTurfDescription(event.target.value)} />
+              </div>
+
+              <div className="split">
+                <div className="field-group">
+                  <label htmlFor="turf-team">Team scope</label>
+                  <select
+                    id="turf-team"
+                    className="select"
+                    value={newTurfTeamId}
+                    onChange={(event) => {
+                      const nextTeamId = event.target.value;
+                      setNewTurfTeamId(nextTeamId);
+                      setNewTurfRegionCode(teamById.get(nextTeamId)?.regionCode ?? '');
+                    }}
+                  >
+                    <option value="">All teams</option>
+                    {teamOptions}
+                  </select>
+                </div>
+                <div className="field-group">
+                  <label htmlFor="turf-region">Region code</label>
+                  <Input
+                    id="turf-region"
+                    value={newTurfRegionCode}
+                    onChange={(event) => setNewTurfRegionCode(event.target.value)}
+                    placeholder="e.g. NORTH"
+                  />
+                </div>
               </div>
 
               <Button type="submit">Create Turf</Button>
@@ -312,6 +382,34 @@ export default function TurfsPage() {
               <div className="field-group">
                 <label htmlFor="fallback-turf">Fallback turf name</label>
                 <Input id="fallback-turf" value={fallbackTurfName} onChange={(event) => setFallbackTurfName(event.target.value)} placeholder="Used if the CSV has no turf_name column" />
+              </div>
+
+              <div className="split">
+                <div className="field-group">
+                  <label htmlFor="import-team">Team scope</label>
+                  <select
+                    id="import-team"
+                    className="select"
+                    value={importTeamId}
+                    onChange={(event) => {
+                      const nextTeamId = event.target.value;
+                      setImportTeamId(nextTeamId);
+                      setImportRegionCode(teamById.get(nextTeamId)?.regionCode ?? '');
+                    }}
+                  >
+                    <option value="">All teams</option>
+                    {teamOptions}
+                  </select>
+                </div>
+                <div className="field-group">
+                  <label htmlFor="import-region">Region code</label>
+                  <Input
+                    id="import-region"
+                    value={importRegionCode}
+                    onChange={(event) => setImportRegionCode(event.target.value)}
+                    placeholder="Defaults from selected team"
+                  />
+                </div>
               </div>
 
               <div className="grid two">
@@ -405,6 +503,12 @@ export default function TurfsPage() {
                         <p className="muted margin-bottom-reset">
                           {new Date(batch.createdAt).toLocaleString()} • {batch.mode} • {batch.duplicateStrategy}
                         </p>
+                        {(batch.teamId || batch.regionCode) ? (
+                          <p className="muted margin-bottom-reset">
+                            Scope: {batch.teamId ? teamById.get(batch.teamId)?.name ?? batch.teamId : 'All teams'}
+                            {batch.regionCode ? ` • ${batch.regionCode}` : ''}
+                          </p>
+                        ) : null}
                       </div>
                       <Button type="button" variant="secondary" onClick={() => void handleDownloadImport(batch.id)}>
                         Download Source
@@ -446,6 +550,10 @@ export default function TurfsPage() {
                     <td>
                       <strong>{turf.name}</strong>
                       <div className="muted">{turf.description || 'No description'}</div>
+                      <div className="muted">
+                        Team scope: {teamById.get(turf.teamId ?? '')?.name ?? (turf.teamId ?? 'All teams')}
+                        {turf.regionCode ? ` • ${turf.regionCode}` : ''}
+                      </div>
                     </td>
                     <td>{turf._count?.addresses ?? 0}</td>
                     <td>{turf._count?.assignments ?? 0}</td>
@@ -457,6 +565,73 @@ export default function TurfsPage() {
                     <td>{turf._count?.visits ?? 0}</td>
                     <td>
                       <div className="stack">
+                        <div className="inline-actions">
+                          <label className="sr-only" id={`scope-team-${turf.id}-label`} htmlFor={`scope-team-${turf.id}`}>
+                            Team scope for {turf.name}
+                          </label>
+                          <select
+                            title="Team scope"
+                            className="select"
+                            id={`scope-team-${turf.id}`}
+                            aria-labelledby={`scope-team-${turf.id}-label`}
+                            aria-label={`Team scope for ${turf.name}`}
+                            value={scopeSelection[turf.id]?.teamId ?? ''}
+                            onChange={(event) => {
+                              const nextTeamId = event.target.value;
+                              setScopeSelection((current) => ({
+                                ...current,
+                                [turf.id]: {
+                                  teamId: nextTeamId,
+                                  regionCode: teamById.get(nextTeamId)?.regionCode ?? current[turf.id]?.regionCode ?? ''
+                                }
+                              }));
+                            }}
+                            disabled={turf.lifecycleStatus === 'closed'}
+                          >
+                            <option value="">All teams</option>
+                            {teamOptions}
+                          </select>
+                          <Input
+                            id={`scope-region-${turf.id}`}
+                            value={scopeSelection[turf.id]?.regionCode ?? ''}
+                            onChange={(event) =>
+                              setScopeSelection((current) => ({
+                                ...current,
+                                [turf.id]: {
+                                  teamId: current[turf.id]?.teamId ?? '',
+                                  regionCode: event.target.value
+                                }
+                              }))
+                            }
+                            placeholder="Region code"
+                            disabled={turf.lifecycleStatus === 'closed'}
+                          />
+                          <Button
+                            variant="secondary"
+                            onClick={() =>
+                              void (async () => {
+                                const currentScope = scopeSelection[turf.id] ?? { teamId: '', regionCode: '' };
+                                setError(null);
+                                setMessage(null);
+                                try {
+                                  await runSensitiveAction('update a turf scope', (freshApi) =>
+                                    freshApi.updateTurfScope(turf.id, {
+                                      teamId: currentScope.teamId || null,
+                                      regionCode: currentScope.regionCode.trim() || null
+                                    })
+                                  );
+                                  setMessage('Turf scope updated.');
+                                  await load();
+                                } catch (value) {
+                                  setError(getErrorMessage(value));
+                                }
+                              })()
+                            }
+                            disabled={turf.lifecycleStatus === 'closed'}
+                          >
+                            Save Scope
+                          </Button>
+                        </div>
                         <div className="inline-actions">
                           <label className="sr-only" id={`assign-canvasser-${turf.id}-label`} htmlFor={`assign-canvasser-${turf.id}`}>
                             Assign canvasser for {turf.name}

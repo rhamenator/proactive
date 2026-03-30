@@ -16,7 +16,10 @@ describe('TurfsController', () => {
   const usersService = {
     findById: jest.fn()
   };
-  const controller = new TurfsController(turfsService as never, usersService as never);
+  const policiesService = {
+    getEffectivePolicy: jest.fn()
+  };
+  const controller = new TurfsController(turfsService as never, usersService as never, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -39,10 +42,16 @@ describe('TurfsController', () => {
     );
     await controller.getAddresses('turf-1', adminUser);
 
-    expect(turfsService.listTurfs).toHaveBeenCalledWith(scope);
+    expect(turfsService.listTurfs).toHaveBeenCalledWith(expect.objectContaining(scope));
     expect(turfsService.createTurf).toHaveBeenCalledWith({ name: 'North' }, 'admin-1');
-    expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'canvasser-1', 'admin-1', undefined, scope);
-    expect(turfsService.getTurfAddresses).toHaveBeenCalledWith('turf-1', scope);
+    expect(turfsService.assignTurf).toHaveBeenCalledWith(
+      'turf-1',
+      'canvasser-1',
+      'admin-1',
+      undefined,
+      expect.objectContaining(scope)
+    );
+    expect(turfsService.getTurfAddresses).toHaveBeenCalledWith('turf-1', expect.objectContaining(scope));
   });
 
   it('delegates canvasser turf and session actions', () => {

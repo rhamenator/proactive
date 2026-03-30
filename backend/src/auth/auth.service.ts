@@ -45,6 +45,7 @@ export class AuthService {
     role: UserRole;
     organizationId?: string | null;
     campaignId?: string | null;
+    teamId?: string | null;
     isActive: boolean;
     status: string;
     mfaEnabled: boolean;
@@ -56,7 +57,8 @@ export class AuthService {
     return this.usersService.sanitize({
       ...user,
       organizationId: user.organizationId ?? null,
-      campaignId: user.campaignId ?? null
+      campaignId: user.campaignId ?? null,
+      teamId: user.teamId ?? null
     });
   }
 
@@ -66,6 +68,7 @@ export class AuthService {
     role: UserRole;
     organizationId?: string | null;
     campaignId?: string | null;
+    teamId?: string | null;
   }, options?: { mfaVerifiedAt?: Date | null }) {
     return {
       sub: user.id,
@@ -73,6 +76,7 @@ export class AuthService {
       role: user.role,
       organizationId: user.organizationId ?? null,
       campaignId: user.campaignId ?? null,
+      teamId: user.teamId ?? null,
       mfaVerifiedAt: options?.mfaVerifiedAt ? options.mfaVerifiedAt.toISOString() : null
     };
   }
@@ -251,6 +255,7 @@ export class AuthService {
     role: UserRole;
     organizationId?: string | null;
     campaignId?: string | null;
+    teamId?: string | null;
     isActive: boolean;
     status: string;
     mfaEnabled: boolean;
@@ -966,6 +971,7 @@ export class AuthService {
     actorUserId: string;
     organizationId?: string | null;
     campaignId?: string | null;
+    teamId?: string | null;
   }) {
     const placeholderPasswordHash = await bcrypt.hash(this.createOpaqueToken(), 10);
     const user = await this.usersService.createInvitedCanvasser({

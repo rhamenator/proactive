@@ -29,6 +29,7 @@ import type {
   OutcomeDefinitionRecord,
   OperationalPolicyRecord,
   SafeUser,
+  TeamRecord,
   SyncConflictItem,
   SystemSettingsRecord,
   TurfAddressImportResult,
@@ -80,6 +81,12 @@ function buildQueryString(filters?: ReportFilters) {
   }
   if (filters.dateTo) {
     params.set('dateTo', filters.dateTo);
+  }
+  if (filters.teamId) {
+    params.set('teamId', filters.teamId);
+  }
+  if (filters.regionCode) {
+    params.set('regionCode', filters.regionCode);
   }
   if (filters.turfId) {
     params.set('turfId', filters.turfId);
@@ -307,6 +314,36 @@ export function createApiClient(token?: string | null) {
     listCampaigns() {
       return requestJson<CampaignRecord[]>('/admin/campaigns', {}, token);
     },
+    listTeams() {
+      return requestJson<TeamRecord[]>('/admin/teams', {}, token);
+    },
+    createTeam(payload: {
+      code: string;
+      name: string;
+      campaignId?: string | null;
+      regionCode?: string | null;
+      isActive?: boolean;
+    }) {
+      return requestJson<TeamRecord>('/admin/teams', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }, token);
+    },
+    updateTeam(
+      id: string,
+      payload: Partial<{
+        code: string;
+        name: string;
+        campaignId: string | null;
+        regionCode: string | null;
+        isActive: boolean;
+      }>
+    ) {
+      return requestJson<TeamRecord>(`/admin/teams/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }, token);
+    },
     getOperationalPolicy(campaignId?: string | null) {
       const params = new URLSearchParams();
       if (campaignId) {
@@ -331,6 +368,7 @@ export function createApiClient(token?: string | null) {
       campaignId?: string | null;
       defaultImportMode?: OperationalPolicyRecord['defaultImportMode'];
       defaultDuplicateStrategy?: OperationalPolicyRecord['defaultDuplicateStrategy'];
+      supervisorScopeMode?: OperationalPolicyRecord['supervisorScopeMode'];
       sensitiveMfaWindowMinutes?: number;
       canvasserCorrectionWindowMinutes?: number;
       maxAttemptsPerHousehold?: number;
@@ -469,6 +507,7 @@ export function createApiClient(token?: string | null) {
       password: string;
       role?: FieldUserRecord['role'];
       campaignId?: string | null;
+      teamId?: string | null;
     }) {
       return requestJson<FieldUserRecord>('/admin/canvassers', {
         method: 'POST',
@@ -485,6 +524,7 @@ export function createApiClient(token?: string | null) {
         role: FieldUserRecord['role'];
         isActive: boolean;
         campaignId: string | null;
+        teamId: string | null;
       }>
     ) {
       return requestJson<FieldUserRecord>(`/admin/canvassers/${id}`, {
@@ -510,6 +550,7 @@ export function createApiClient(token?: string | null) {
       email: string;
       role?: FieldUserRecord['role'];
       campaignId?: string | null;
+      teamId?: string | null;
     }) {
       return requestJson<{ user: FieldUserRecord }>('/admin/canvassers/invite', {
         method: 'POST',
@@ -519,8 +560,14 @@ export function createApiClient(token?: string | null) {
     listTurfs() {
       return requestJson<TurfListItem[]>('/turfs', {}, token);
     },
-    createTurf(payload: { name: string; description?: string }) {
+    createTurf(payload: { name: string; description?: string; teamId?: string | null; regionCode?: string | null }) {
       return requestJson<TurfListItem>('/turfs', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }, token);
+    },
+    updateTurfScope(turfId: string, payload: { teamId?: string | null; regionCode?: string | null }) {
+      return requestJson<TurfListItem>(`/turfs/${turfId}/scope`, {
         method: 'POST',
         body: JSON.stringify(payload)
       }, token);
@@ -560,6 +607,8 @@ export function createApiClient(token?: string | null) {
       mapping?: string;
       mode?: TurfAddressImportResult['mode'];
       duplicateStrategy?: TurfAddressImportResult['duplicateStrategy'];
+      teamId?: string | null;
+      regionCode?: string | null;
     }) {
       const formData = new FormData();
       formData.append('file', payload.file);
@@ -574,6 +623,12 @@ export function createApiClient(token?: string | null) {
       }
       if (payload.duplicateStrategy) {
         formData.append('duplicateStrategy', payload.duplicateStrategy);
+      }
+      if (payload.teamId) {
+        formData.append('teamId', payload.teamId);
+      }
+      if (payload.regionCode) {
+        formData.append('regionCode', payload.regionCode);
       }
       return requestJson<TurfAddressImportResult>('/imports/csv', {
         method: 'POST',

@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
 import { resolveAccessScope } from '../common/utils/access-scope.util';
+import { PoliciesService } from '../policies/policies.service';
 import { UsersService } from '../users/users.service';
 import { CorrectVisitDto } from './dto/correct-visit.dto';
 import { CreateVisitDto } from './dto/create-visit.dto';
@@ -16,11 +17,12 @@ import { VisitsService } from './visits.service';
 export class VisitsController {
   constructor(
     private readonly visitsService: VisitsService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
+    private readonly policiesService: PoliciesService
   ) {}
 
   private async resolveScope(user: JwtUserPayload) {
-    return resolveAccessScope(user, this.usersService);
+    return resolveAccessScope(user, this.usersService, this.policiesService);
   }
 
   @Get('outcomes')

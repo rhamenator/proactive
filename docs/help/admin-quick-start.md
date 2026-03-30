@@ -6,9 +6,10 @@ Admins use the web dashboard to:
 
 - sign in
 - create or import turfs
+- manage teams and region-based operating scopes
 - manage field users
 - assign or reassign turfs
-- manage organization, campaign, and system-wide operational settings
+- manage organization, campaign, team, region, and system-wide operational settings
 - review dashboard progress
 - review flagged GPS submissions and apply overrides
 - review sync conflicts and clear resolved queue items
@@ -40,7 +41,7 @@ If login fails, see [Troubleshooting](/home/rich/dev/proactive/docs/help/trouble
 
 1. Open `Turfs`.
 2. Enter the turf name.
-3. Optionally add a description.
+3. Optionally add a description, team, and region code.
 4. Save the turf.
 
 ### Import from CSV
@@ -48,8 +49,9 @@ If login fails, see [Troubleshooting](/home/rich/dev/proactive/docs/help/trouble
 1. Open `Turfs`.
 2. Choose the CSV import option.
 3. Select the CSV file.
-4. Review mapping fields if prompted.
-5. Start the import.
+4. Choose the target campaign, team, and region when needed.
+5. Review mapping fields if prompted.
+6. Start the import.
 
 Expected minimum address data:
 
@@ -61,14 +63,26 @@ Expected minimum address data:
 
 1. Open `Canvassers`.
 2. Create a new field user or edit an existing one.
-3. Confirm the user is active before field use.
+3. Assign the user to the correct campaign and team scope when appropriate.
+4. Confirm the user is active before field use.
+
+## Manage Teams And Scope
+
+1. Open `Teams`.
+2. Create teams for the operating structure you want to enforce.
+3. Optionally bind a team to a campaign and region code.
+4. Keep team status active only while the team should remain assignable.
+5. Use `Policies` to choose whether supervisors inherit campaign, team, or region scope.
 
 ## Assign A Turf
 
 1. Open `Turfs`.
 2. Find the turf you want to assign.
-3. Select the canvasser.
-4. Save or confirm the assignment.
+3. Confirm the turf has the correct campaign/team/region scope.
+4. Select the canvasser.
+5. Save or confirm the assignment.
+
+Turf assignment blocks mismatched team or region pairings when those scopes are present.
 
 ## Monitor Progress
 
@@ -103,7 +117,7 @@ Use `Dashboard` to review:
 ## Manage Policies And System Settings
 
 1. Open `Policies`.
-2. Use the scoped policy editor to set organization or campaign defaults for field thresholds, auth timing, import behavior, retention defaults, and outcome fallback behavior.
+2. Use the scoped policy editor to set organization or campaign defaults for field thresholds, auth timing, import behavior, retention defaults, outcome fallback behavior, and supervisor scope mode.
 3. Use the `System-Wide` card for deployment-level settings such as auth rate-limiting and retention automation timing.
 4. Complete the fresh MFA confirmation step before saving sensitive changes.
 5. Use `Reset` when you want a scope to fall back to its inherited settings instead of maintaining a custom override.

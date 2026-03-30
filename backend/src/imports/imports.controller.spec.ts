@@ -11,8 +11,11 @@ describe('ImportsController', () => {
   const usersService = {
     findById: jest.fn()
   };
+  const policiesService = {
+    getEffectivePolicy: jest.fn()
+  };
 
-  const controller = new ImportsController(importsService as never, usersService as never);
+  const controller = new ImportsController(importsService as never, usersService as never, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -64,14 +67,14 @@ describe('ImportsController', () => {
     const history = await controller.importHistory(user);
     await controller.downloadImportBatch('batch-1', user, response as never);
 
-    expect(importsService.importHistory).toHaveBeenCalledWith({
+    expect(importsService.importHistory).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: 'org-1',
       campaignId: null
-    });
-    expect(importsService.downloadImportBatch).toHaveBeenCalledWith('batch-1', {
+    }));
+    expect(importsService.downloadImportBatch).toHaveBeenCalledWith('batch-1', expect.objectContaining({
       organizationId: 'org-1',
       campaignId: null
-    });
+    }));
     expect(history).toEqual([{ id: 'batch-1' }]);
     expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
     expect(response.send).toHaveBeenCalledWith('address,city,state\n100 Main,Detroit,MI\n');
@@ -94,18 +97,18 @@ describe('ImportsController', () => {
     );
 
     expect(importsService.importReviewQueue).toHaveBeenCalledWith({
-      scope: {
+      scope: expect.objectContaining({
         organizationId: 'org-1',
         campaignId: null
-      },
+      }),
       take: 25
     });
     expect(importsService.resolveImportReview).toHaveBeenCalledWith({
       rowId: 'row-1',
-      scope: {
+      scope: expect.objectContaining({
         organizationId: 'org-1',
         campaignId: null
-      },
+      }),
       actorUserId: 'admin-1',
       action: 'merge',
       reason: 'Reviewed imported duplicate row'

@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
 import { resolveAccessScope } from '../common/utils/access-scope.util';
+import { PoliciesService } from '../policies/policies.service';
 import { ImportCsvDto } from '../turfs/dto/import-csv.dto';
 import { UsersService } from '../users/users.service';
 import { ListImportReviewQueueDto } from './dto/list-import-review-queue.dto';
@@ -20,13 +21,14 @@ import { ImportsService } from './imports.service';
 export class ImportsController {
   constructor(
     private readonly importsService: ImportsService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
+    private readonly policiesService: PoliciesService
   ) {}
 
   @Get('history')
   @Roles(UserRole.admin)
   async importHistory(@CurrentUser() user: JwtUserPayload) {
-    return this.importsService.importHistory(await resolveAccessScope(user, this.usersService));
+    return this.importsService.importHistory(await resolveAccessScope(user, this.usersService, this.policiesService));
   }
 
   @Get('review-queue')
@@ -36,7 +38,7 @@ export class ImportsController {
     @Query() query: ListImportReviewQueueDto
   ) {
     return this.importsService.importReviewQueue({
-      scope: await resolveAccessScope(user, this.usersService),
+      scope: await resolveAccessScope(user, this.usersService, this.policiesService),
       take: query.take
     });
   }
@@ -50,7 +52,7 @@ export class ImportsController {
   ) {
     const result = await this.importsService.downloadImportBatch(
       batchId,
-      await resolveAccessScope(user, this.usersService)
+      await resolveAccessScope(user, this.usersService, this.policiesService)
     );
     response.setHeader('Content-Type', 'text/csv; charset=utf-8');
     response.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
@@ -84,7 +86,9 @@ export class ImportsController {
       turfName: body.turfName,
       mapping,
       mode: body.mode,
-      duplicateStrategy: body.duplicateStrategy
+      duplicateStrategy: body.duplicateStrategy,
+      teamId: body.teamId,
+      regionCode: body.regionCode
     });
   }
 
@@ -97,7 +101,7 @@ export class ImportsController {
   ) {
     return this.importsService.resolveImportReview({
       rowId: id,
-      scope: await resolveAccessScope(user, this.usersService),
+      scope: await resolveAccessScope(user, this.usersService, this.policiesService),
       actorUserId: user.sub,
       action: body.action,
       reason: body.reason

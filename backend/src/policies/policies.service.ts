@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
-import type { OperationalPolicy } from '@prisma/client';
+import { SupervisorScopeMode, type OperationalPolicy } from '@prisma/client';
 import { getSensitiveMfaWindowMinutes } from '../auth/sensitive-mfa.util';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { PrismaService } from '../prisma/prisma.service';
@@ -34,6 +34,7 @@ export type EffectiveOperationalPolicy = {
   retentionPurgeDays: number | null;
   requireArchiveReason: boolean;
   allowOrgOutcomeFallback: boolean;
+  supervisorScopeMode: SupervisorScopeMode;
 };
 
 type PolicyUpdateInput = Partial<{
@@ -56,6 +57,7 @@ type PolicyUpdateInput = Partial<{
   retentionPurgeDays: number | null;
   requireArchiveReason: boolean;
   allowOrgOutcomeFallback: boolean;
+  supervisorScopeMode: SupervisorScopeMode;
 }>;
 
 @Injectable()
@@ -128,7 +130,8 @@ export class PoliciesService {
       retentionArchiveDays: Number.isFinite(archiveDays) && archiveDays > 0 ? archiveDays : null,
       retentionPurgeDays: Number.isFinite(purgeDays) && purgeDays > 0 ? purgeDays : null,
       requireArchiveReason: process.env.REQUIRE_ARCHIVE_REASON === 'true',
-      allowOrgOutcomeFallback: process.env.ALLOW_ORG_OUTCOME_FALLBACK !== 'false'
+      allowOrgOutcomeFallback: process.env.ALLOW_ORG_OUTCOME_FALLBACK !== 'false',
+      supervisorScopeMode: this.normalizeSupervisorScopeMode(process.env.SUPERVISOR_SCOPE_MODE)
     };
   }
 
@@ -142,6 +145,14 @@ export class PoliciesService {
     }
 
     return 'replace_turf_membership';
+  }
+
+  private normalizeSupervisorScopeMode(value: unknown): SupervisorScopeMode {
+    if (value === SupervisorScopeMode.team || value === SupervisorScopeMode.region) {
+      return value;
+    }
+
+    return SupervisorScopeMode.campaign;
   }
 
   private normalizePositiveInteger(value: unknown, fallback: number, fieldName: string) {
@@ -231,7 +242,8 @@ export class PoliciesService {
       retentionArchiveDays: record.retentionArchiveDays ?? null,
       retentionPurgeDays: record.retentionPurgeDays ?? null,
       requireArchiveReason: record.requireArchiveReason,
-      allowOrgOutcomeFallback: record.allowOrgOutcomeFallback
+      allowOrgOutcomeFallback: record.allowOrgOutcomeFallback,
+      supervisorScopeMode: this.normalizeSupervisorScopeMode(record.supervisorScopeMode)
     };
   }
 
@@ -420,7 +432,8 @@ export class PoliciesService {
       retentionArchiveDays: normalizedArchiveDays === undefined ? current.retentionArchiveDays : normalizedArchiveDays,
       retentionPurgeDays: normalizedPurgeDays === undefined ? current.retentionPurgeDays : normalizedPurgeDays,
       requireArchiveReason: input.requireArchiveReason ?? current.requireArchiveReason,
-      allowOrgOutcomeFallback: input.allowOrgOutcomeFallback ?? current.allowOrgOutcomeFallback
+      allowOrgOutcomeFallback: input.allowOrgOutcomeFallback ?? current.allowOrgOutcomeFallback,
+      supervisorScopeMode: input.supervisorScopeMode ?? current.supervisorScopeMode
     };
 
     if (next.retentionArchiveDays && next.retentionPurgeDays && next.retentionPurgeDays <= next.retentionArchiveDays) {

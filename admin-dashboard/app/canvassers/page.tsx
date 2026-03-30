@@ -6,7 +6,7 @@ import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
-import type { CampaignRecord, FieldUserRecord } from '../../src/lib/types';
+import type { CampaignRecord, FieldUserRecord, TeamRecord } from '../../src/lib/types';
 
 const roleLabels: Record<FieldUserRecord['role'], string> = {
   admin: 'Admin',
@@ -20,6 +20,7 @@ export default function CanvassersPage() {
   const isAdmin = user?.role === 'admin';
   const [users, setUsers] = useState<FieldUserRecord[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
+  const [teams, setTeams] = useState<TeamRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -29,6 +30,7 @@ export default function CanvassersPage() {
     email: '',
     password: '',
     campaignId: '',
+    teamId: '',
     role: 'canvasser' as FieldUserRecord['role']
   });
   const [inviteForm, setInviteForm] = useState({
@@ -36,20 +38,32 @@ export default function CanvassersPage() {
     lastName: '',
     email: '',
     campaignId: '',
+    teamId: '',
     role: 'canvasser' as FieldUserRecord['role']
   });
   const [campaignEdits, setCampaignEdits] = useState<Record<string, string>>({});
+  const [teamEdits, setTeamEdits] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [nextUsers, nextCampaigns] = await Promise.all([api.listCanvassers(), api.listCampaigns()]);
+      const [nextUsers, nextCampaigns, nextTeams] = await Promise.all([
+        api.listCanvassers(),
+        api.listCampaigns(),
+        api.listTeams()
+      ]);
       setUsers(nextUsers);
       setCampaigns(nextCampaigns);
+      setTeams(nextTeams);
       setCampaignEdits(
         Object.fromEntries(
           nextUsers.map((fieldUser) => [fieldUser.id, fieldUser.campaignId ?? ''])
+        )
+      );
+      setTeamEdits(
+        Object.fromEntries(
+          nextUsers.map((fieldUser) => [fieldUser.id, fieldUser.teamId ?? ''])
         )
       );
     } catch (value) {
@@ -76,6 +90,7 @@ export default function CanvassersPage() {
         email: '',
         password: '',
         campaignId: '',
+        teamId: '',
         role: 'canvasser'
       });
       setMessage(`${roleLabels[form.role]} created.`);
@@ -102,9 +117,10 @@ export default function CanvassersPage() {
     setMessage(null);
     try {
       await api.updateCanvasser(fieldUser.id, {
-        campaignId: campaignEdits[fieldUser.id] || null
+        campaignId: campaignEdits[fieldUser.id] || null,
+        teamId: teamEdits[fieldUser.id] || null
       });
-      setMessage(`${fieldUser.firstName} ${fieldUser.lastName} campaign updated.`);
+      setMessage(`${fieldUser.firstName} ${fieldUser.lastName} scope updated.`);
       await load();
     } catch (value) {
       setError(getErrorMessage(value));
@@ -119,13 +135,15 @@ export default function CanvassersPage() {
     try {
       await api.inviteCanvasser({
         ...inviteForm,
-        campaignId: inviteForm.campaignId || null
+        campaignId: inviteForm.campaignId || null,
+        teamId: inviteForm.teamId || null
       });
       setInviteForm({
         firstName: '',
         lastName: '',
         email: '',
         campaignId: '',
+        teamId: '',
         role: 'canvasser'
       });
       setMessage(`Invite created for ${inviteForm.firstName} ${inviteForm.lastName}.`);
@@ -138,6 +156,11 @@ export default function CanvassersPage() {
   const campaignById = useMemo(
     () => new Map(campaigns.map((campaign) => [campaign.id, campaign])),
     [campaigns]
+  );
+
+  const teamById = useMemo(
+    () => new Map(teams.map((team) => [team.id, team])),
+    [teams]
   );
 
   const campaignOptions = useMemo(
@@ -155,6 +178,32 @@ export default function CanvassersPage() {
     }
     return campaignById.get(campaignId)?.name ?? campaignId;
   };
+
+  const teamLabel = (teamId?: string | null) => {
+    if (!teamId) {
+      return 'All teams';
+    }
+
+    const team = teamById.get(teamId);
+    if (!team) {
+      return teamId;
+    }
+
+    return `${team.name}${team.regionCode ? ` • ${team.regionCode}` : ''}`;
+  };
+
+  const teamOptions = useMemo(
+    () =>
+      teams.map((team) => (
+        <option key={team.id} value={team.id}>
+          {team.name}
+          {team.code ? ` (${team.code})` : ''}
+          {team.regionCode ? ` • ${team.regionCode}` : ''}
+          {team.campaignId ? ` • ${campaignById.get(team.campaignId)?.name ?? team.campaignId}` : ''}
+        </option>
+      )),
+    [campaignById, teams]
+  );
 
   async function handleImpersonate(target: FieldUserRecord) {
     const reason = window.prompt(
@@ -268,6 +317,29 @@ export default function CanvassersPage() {
               </div>
 
               <div className="field-group">
+                <label htmlFor="team-id">Team scope</label>
+                <select
+                  id="team-id"
+                  className="select"
+                  value={form.teamId}
+                  onChange={(event) => {
+                    const nextTeamId = event.target.value;
+                    setForm((current) => {
+                      const nextTeam = teamById.get(nextTeamId);
+                      return {
+                        ...current,
+                        teamId: nextTeamId,
+                        campaignId: nextTeamId ? nextTeam?.campaignId ?? '' : current.campaignId
+                      };
+                    });
+                  }}
+                >
+                  <option value="">All teams</option>
+                  {teamOptions}
+                </select>
+              </div>
+
+              <div className="field-group">
                 <label htmlFor="role">Role</label>
                 <select
                   id="role"
@@ -355,6 +427,29 @@ export default function CanvassersPage() {
                   </select>
                 </div>
 
+                <div className="field-group">
+                  <label htmlFor="invite-team-id">Team scope</label>
+                    <select
+                      id="invite-team-id"
+                      className="select"
+                      value={inviteForm.teamId}
+                      onChange={(event) => {
+                        const nextTeamId = event.target.value;
+                        setInviteForm((current) => {
+                          const nextTeam = teamById.get(nextTeamId);
+                          return {
+                            ...current,
+                            teamId: nextTeamId,
+                            campaignId: nextTeamId ? nextTeam?.campaignId ?? '' : current.campaignId
+                          };
+                        });
+                      }}
+                    >
+                    <option value="">All teams</option>
+                    {teamOptions}
+                  </select>
+                </div>
+
                 <Button type="submit">Invite {roleLabels[inviteForm.role]}</Button>
               </form>
             </Card>
@@ -391,30 +486,60 @@ export default function CanvassersPage() {
                   <div className="muted">
                     Campaign scope: {campaignLabel(user.campaignId)}
                   </div>
+                  <div className="muted">
+                    Team scope: {teamLabel(user.teamId)}
+                    {user.regionCode ? ` • Region ${user.regionCode}` : ''}
+                  </div>
                   {isAdmin ? (
-                    <div className="field-group">
-                      <label htmlFor={`campaign-edit-${user.id}`}>Campaign scope</label>
-                      <select
-                        id={`campaign-edit-${user.id}`}
-                        className="select"
-                        value={campaignEdits[user.id] ?? ''}
-                        disabled={user.status === 'archived'}
-                        onChange={(event) =>
-                          setCampaignEdits((current) => ({
-                            ...current,
-                            [user.id]: event.target.value
-                          }))
-                        }
-                      >
-                        <option value="">All campaigns</option>
-                        {campaignOptions}
-                      </select>
+                    <div className="grid two">
+                      <div className="field-group">
+                        <label htmlFor={`campaign-edit-${user.id}`}>Campaign scope</label>
+                        <select
+                          id={`campaign-edit-${user.id}`}
+                          className="select"
+                          value={campaignEdits[user.id] ?? ''}
+                          disabled={user.status === 'archived'}
+                          onChange={(event) =>
+                            setCampaignEdits((current) => ({
+                              ...current,
+                              [user.id]: event.target.value
+                            }))
+                          }
+                        >
+                          <option value="">All campaigns</option>
+                          {campaignOptions}
+                        </select>
+                      </div>
+                      <div className="field-group">
+                        <label htmlFor={`team-edit-${user.id}`}>Team scope</label>
+                        <select
+                          id={`team-edit-${user.id}`}
+                          className="select"
+                          value={teamEdits[user.id] ?? ''}
+                          disabled={user.status === 'archived'}
+                          onChange={(event) => {
+                            const nextTeamId = event.target.value;
+                            setTeamEdits((current) => ({
+                              ...current,
+                              [user.id]: nextTeamId
+                            }));
+                            const selectedTeam = teamById.get(nextTeamId);
+                            setCampaignEdits((current) => ({
+                              ...current,
+                              [user.id]: nextTeamId ? selectedTeam?.campaignId ?? '' : current[user.id] ?? ''
+                            }));
+                          }}
+                        >
+                          <option value="">All teams</option>
+                          {teamOptions}
+                        </select>
+                      </div>
                     </div>
                   ) : null}
                   {isAdmin ? (
                     <div className="inline-actions">
                       <Button variant="secondary" onClick={() => void handleCampaignUpdate(user)} disabled={user.status === 'archived'}>
-                        Update Campaign
+                        Update Scope
                       </Button>
                       <Button
                         variant="ghost"

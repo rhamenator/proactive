@@ -59,10 +59,20 @@ export class TurfsService {
   }
 
   private scopeWhere(scope: AccessScope) {
-    return {
+    const where = {
       organizationId: scope.organizationId,
       ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
-    } as const;
+    } as Record<string, unknown>;
+
+    if (scope.role === UserRole.supervisor) {
+      if (scope.supervisorScopeMode === 'team' && scope.teamId) {
+        where.teamId = scope.teamId;
+      } else if (scope.supervisorScopeMode === 'region' && scope.regionCode) {
+        where.regionCode = scope.regionCode;
+      }
+    }
+
+    return where;
   }
 
   private buildPurgeAt(days?: number | null) {
@@ -95,6 +105,30 @@ export class TurfsService {
       throw new NotFoundException('User not found');
     }
     return canvasser;
+  }
+
+  private async validateTeamScope(organizationId: string | null, campaignId: string | null | undefined, teamId?: string | null) {
+    if (!teamId) {
+      return null;
+    }
+
+    const team = await this.prisma.team.findFirst({
+      where: {
+        id: teamId,
+        organizationId: organizationId ?? undefined,
+        isActive: true
+      }
+    });
+
+    if (!team) {
+      throw new BadRequestException('Team not found');
+    }
+
+    if (campaignId && team.campaignId && team.campaignId !== campaignId) {
+      throw new BadRequestException('Team is outside the requested campaign scope');
+    }
+
+    return team;
   }
 
   private async ensureNoCrossTurfOpenSession(
@@ -176,16 +210,89 @@ export class TurfsService {
     }));
   }
 
-  async createTurf(input: { name: string; description?: string }, createdById: string) {
+  async createTurf(input: { name: string; description?: string; teamId?: string | null; regionCode?: string | null }, createdById: string) {
     const creator = await this.usersService.findById(createdById);
+    const team = await this.validateTeamScope(creator.organizationId ?? null, creator.campaignId ?? null, input.teamId);
     return this.prisma.turf.create({
       data: {
         name: input.name,
         description: input.description,
         createdById,
         organizationId: creator.organizationId ?? null,
+        campaignId: creator.campaignId ?? team?.campaignId ?? null,
+        teamId: input.teamId ?? null,
+        regionCode: input.regionCode?.trim() || team?.regionCode || null,
         status: TurfStatus.unassigned
       }
+    });
+  }
+
+  async updateTurfScope(
+    turfId: string,
+    input: { teamId?: string | null; regionCode?: string | null },
+    actorUserId: string,
+    scope: AccessScope = { organizationId: null, campaignId: null }
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const turf = await this.findScopedTurf(tx, turfId, scope);
+      if (!turf) {
+        throw new NotFoundException('Turf not found');
+      }
+
+      const team = await this.validateTeamScope(turf.organizationId ?? null, turf.campaignId ?? null, input.teamId);
+      const nextRegionCode = input.regionCode === undefined ? turf.regionCode : input.regionCode?.trim() || team?.regionCode || null;
+      const nextTeamId = input.teamId === undefined ? turf.teamId : input.teamId;
+
+      const updated = await tx.turf.update({
+        where: { id: turfId },
+        data: {
+          ...(input.teamId !== undefined ? { teamId: input.teamId } : {}),
+          regionCode: nextRegionCode
+        }
+      });
+
+      const propagatedScope = {
+        ...(input.teamId !== undefined ? { teamId: nextTeamId } : {}),
+        regionCode: nextRegionCode
+      };
+
+      await tx.address.updateMany({
+        where: { turfId },
+        data: propagatedScope
+      });
+
+      await tx.turfAssignment.updateMany({
+        where: { turfId },
+        data: propagatedScope
+      });
+
+      await tx.turfSession.updateMany({
+        where: { turfId },
+        data: propagatedScope
+      });
+
+      await tx.visitLog.updateMany({
+        where: { turfId },
+        data: propagatedScope
+      });
+
+      await tx.addressRequest.updateMany({
+        where: { turfId },
+        data: propagatedScope
+      });
+
+      await this.auditService.log({
+        actorUserId,
+        actionType: 'turf_scope_updated',
+        entityType: 'turf',
+        entityId: updated.id,
+        newValuesJson: {
+          teamId: updated.teamId,
+          regionCode: updated.regionCode
+        }
+      }, tx);
+
+      return updated;
     });
   }
 
@@ -202,6 +309,14 @@ export class TurfsService {
       const turf = await this.findScopedTurf(tx, turfId, scope);
       if (!turf) {
         throw new NotFoundException('Turf not found');
+      }
+
+      const canvasser = await this.ensureAssignableCanvasser(canvasserId, scope.organizationId);
+      if (turf.teamId && canvasser.teamId && turf.teamId !== canvasser.teamId) {
+        throw new BadRequestException('Selected canvasser is assigned to a different team');
+      }
+      if (turf.regionCode && canvasser.regionCode && turf.regionCode !== canvasser.regionCode) {
+        throw new BadRequestException('Selected canvasser is assigned to a different region');
       }
 
       await this.ensureNoCrossTurfOpenSession(tx, canvasserId, turfId);
@@ -255,6 +370,8 @@ export class TurfsService {
           canvasserId,
           organizationId: turf.organizationId,
           campaignId: turf.campaignId,
+          teamId: turf.teamId,
+          regionCode: turf.regionCode,
           assignedByUserId: actorUserId,
           reassignmentReason: reasonText,
           status: AssignmentStatus.assigned
@@ -689,6 +806,8 @@ export class TurfsService {
           canvasserId: input.canvasserId,
           organizationId: assignment.organizationId,
           campaignId: assignment.campaignId,
+          teamId: assignment.teamId,
+          regionCode: assignment.regionCode,
           startTime: new Date(),
           status: SessionStatus.active,
           lastActivityAt: new Date(),

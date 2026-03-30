@@ -20,4 +20,8 @@ export class InviteCanvasserDto {
   @IsOptional()
   @IsUUID()
   campaignId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  teamId?: string;
 }

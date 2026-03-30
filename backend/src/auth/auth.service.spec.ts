@@ -24,6 +24,8 @@ function buildUser(overrides: Partial<Record<string, unknown>> = {}) {
     role: UserRole.canvasser,
     organizationId: null,
     campaignId: null,
+    teamId: null,
+    regionCode: null,
     isActive: true,
     status: 'active',
     mfaEnabled: false,

@@ -11,6 +11,8 @@ export type SafeUser = {
   role: UserRole;
   organizationId: string | null;
   campaignId: string | null;
+  teamId: string | null;
+  regionCode?: string | null;
   isActive: boolean;
   status: string;
   mfaEnabled: boolean;
@@ -52,6 +54,42 @@ export class UsersService {
     }
   }
 
+  private async validateTeamScope(
+    organizationId: string | null | undefined,
+    campaignId: string | null | undefined,
+    teamId: string | null | undefined
+  ) {
+    if (teamId === undefined) {
+      return null;
+    }
+
+    if (teamId === null) {
+      return null;
+    }
+
+    if (!organizationId) {
+      throw new BadRequestException('Team assignments require an organization scope');
+    }
+
+    const team = await this.prisma.team.findFirst({
+      where: {
+        id: teamId,
+        organizationId,
+        isActive: true
+      }
+    });
+
+    if (!team) {
+      throw new BadRequestException('Team is invalid for the current organization scope');
+    }
+
+    if (campaignId !== undefined && campaignId !== null && team.campaignId && team.campaignId !== campaignId) {
+      throw new BadRequestException('Team is invalid for the current campaign scope');
+    }
+
+    return team;
+  }
+
   private normalizeFieldUserRole(role?: UserRole): FieldUserRole {
     if (role === undefined) {
       return UserRole.canvasser;
@@ -76,6 +114,9 @@ export class UsersService {
     role: UserRole;
     organizationId: string | null;
     campaignId: string | null;
+    teamId?: string | null;
+    regionCode?: string | null;
+    team?: { regionCode?: string | null } | null;
     isActive: boolean;
     status: string;
     mfaEnabled: boolean;
@@ -86,6 +127,8 @@ export class UsersService {
   }): SafeUser {
     return {
       ...user,
+      teamId: user.teamId ?? null,
+      regionCode: user.regionCode ?? user.team?.regionCode ?? null,
       status: user.status ?? 'active',
       mfaEnabled: user.mfaEnabled ?? false,
       invitedAt: user.invitedAt ?? null,
@@ -95,12 +138,32 @@ export class UsersService {
   }
 
   async findByEmail(email: string) {
-    const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+      include: {
+        team: {
+          select: {
+            id: true,
+            regionCode: true
+          }
+        }
+      }
+    });
     return user?.deletedAt ? null : user;
   }
 
   async findById(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        team: {
+          select: {
+            id: true,
+            regionCode: true
+          }
+        }
+      }
+    });
     if (!user || user.deletedAt) {
       throw new NotFoundException('User not found');
     }
@@ -126,6 +189,7 @@ export class UsersService {
     role?: UserRole;
     organizationId?: string | null;
     campaignId?: string | null;
+    teamId?: string | null;
   }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -133,6 +197,7 @@ export class UsersService {
       throw new ConflictException('A user with this email already exists');
     }
     await this.validateCampaignScope(input.organizationId, input.campaignId);
+    const team = await this.validateTeamScope(input.organizationId, input.campaignId, input.teamId);
 
     const passwordHash = await bcrypt.hash(input.password, 10);
     const user = await this.prisma.user.create({
@@ -144,8 +209,18 @@ export class UsersService {
         role: this.normalizeFieldUserRole(input.role),
         organizationId: input.organizationId ?? null,
         campaignId: input.campaignId ?? null,
+        teamId: input.teamId ?? null,
+        regionCode: team?.regionCode ?? null,
         status: 'active',
         activatedAt: new Date()
+      },
+      include: {
+        team: {
+          select: {
+            id: true,
+            regionCode: true
+          }
+        }
       }
     });
 
@@ -163,6 +238,7 @@ export class UsersService {
       role: UserRole;
       organizationId: string | null;
       campaignId: string | null;
+      teamId: string | null;
     }>
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
@@ -173,12 +249,18 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
     await this.validateCampaignScope(input.organizationId ?? existing.organizationId, input.campaignId);
+    const nextCampaignId = input.campaignId ?? existing.campaignId;
+    const team = await this.validateTeamScope(input.organizationId ?? existing.organizationId, nextCampaignId, input.teamId);
 
     const data: Prisma.UserUncheckedUpdateInput = {};
     if (input.firstName !== undefined) data.firstName = input.firstName;
     if (input.lastName !== undefined) data.lastName = input.lastName;
     if (input.email !== undefined) data.email = input.email.trim().toLowerCase();
     if (input.campaignId !== undefined) data.campaignId = input.campaignId;
+    if (input.teamId !== undefined) {
+      data.teamId = input.teamId;
+      data.regionCode = team?.regionCode ?? null;
+    }
     if (input.isActive !== undefined) {
       data.isActive = input.isActive;
       data.status = input.isActive ? 'active' : 'inactive';
@@ -192,7 +274,15 @@ export class UsersService {
 
     const user = await this.prisma.user.update({
       where: { id },
-      data
+      data,
+      include: {
+        team: {
+          select: {
+            id: true,
+            regionCode: true
+          }
+        }
+      }
     });
 
     return this.sanitize(user);
@@ -206,6 +296,7 @@ export class UsersService {
     role?: UserRole;
     organizationId?: string | null;
     campaignId?: string | null;
+    teamId?: string | null;
   }) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -213,6 +304,7 @@ export class UsersService {
       throw new ConflictException('A user with this email already exists');
     }
     await this.validateCampaignScope(input.organizationId, input.campaignId);
+    const team = await this.validateTeamScope(input.organizationId, input.campaignId, input.teamId);
 
     const user = await this.prisma.user.create({
       data: {
@@ -223,9 +315,19 @@ export class UsersService {
         role: this.normalizeFieldUserRole(input.role),
         organizationId: input.organizationId ?? null,
         campaignId: input.campaignId ?? null,
+        teamId: input.teamId ?? null,
+        regionCode: team?.regionCode ?? null,
         isActive: false,
         status: 'invited',
         invitedAt: new Date()
+      },
+      include: {
+        team: {
+          select: {
+            id: true,
+            regionCode: true
+          }
+        }
       }
     });
 

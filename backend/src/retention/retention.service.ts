@@ -49,7 +49,9 @@ export class RetentionService implements OnModuleInit, OnModuleDestroy {
 
     return {
       organizationId: scope.organizationId,
-      ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
+      ...(scope.campaignId ? { campaignId: scope.campaignId } : {}),
+      ...(scope.teamId ? { teamId: scope.teamId } : {}),
+      ...(scope.regionCode ? { regionCode: scope.regionCode } : {})
     } as const;
   }
 
@@ -61,7 +63,9 @@ export class RetentionService implements OnModuleInit, OnModuleDestroy {
     return {
       user: {
         organizationId: scope.organizationId,
-        ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
+        ...(scope.campaignId ? { campaignId: scope.campaignId } : {}),
+        ...(scope.teamId ? { teamId: scope.teamId } : {}),
+        ...(scope.regionCode ? { regionCode: scope.regionCode } : {})
       }
     };
   }

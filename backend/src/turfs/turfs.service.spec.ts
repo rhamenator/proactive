@@ -356,6 +356,9 @@ describe('TurfsService', () => {
         description: 'Main route',
         createdById: 'admin-1',
         organizationId: 'org-1',
+        campaignId: null,
+        teamId: null,
+        regionCode: null,
         status: TurfStatus.unassigned
       }
     });

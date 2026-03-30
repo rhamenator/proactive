@@ -13,11 +13,20 @@ describe('ReportsController', () => {
   const usersService = {
     findById: jest.fn()
   };
+  const policiesService = {
+    getEffectivePolicy: jest.fn()
+  };
 
-  const controller = new ReportsController(reportsService as never, usersService as never);
+  const controller = new ReportsController(reportsService as never, usersService as never, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
+    usersService.findById.mockResolvedValue({
+      id: 'admin-1',
+      organizationId: 'org-1',
+      campaignId: null,
+      role: 'admin'
+    });
   });
 
   it('passes organization-scoped overview filters to the service', async () => {
@@ -26,17 +35,18 @@ describe('ReportsController', () => {
       { turfId: 'turf-1', canvasserId: 'user-1' }
     );
 
-    expect(reportsService.getOverview).toHaveBeenCalledWith({
+    expect(reportsService.getOverview).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: 'org-1',
       turfId: 'turf-1',
       canvasserId: 'user-1'
-    });
+    }));
   });
 
   it('falls back to the user service when organization scope is missing from the JWT', async () => {
     usersService.findById.mockResolvedValue({
       id: 'supervisor-1',
-      organizationId: 'org-9'
+      organizationId: 'org-9',
+      role: 'supervisor'
     });
 
     await controller.productivity(
@@ -45,10 +55,10 @@ describe('ReportsController', () => {
     );
 
     expect(usersService.findById).toHaveBeenCalledWith('supervisor-1');
-    expect(reportsService.getProductivity).toHaveBeenCalledWith({
+    expect(reportsService.getProductivity).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: 'org-9',
       dateFrom: '2026-03-01T00:00:00.000Z'
-    });
+    }));
   });
 
   it('delegates the GPS exceptions and audit activity reports', async () => {
@@ -61,16 +71,16 @@ describe('ReportsController', () => {
       { canvasserId: 'user-1', limit: 10 }
     );
 
-    expect(reportsService.getGpsExceptions).toHaveBeenCalledWith({
+    expect(reportsService.getGpsExceptions).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: 'org-1',
       gpsStatus: 'flagged',
       limit: 25
-    });
-    expect(reportsService.getAuditActivity).toHaveBeenCalledWith({
+    }));
+    expect(reportsService.getAuditActivity).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: 'org-1',
       canvasserId: 'user-1',
       limit: 10
-    });
+    }));
   });
 
   it('delegates trend, resolved conflict, and export batch reports with campaign-aware scope', async () => {
@@ -87,20 +97,20 @@ describe('ReportsController', () => {
       { turfId: 'turf-1' }
     );
 
-    expect(reportsService.getTrendSummary).toHaveBeenCalledWith({
+    expect(reportsService.getTrendSummary).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: 'org-1',
       campaignId: 'campaign-1',
       outcomeCode: 'talked_to_voter'
-    });
-    expect(reportsService.getResolvedConflicts).toHaveBeenCalledWith({
+    }));
+    expect(reportsService.getResolvedConflicts).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: 'org-1',
       campaignId: 'campaign-1',
       limit: 15
-    });
-    expect(reportsService.getExportBatchAnalytics).toHaveBeenCalledWith({
+    }));
+    expect(reportsService.getExportBatchAnalytics).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: 'org-1',
       campaignId: 'campaign-1',
       turfId: 'turf-1'
-    });
+    }));
   });
 });

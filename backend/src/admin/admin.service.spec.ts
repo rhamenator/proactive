@@ -503,7 +503,7 @@ describe('AdminService', () => {
           }
         },
         canvasser: { select: expect.any(Object) },
-        turf: { select: { id: true, name: true } }
+        turf: { select: { id: true, name: true, teamId: true, regionCode: true } }
       }
     });
     expect(result).toEqual([{ id: 'visit-1', syncStatus: SyncStatus.conflict }]);
@@ -611,7 +611,7 @@ describe('AdminService', () => {
           }
         },
         canvasser: { select: expect.any(Object) },
-        turf: { select: { id: true, name: true } }
+        turf: { select: { id: true, name: true, teamId: true, regionCode: true } }
       }
     });
     expect(prisma.syncEvent.create).toHaveBeenCalledWith({

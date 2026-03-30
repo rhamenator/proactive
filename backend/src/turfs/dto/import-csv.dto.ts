@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 import { IsIn } from 'class-validator';
 
 export class ImportCsvDto {
@@ -17,4 +17,12 @@ export class ImportCsvDto {
   @IsOptional()
   @IsIn(['skip', 'error', 'merge', 'review'])
   duplicateStrategy?: 'skip' | 'error' | 'merge' | 'review';
+
+  @IsOptional()
+  @IsUUID()
+  teamId?: string;
+
+  @IsOptional()
+  @IsString()
+  regionCode?: string;
 }

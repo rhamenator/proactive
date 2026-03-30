@@ -2,7 +2,22 @@ import { UserRole } from '@prisma/client';
 import { AdminController } from './admin.controller';
 
 describe('AdminController', () => {
-  const scope = { organizationId: 'org-1', campaignId: null };
+  const scope = {
+    organizationId: 'org-1',
+    campaignId: null,
+    teamId: null,
+    regionCode: null,
+    role: UserRole.admin,
+    supervisorScopeMode: undefined
+  };
+  const supervisorScope = {
+    organizationId: 'org-1',
+    campaignId: null,
+    teamId: null,
+    regionCode: null,
+    role: UserRole.supervisor,
+    supervisorScopeMode: 'campaign'
+  };
   const adminService = {
     dashboardSummary: jest.fn(),
     activeCanvassers: jest.fn(),
@@ -39,15 +54,30 @@ describe('AdminController', () => {
     archiveTurf: jest.fn(),
     deleteTurf: jest.fn()
   };
+  const policiesService = {
+    getEffectivePolicy: jest.fn()
+  };
   const controller = new AdminController(
     adminService as never,
     usersService as never,
     authService as never,
-    turfsService as never
+    turfsService as never,
+    policiesService as never
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
+    usersService.findById.mockImplementation(async (id: string) => ({
+      id,
+      organizationId: 'org-1',
+      campaignId: null,
+      teamId: null,
+      team: null,
+      role: id.startsWith('supervisor') ? UserRole.supervisor : UserRole.admin
+    }));
+    policiesService.getEffectivePolicy.mockResolvedValue({
+      supervisorScopeMode: 'campaign'
+    });
   });
 
   it('delegates dashboard and active canvasser requests with organization scope', async () => {
@@ -70,16 +100,16 @@ describe('AdminController', () => {
     await controller.gpsReviewQueue(user);
     await controller.syncConflictQueue(user);
 
-    expect(adminService.dashboardSummary).toHaveBeenCalledWith(scope);
-    expect(adminService.activeCanvassers).toHaveBeenCalledWith(scope);
-    expect(adminService.listCanvassers).toHaveBeenCalledWith(scope);
-    expect(adminService.listCampaigns).toHaveBeenCalledWith(scope);
-    expect(adminService.listOutcomeDefinitions).toHaveBeenCalledWith(scope);
-    expect(adminService.getOperationalPolicy).toHaveBeenCalledWith(scope, null);
+    expect(adminService.dashboardSummary).toHaveBeenCalledWith(expect.objectContaining(scope));
+    expect(adminService.activeCanvassers).toHaveBeenCalledWith(expect.objectContaining(scope));
+    expect(adminService.listCanvassers).toHaveBeenCalledWith(expect.objectContaining(scope));
+    expect(adminService.listCampaigns).toHaveBeenCalledWith(expect.objectContaining(scope));
+    expect(adminService.listOutcomeDefinitions).toHaveBeenCalledWith(expect.objectContaining(scope));
+    expect(adminService.getOperationalPolicy).toHaveBeenCalledWith(expect.objectContaining(scope), null);
     expect(adminService.getSystemSettings).toHaveBeenCalled();
-    expect(adminService.retentionSummary).toHaveBeenCalledWith(scope);
-    expect(adminService.gpsReviewQueue).toHaveBeenCalledWith(scope);
-    expect(adminService.syncConflictQueue).toHaveBeenCalledWith(scope);
+    expect(adminService.retentionSummary).toHaveBeenCalledWith(expect.objectContaining(scope));
+    expect(adminService.gpsReviewQueue).toHaveBeenCalledWith(expect.objectContaining(scope));
+    expect(adminService.syncConflictQueue).toHaveBeenCalledWith(expect.objectContaining(scope));
   });
 
   it('delegates manual retention cleanup with scoped actor context', async () => {
@@ -93,7 +123,7 @@ describe('AdminController', () => {
 
     await controller.runRetentionCleanup(user);
 
-    expect(adminService.runRetentionCleanup).toHaveBeenCalledWith(scope, 'admin-1');
+    expect(adminService.runRetentionCleanup).toHaveBeenCalledWith(expect.objectContaining(scope), 'admin-1');
   });
 
   it('delegates create, invite, and update field-user flows', async () => {
@@ -171,8 +201,19 @@ describe('AdminController', () => {
       { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null }
     );
 
-    expect(turfsService.assignTurf).toHaveBeenCalledWith('turf-1', 'user-2', 'admin-1', 'Coverage', scope);
-    expect(turfsService.reopenTurf).toHaveBeenCalledWith('turf-1', 'admin-1', 'Need more attempts', scope);
+    expect(turfsService.assignTurf).toHaveBeenCalledWith(
+      'turf-1',
+      'user-2',
+      'admin-1',
+      'Coverage',
+      expect.objectContaining(scope)
+    );
+    expect(turfsService.reopenTurf).toHaveBeenCalledWith(
+      'turf-1',
+      'admin-1',
+      'Need more attempts',
+      expect.objectContaining(scope)
+    );
   });
 
   it('delegates field-user archive/delete and turf archive/delete actions', async () => {
@@ -200,26 +241,26 @@ describe('AdminController', () => {
     expect(adminService.archiveFieldUser).toHaveBeenCalledWith({
       userId: 'user-1',
       actorUserId: 'admin-1',
-      scope,
+      scope: expect.objectContaining(scope),
       reasonText: 'No longer active'
     });
     expect(adminService.deleteFieldUser).toHaveBeenCalledWith({
       userId: 'user-1',
       actorUserId: 'admin-1',
-      scope,
+      scope: expect.objectContaining(scope),
       reasonText: 'Created in error'
     });
     expect(turfsService.archiveTurf).toHaveBeenCalledWith(
       '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
       'admin-1',
       'Closed after review',
-      scope
+      expect.objectContaining(scope)
     );
     expect(turfsService.deleteTurf).toHaveBeenCalledWith(
       '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
       'admin-1',
       'Created in error',
-      scope
+      expect.objectContaining(scope)
     );
   });
 
@@ -252,7 +293,7 @@ describe('AdminController', () => {
         label: 'Refused',
         requiresNote: true
       },
-      scope
+      expect.objectContaining(scope)
     );
     expect(adminService.upsertOutcomeDefinition).toHaveBeenNthCalledWith(
       2,
@@ -262,18 +303,18 @@ describe('AdminController', () => {
         label: 'Refused at door',
         requiresNote: true
       },
-      scope
+      expect.objectContaining(scope)
     );
     expect(adminService.overrideGpsResult).toHaveBeenCalledWith({
       visitLogId: '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
       actorUserId: 'supervisor-1',
-      scope,
+      scope: expect.objectContaining(supervisorScope),
       reason: 'Supervisor confirmed doorstep visit'
     });
     expect(adminService.resolveSyncConflict).toHaveBeenCalledWith({
       visitLogId: '8cb8fd34-5625-48f7-8a91-6657bdbf2c6d',
       actorUserId: 'supervisor-1',
-      scope,
+      scope: expect.objectContaining(supervisorScope),
       reason: 'Reviewed duplicate local submission and cleared the queue item'
     });
   });
@@ -288,7 +329,7 @@ describe('AdminController', () => {
       { sub: 'admin-1', email: 'admin@example.com', role: UserRole.admin, organizationId: 'org-1', campaignId: null }
     );
 
-    expect(adminService.upsertOperationalPolicy).toHaveBeenCalledWith(scope, {
+    expect(adminService.upsertOperationalPolicy).toHaveBeenCalledWith(expect.objectContaining(scope), {
       defaultImportMode: 'upsert',
       defaultDuplicateStrategy: 'merge',
       sensitiveMfaWindowMinutes: 15
@@ -301,7 +342,7 @@ describe('AdminController', () => {
       'campaign-1'
     );
 
-    expect(adminService.clearOperationalPolicy).toHaveBeenCalledWith(scope, 'campaign-1', 'admin-1');
+    expect(adminService.clearOperationalPolicy).toHaveBeenCalledWith(expect.objectContaining(scope), 'campaign-1', 'admin-1');
   });
 
   it('delegates global system settings updates and resets', async () => {

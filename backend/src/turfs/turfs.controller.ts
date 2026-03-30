@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
 import { resolveAccessScope } from '../common/utils/access-scope.util';
+import { PoliciesService } from '../policies/policies.service';
 import { UsersService } from '../users/users.service';
 import { AssignTurfDto } from './dto/assign-turf.dto';
 import { CreateTurfDto } from './dto/create-turf.dto';
@@ -27,11 +28,12 @@ import { TurfsService } from './turfs.service';
 export class TurfsController {
   constructor(
     private readonly turfsService: TurfsService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
+    private readonly policiesService: PoliciesService
   ) {}
 
   private async resolveScope(user: JwtUserPayload) {
-    return resolveAccessScope(user, this.usersService);
+    return resolveAccessScope(user, this.usersService, this.policiesService);
   }
 
   @Get('turfs')
@@ -46,6 +48,18 @@ export class TurfsController {
   @Roles(UserRole.admin)
   createTurf(@Body() body: CreateTurfDto, @CurrentUser() user: JwtUserPayload) {
     return this.turfsService.createTurf(body, user.sub);
+  }
+
+  @Post('turfs/:id/scope')
+  @UseGuards(RolesGuard, FreshMfaGuard)
+  @Roles(UserRole.admin)
+  @RequireFreshMfa()
+  async updateTurfScope(
+    @Param('id', ParseUUIDPipe) turfId: string,
+    @Body() body: { teamId?: string | null; regionCode?: string | null },
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.turfsService.updateTurfScope(turfId, body, user.sub, await this.resolveScope(user));
   }
 
   @Post('turfs/:id/assign')

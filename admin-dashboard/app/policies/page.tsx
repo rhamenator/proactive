@@ -11,6 +11,7 @@ import type { CampaignRecord, OperationalPolicyRecord, SystemSettingsRecord } fr
 type PolicyForm = {
   defaultImportMode: OperationalPolicyRecord['defaultImportMode'];
   defaultDuplicateStrategy: OperationalPolicyRecord['defaultDuplicateStrategy'];
+  supervisorScopeMode: OperationalPolicyRecord['supervisorScopeMode'];
   sensitiveMfaWindowMinutes: number;
   canvasserCorrectionWindowMinutes: number;
   maxAttemptsPerHousehold: number;
@@ -41,6 +42,7 @@ function toForm(policy: OperationalPolicyRecord): PolicyForm {
   return {
     defaultImportMode: policy.defaultImportMode,
     defaultDuplicateStrategy: policy.defaultDuplicateStrategy,
+    supervisorScopeMode: policy.supervisorScopeMode,
     sensitiveMfaWindowMinutes: policy.sensitiveMfaWindowMinutes,
     canvasserCorrectionWindowMinutes: policy.canvasserCorrectionWindowMinutes,
     maxAttemptsPerHousehold: policy.maxAttemptsPerHousehold,
@@ -159,6 +161,7 @@ export default function PoliciesPage() {
         campaignId: selectedCampaignId || null,
         defaultImportMode: form.defaultImportMode,
         defaultDuplicateStrategy: form.defaultDuplicateStrategy,
+        supervisorScopeMode: form.supervisorScopeMode,
         sensitiveMfaWindowMinutes: form.sensitiveMfaWindowMinutes,
         canvasserCorrectionWindowMinutes: form.canvasserCorrectionWindowMinutes,
         maxAttemptsPerHousehold: form.maxAttemptsPerHousehold,
@@ -471,6 +474,29 @@ export default function PoliciesPage() {
                 </div>
 
                 <div className="field-group">
+                  <label htmlFor="supervisor-scope-mode">Supervisor scope mode</label>
+                  <Select
+                    id="supervisor-scope-mode"
+                    value={form.supervisorScopeMode}
+                    disabled={!isAdmin}
+                    onChange={(event) =>
+                      setForm((current) =>
+                        current
+                          ? { ...current, supervisorScopeMode: event.target.value as PolicyForm['supervisorScopeMode'] }
+                          : current
+                      )
+                    }
+                  >
+                    <option value="campaign">Campaign</option>
+                    <option value="team">Team</option>
+                    <option value="region">Region</option>
+                  </Select>
+                </div>
+                <p className="muted">
+                  This controls how supervisors inherit access: by campaign, by team, or by region.
+                </p>
+
+                <div className="field-group">
                   <label htmlFor="mfa-window">Sensitive-action MFA window (minutes)</label>
                   <Input
                     id="mfa-window"
@@ -739,7 +765,7 @@ export default function PoliciesPage() {
                 </div>
 
                 <p className="muted">
-                  These defaults control import behavior, field visit rules, authentication and recovery timing, sensitive-action MFA freshness, retention planning, and whether campaign users inherit organization-level outcome definitions.
+                  These defaults control import behavior, field visit rules, supervisor scope behavior, authentication and recovery timing, sensitive-action MFA freshness, retention planning, and whether campaign users inherit organization-level outcome definitions.
                 </p>
 
                 {isAdmin ? (

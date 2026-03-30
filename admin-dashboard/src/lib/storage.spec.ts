@@ -10,6 +10,7 @@ describe('admin storage helpers', () => {
     lastName: 'Admin',
     email: 'alex@example.com',
     role: 'admin',
+    status: 'active',
     isActive: true,
     createdAt: '2026-03-28T00:00:00.000Z'
   };

@@ -30,11 +30,12 @@ The system now covers the main operational v1 workflow:
 - richer CSV import handling with `replace_turf_membership` mode, duplicate skip/error/merge/review handling, and expanded VAN/person/household/unit mapping support
 - import duplicate-review queue with per-row pending review tracking, reviewer resolution, and audit-backed merge/skip outcomes
 - scoped operational policy records plus admin dashboard policy management for import defaults, field visit/GPS thresholds, auth/recovery timing, sensitive MFA freshness, retention defaults, and outcome fallback behavior
+- policy-driven supervisor scope management across campaign, team, and region modes, plus admin team management for campaign/region assignments
 - global system settings for deployment-wide auth rate-limiting and retention automation timing, with MFA-protected save/reset workflow
 - retention summary and cleanup workflow for purgeable artifacts and expired auth/security records, with configurable system-wide automation
 - CI, build verification, regression tests, and GitHub release-build automation
 
-The remaining gaps are now mostly in the remaining edges of import-policy breadth, fine-grained authorization policy, and release inputs rather than missing operational screens. Canonical household modeling, retention metadata, on-device SQLite persistence, import/export audit history, and deferred duplicate import review are now in place.
+The remaining gaps are now mostly in the remaining edges of import-policy breadth, deeper optional lifecycle automation, and release inputs rather than missing operational screens. Canonical household modeling, retention metadata, on-device SQLite persistence, import/export audit history, deferred duplicate import review, and team/region scope policy are now in place.
 
 ## What Is In Place
 
@@ -56,33 +57,34 @@ The remaining gaps are now mostly in the remaining edges of import-policy breadt
 - import batch tracking, stored source CSV artifacts, row-level import outcome tracing, and downloadable import history
 - a dedicated `ImportsService` and `/imports/csv` path with import modes including replace-membership behavior, duplicate skip/error/merge/review handling, expanded source-field mapping support, and a review queue tied directly to import-batch rows
 - operational policy records with organization/campaign fallback for import defaults, field visit/GPS thresholds, auth/recovery timing, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
+- configurable supervisor scope policy that can enforce campaign, team, or region-based access, backed by first-class teams and region codes across users, turfs, assignments, sessions, visits, address requests, imports, exports, and reports
 - deployment-wide system settings for auth rate-limit thresholds and retention automation schedule, with admin dashboard management and reset-to-env-default behavior
 - explicit admin archive/delete workflows for field users and turfs, protected by fresh MFA and backed by audit logging
 - admin retention summary and manual cleanup workflow for due address requests, import/export batches, and expired credential records
-- admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, and field-user management
+- admin dashboard routes for outcomes, GPS review, sync conflicts, MFA account settings, turf operations, exports, reports, address requests, visit corrections, field preview, teams, and field-user management
 - mobile canvasser workflow driven by server-defined outcomes, with missing-address requests and recent-visit correction support
 - repo-wide `verify` command and GitHub Actions CI
 - GitHub release-build workflow for trusted build artifacts
 
 ## Remaining Material Gaps
 
-### 1. Fine-grained scope enforcement still stops at campaign scope
+### 1. Team and region scope are now configurable, and deeper geography remains optional
 
 Current state:
 
-- admin and supervisor operational queries are now organization-and-campaign scoped
-- `organization_id` and `campaign_id` are enforced through JWT-derived access scope in admin, turf, export, report, and visit review flows
-- there is still no deeper team, geography, or turf-region permission matrix
+- admin and supervisor operational queries now support organization, campaign, team, and region-aware scope
+- teams are first-class records, can be bound to campaigns and region codes, and can be managed from the admin dashboard
+- supervisor access can be policy-driven at campaign, team, or region level
+- turfs, imports, exports, reporting, visits, assignments, and field-user management now carry and enforce the configured scope metadata
 
 Why it matters:
 
-- the immediate multi-org and cross-campaign leakage risk is addressed
-- future finer-grained scoping would still require policy decisions and additional enforcement work
+- the earlier campaign-only ceiling is closed
+- most remaining work in this area is optional refinement rather than a fundamental authorization gap
 
 What remains:
 
-- decide whether team or turf-region scoping is required in v1.x
-- if yes, model those assignments and enforce them in backend authorization
+- extend beyond the current team/region model only if the client wants more granular geography constructs such as precinct clusters, named territories, or nested region hierarchies
 
 ### 2. Mobile offline storage now uses a real on-device database
 
@@ -194,8 +196,8 @@ Safe for:
 
 Still blocked for full source-packet alignment:
 
-- deeper team/geography scope policy and enforcement if the client wants that in v1.x
 - fuller CSV/VAN import parity if the client insists on more source-specific workflow rules beyond the current audited baseline, duplicate review queue, and expanded field mapping
+- any optional expansion beyond the current team/region scope model into more specialized geography hierarchies
 - final signed mobile app distribution without real external signing credentials
 
 Remaining non-blocking enhancements:
@@ -207,5 +209,5 @@ Remaining non-blocking enhancements:
 
 1. Decide whether v1.x needs richer CSV/VAN parity beyond the current batch/row audit trail, replace-membership mode, duplicate review queue, and expanded field mapping support.
 2. Decide whether lifecycle automation should expand beyond the current safe cleanup targets of address requests, import/export artifacts, and expired credential records.
-3. Set the initial organization/campaign policy defaults in the new Policies screen before broader review.
+3. Set the initial organization/campaign/team scope defaults in the new Policies and Teams screens before broader review.
 4. Provide production release secrets and final app identifiers for EAS/App Store/Play.

@@ -1,4 +1,5 @@
 export type Role = 'admin' | 'supervisor' | 'canvasser';
+export type SupervisorScopeMode = 'campaign' | 'team' | 'region';
 
 export interface SafeUser {
   id: string;
@@ -8,6 +9,8 @@ export interface SafeUser {
   role: Role;
   organizationId?: string | null;
   campaignId?: string | null;
+  teamId?: string | null;
+  regionCode?: string | null;
   isActive: boolean;
   status: string;
   createdAt: string;
@@ -40,6 +43,7 @@ export interface OperationalPolicyRecord {
   sourceScope: 'default' | 'organization' | 'campaign';
   explicitRecord: boolean;
   inheritedFromOrganization: boolean;
+  supervisorScopeMode: SupervisorScopeMode;
   defaultImportMode: 'create_only' | 'upsert' | 'replace_turf_membership';
   defaultDuplicateStrategy: 'skip' | 'error' | 'merge' | 'review';
   sensitiveMfaWindowMinutes: number;
@@ -135,6 +139,8 @@ export interface ExportBatchRecord {
   filename: string;
   organizationId?: string | null;
   campaignId?: string | null;
+  teamId?: string | null;
+  regionCode?: string | null;
   turfId?: string | null;
   markExported: boolean;
   rowCount: number;
@@ -157,6 +163,17 @@ export interface CampaignRecord {
   name: string;
   isActive: boolean;
   organizationId?: string | null;
+  createdAt?: string;
+}
+
+export interface TeamRecord {
+  id: string;
+  code: string;
+  name: string;
+  campaignId?: string | null;
+  regionCode?: string | null;
+  organizationId?: string | null;
+  isActive: boolean;
   createdAt?: string;
 }
 
@@ -195,6 +212,8 @@ export interface MfaStepUpResponse extends LoginResponse {}
 export interface ReportFilters {
   dateFrom?: string;
   dateTo?: string;
+  teamId?: string;
+  regionCode?: string;
   turfId?: string;
   canvasserId?: string;
   campaignId?: string;
@@ -502,6 +521,8 @@ export interface TurfListItem {
   id: string;
   name: string;
   description?: string | null;
+  teamId?: string | null;
+  regionCode?: string | null;
   lifecycleStatus?: 'open' | 'paused' | 'completed' | 'closed';
   createdAt: string;
   _count?: {
@@ -574,6 +595,8 @@ export interface ImportBatchRecord {
   filename: string;
   mode: string;
   duplicateStrategy: string;
+  teamId?: string | null;
+  regionCode?: string | null;
   rowCount: number;
   importedCount: number;
   mergedCount: number;

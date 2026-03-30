@@ -73,10 +73,20 @@ export class VisitsService {
   }
 
   private buildScopedWhere(scope: AccessScope) {
-    return {
+    const where = {
       organizationId: scope.organizationId,
       ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
-    } as const;
+    } as Record<string, unknown>;
+
+    if (scope.role === UserRole.supervisor) {
+      if (scope.supervisorScopeMode === 'team' && scope.teamId) {
+        where.teamId = scope.teamId;
+      } else if (scope.supervisorScopeMode === 'region' && scope.regionCode) {
+        where.regionCode = scope.regionCode;
+      }
+    }
+
+    return where;
   }
 
   private async findScopedOutcomeDefinition(input: {
@@ -177,6 +187,8 @@ export class VisitsService {
             role: true,
             organizationId: true,
             campaignId: true,
+            teamId: true,
+            regionCode: true,
             isActive: true,
             status: true,
             mfaEnabled: true,
@@ -486,6 +498,8 @@ export class VisitsService {
           canvasserId: input.canvasserId,
           organizationId: address.organizationId ?? address.turf.organizationId,
           campaignId: address.campaignId ?? address.turf.campaignId,
+          teamId: address.teamId ?? address.turf.teamId,
+          regionCode: address.regionCode ?? address.turf.regionCode,
           outcomeDefinitionId: outcomeDefinition.id,
           result: this.normalizeLegacyResult(outcomeDefinition.code),
           outcomeCode: outcomeDefinition.code,

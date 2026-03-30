@@ -32,11 +32,37 @@ export class ImportsService {
     return createHash('sha256').update(csv).digest('hex');
   }
 
-  private buildScope(scope: AccessScope | { organizationId?: string | null; campaignId?: string | null }) {
+  private buildScope(scope: AccessScope | { organizationId?: string | null; campaignId?: string | null; teamId?: string | null; regionCode?: string | null }) {
     return {
       organizationId: scope.organizationId ?? null,
-      ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
+      ...(scope.campaignId ? { campaignId: scope.campaignId } : {}),
+      ...(scope.teamId ? { teamId: scope.teamId } : {}),
+      ...(scope.regionCode ? { regionCode: scope.regionCode } : {})
     } as const;
+  }
+
+  private async validateTeamScope(organizationId: string | null, campaignId: string | null | undefined, teamId?: string | null) {
+    if (!teamId) {
+      return null;
+    }
+
+    const team = await this.prisma.team.findFirst({
+      where: {
+        id: teamId,
+        organizationId: organizationId ?? undefined,
+        isActive: true
+      }
+    });
+
+    if (!team) {
+      throw new BadRequestException('Team not found');
+    }
+
+    if (campaignId && team.campaignId && team.campaignId !== campaignId) {
+      throw new BadRequestException('Team is outside the requested campaign scope');
+    }
+
+    return team;
   }
 
   private buildPurgeAt(days?: number | null) {
@@ -205,6 +231,8 @@ export class ImportsService {
     mapping?: CsvMapping;
     mode?: ImportMode;
     duplicateStrategy?: DuplicateStrategy;
+    teamId?: string | null;
+    regionCode?: string | null;
   }) {
     const creator = await this.usersService.findById(input.createdById);
     if (!creator.organizationId) {
@@ -214,6 +242,8 @@ export class ImportsService {
       organizationId: creator.organizationId,
       campaignId: creator.campaignId ?? null
     });
+    const team = await this.validateTeamScope(creator.organizationId ?? null, creator.campaignId ?? null, input.teamId);
+    const regionCode = input.regionCode?.trim() || team?.regionCode || null;
     const mode = input.mode ?? policy.defaultImportMode;
     const duplicateStrategy = input.duplicateStrategy ?? policy.defaultDuplicateStrategy;
     const records = parse(input.csv, {
@@ -261,7 +291,8 @@ export class ImportsService {
               where: {
                 name: turfName,
                 organizationId: creator.organizationId ?? null,
-                campaignId: creator.campaignId ?? null
+                campaignId: creator.campaignId ?? null,
+                ...(input.teamId ? { teamId: input.teamId } : {})
               }
             })
           : null;
@@ -274,7 +305,9 @@ export class ImportsService {
             description: `Imported from CSV on ${new Date().toISOString()}`,
             createdById: input.createdById,
             organizationId: creator.organizationId ?? null,
-            campaignId: creator.campaignId ?? null,
+            campaignId: creator.campaignId ?? team?.campaignId ?? null,
+            teamId: input.teamId ?? null,
+            regionCode,
             status: TurfStatus.unassigned
           }
         }));
@@ -396,6 +429,8 @@ export class ImportsService {
             householdId: household.id,
             organizationId: turf.organizationId,
             campaignId: turf.campaignId,
+            teamId: turf.teamId,
+            regionCode: turf.regionCode,
             addressLine1: combinedAddressLine1,
             city,
             state,
@@ -444,6 +479,8 @@ export class ImportsService {
         filename,
         organizationId: creator.organizationId ?? null,
         campaignId: creator.campaignId ?? null,
+        teamId: input.teamId ?? null,
+        regionCode,
         initiatedByUserId: input.createdById,
         mode,
         duplicateStrategy,

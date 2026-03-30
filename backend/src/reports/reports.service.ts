@@ -5,6 +5,8 @@ import { PrismaService } from '../prisma/prisma.service';
 export type ReportFilters = {
   organizationId: string | null;
   campaignId?: string;
+  teamId?: string;
+  regionCode?: string;
   dateFrom?: string;
   dateTo?: string;
   turfId?: string;
@@ -126,6 +128,8 @@ export class ReportsService {
     return {
       organizationId: filters.organizationId,
       campaignId: filters.campaignId ?? null,
+      teamId: filters.teamId ?? null,
+      regionCode: filters.regionCode ?? null,
       dateFrom: filters.dateFrom ?? null,
       dateTo: filters.dateTo ?? null,
       turfId: filters.turfId ?? null,
@@ -145,6 +149,12 @@ export class ReportsService {
     };
     if (filters.campaignId) {
       where.campaignId = filters.campaignId;
+    }
+    if (filters.teamId) {
+      where.teamId = filters.teamId;
+    }
+    if (filters.regionCode) {
+      where.regionCode = filters.regionCode;
     }
     const { from, to } = this.getRange(filters);
 
@@ -191,6 +201,12 @@ export class ReportsService {
     if (filters.campaignId) {
       where.campaignId = filters.campaignId;
     }
+    if (filters.teamId) {
+      where.teamId = filters.teamId;
+    }
+    if (filters.regionCode) {
+      where.regionCode = filters.regionCode;
+    }
     const { from, to } = this.getRange(filters);
     const andConditions: Prisma.TurfSessionWhereInput[] = [];
 
@@ -235,6 +251,15 @@ export class ReportsService {
 
     if (filters.canvasserId) {
       where.actorUserId = filters.canvasserId;
+    }
+
+    if (filters.teamId || filters.regionCode) {
+      where.actorUser = {
+        is: {
+          ...(filters.teamId ? { teamId: filters.teamId } : {}),
+          ...(filters.regionCode ? { regionCode: filters.regionCode } : {})
+        }
+      };
     }
 
     return where;

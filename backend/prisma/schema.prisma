@@ -79,6 +79,12 @@ enum AddressRequestStatus {
   rejected
 }
 
+enum SupervisorScopeMode {
+  campaign
+  team
+  region
+}
+
 model User {
   id                            String                 @id @default(uuid()) @db.Uuid
   firstName                     String                 @map("first_name")
@@ -88,6 +94,8 @@ model User {
   role                          UserRole
   organizationId                String?                @map("organization_id") @db.Uuid
   campaignId                    String?                @map("campaign_id") @db.Uuid
+  teamId                        String?                @map("team_id") @db.Uuid
+  regionCode                    String?                @map("region_code")
   isActive                      Boolean                @default(true) @map("is_active")
   status                        String                 @default("active")
   mfaEnabled                    Boolean                @default(false) @map("mfa_enabled")
@@ -105,6 +113,7 @@ model User {
   createdAt                     DateTime               @default(now()) @map("created_at")
   organization                  Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign                      Campaign?              @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  team                          Team?                  @relation(fields: [teamId], references: [id], onDelete: SetNull)
   createdTurfs                  Turf[]                 @relation("TurfsCreated")
   assignments                   TurfAssignment[]
   sessions                      TurfSession[]
@@ -126,6 +135,8 @@ model User {
 
   @@index([organizationId])
   @@index([campaignId])
+  @@index([teamId])
+  @@index([regionCode])
   @@map("users")
 }
 
@@ -137,6 +148,7 @@ model Organization {
   users                 User[]
   campaigns             Campaign[]
   households            Household[]
+  teams                 Team[]
   turfs                 Turf[]
   addresses             Address[]
   assignments           TurfAssignment[]
@@ -196,6 +208,34 @@ model Household {
   @@map("households")
 }
 
+model Team {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  campaignId     String?       @map("campaign_id") @db.Uuid
+  code           String
+  name           String
+  regionCode     String?       @map("region_code")
+  isActive       Boolean       @default(true) @map("is_active")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign       Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  users          User[]
+  turfs          Turf[]
+  addresses      Address[]
+  assignments    TurfAssignment[]
+  sessions       TurfSession[]
+  visits         VisitLog[]
+  addressRequests AddressRequest[]
+  importBatches  ImportBatch[]
+  exportBatches  ExportBatch[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([regionCode])
+  @@map("teams")
+}
+
 model Campaign {
   id                    String                 @id @default(uuid()) @db.Uuid
   organizationId        String                 @map("organization_id") @db.Uuid
@@ -205,6 +245,7 @@ model Campaign {
   createdAt             DateTime               @default(now()) @map("created_at")
   organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   users                 User[]
+  teams                 Team[]
   turfs                 Turf[]
   addresses             Address[]
   assignments           TurfAssignment[]
@@ -251,6 +292,8 @@ model Turf {
   description     String?
   organizationId  String?          @map("organization_id") @db.Uuid
   campaignId      String?          @map("campaign_id") @db.Uuid
+  teamId          String?          @map("team_id") @db.Uuid
+  regionCode      String?          @map("region_code")
   status          TurfStatus       @default(unassigned)
   isShared        Boolean          @default(false) @map("is_shared")
   createdById     String?          @map("created_by") @db.Uuid
@@ -266,6 +309,7 @@ model Turf {
   createdAt       DateTime         @default(now()) @map("created_at")
   organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign        Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  team            Team?            @relation(fields: [teamId], references: [id], onDelete: SetNull)
   createdBy       User?            @relation("TurfsCreated", fields: [createdById], references: [id])
   addresses       Address[]
   assignments     TurfAssignment[]
@@ -276,6 +320,8 @@ model Turf {
 
   @@index([organizationId])
   @@index([campaignId])
+  @@index([teamId])
+  @@index([regionCode])
   @@map("turfs")
 }
 
@@ -285,6 +331,8 @@ model Address {
   householdId     String                @map("household_id") @db.Uuid
   organizationId  String?               @map("organization_id") @db.Uuid
   campaignId      String?               @map("campaign_id") @db.Uuid
+  teamId          String?               @map("team_id") @db.Uuid
+  regionCode      String?               @map("region_code")
   addressLine1    String                @map("address_line1")
   city            String
   state           String
@@ -300,6 +348,7 @@ model Address {
   createdAt       DateTime              @default(now()) @map("created_at")
   organization    Organization?         @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign        Campaign?             @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  team            Team?                 @relation(fields: [teamId], references: [id], onDelete: SetNull)
   turf            Turf                  @relation(fields: [turfId], references: [id], onDelete: Cascade)
   household       Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
   visitLogs       VisitLog[]
@@ -312,6 +361,8 @@ model Address {
   @@index([householdId])
   @@index([organizationId])
   @@index([campaignId])
+  @@index([teamId])
+  @@index([regionCode])
   @@index([turfId, householdId])
   @@map("addresses")
 }
@@ -322,6 +373,8 @@ model TurfAssignment {
   canvasserId        String           @map("canvasser_id") @db.Uuid
   organizationId     String?          @map("organization_id") @db.Uuid
   campaignId         String?          @map("campaign_id") @db.Uuid
+  teamId             String?          @map("team_id") @db.Uuid
+  regionCode         String?          @map("region_code")
   assignedByUserId   String?          @map("assigned_by_user_id") @db.Uuid
   assignedAt         DateTime         @default(now()) @map("assigned_at")
   unassignedAt       DateTime?        @map("unassigned_at")
@@ -329,6 +382,7 @@ model TurfAssignment {
   status             AssignmentStatus @default(assigned)
   organization       Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign           Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  team               Team?            @relation(fields: [teamId], references: [id], onDelete: SetNull)
   turf               Turf             @relation(fields: [turfId], references: [id], onDelete: Cascade)
   canvasser          User             @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
 
@@ -336,6 +390,8 @@ model TurfAssignment {
   @@index([canvasserId])
   @@index([organizationId])
   @@index([campaignId])
+  @@index([teamId])
+  @@index([regionCode])
   @@map("turf_assignments")
 }
 
@@ -345,6 +401,8 @@ model TurfSession {
   canvasserId    String        @map("canvasser_id") @db.Uuid
   organizationId String?       @map("organization_id") @db.Uuid
   campaignId     String?       @map("campaign_id") @db.Uuid
+  teamId         String?       @map("team_id") @db.Uuid
+  regionCode     String?       @map("region_code")
   startTime      DateTime      @map("start_time")
   endTime        DateTime?     @map("end_time")
   status         SessionStatus @default(active)
@@ -357,6 +415,7 @@ model TurfSession {
   endLng         Decimal?      @map("end_lng") @db.Decimal(9, 6)
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign       Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  team           Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
   turf           Turf          @relation(fields: [turfId], references: [id], onDelete: Cascade)
   canvasser      User          @relation(fields: [canvasserId], references: [id], onDelete: Cascade)
   visits         VisitLog[]
@@ -365,6 +424,8 @@ model TurfSession {
   @@index([canvasserId])
   @@index([organizationId])
   @@index([campaignId])
+  @@index([teamId])
+  @@index([regionCode])
   @@index([status])
   @@map("turf_sessions")
 }
@@ -377,6 +438,8 @@ model VisitLog {
   canvasserId            String               @map("canvasser_id") @db.Uuid
   organizationId         String?              @map("organization_id") @db.Uuid
   campaignId             String?              @map("campaign_id") @db.Uuid
+  teamId                 String?              @map("team_id") @db.Uuid
+  regionCode             String?              @map("region_code")
   outcomeDefinitionId    String?              @map("outcome_definition_id") @db.Uuid
   visitTime              DateTime             @default(now()) @map("visit_time")
   clientCreatedAt        DateTime?            @map("client_created_at")
@@ -405,6 +468,7 @@ model VisitLog {
   purgeAt                DateTime?            @map("purge_at")
   organization           Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign               Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  team                   Team?                @relation(fields: [teamId], references: [id], onDelete: SetNull)
   outcomeDefinition      OutcomeDefinition?   @relation(fields: [outcomeDefinitionId], references: [id], onDelete: SetNull)
   turf                   Turf                 @relation(fields: [turfId], references: [id], onDelete: Cascade)
   address                Address              @relation(fields: [addressId], references: [id], onDelete: Cascade)
@@ -420,6 +484,8 @@ model VisitLog {
   @@index([sessionId])
   @@index([organizationId])
   @@index([campaignId])
+  @@index([teamId])
+  @@index([regionCode])
   @@index([outcomeDefinitionId])
   @@index([syncStatus])
   @@map("visit_logs")
@@ -504,6 +570,8 @@ model ExportBatch {
   filename          String
   organizationId    String?            @map("organization_id") @db.Uuid
   campaignId        String?            @map("campaign_id") @db.Uuid
+  teamId            String?            @map("team_id") @db.Uuid
+  regionCode        String?            @map("region_code")
   turfId            String?            @map("turf_id") @db.Uuid
   initiatedByUserId String?            @map("initiated_by_user_id") @db.Uuid
   markExported      Boolean            @default(false) @map("mark_exported")
@@ -515,6 +583,7 @@ model ExportBatch {
   createdAt         DateTime           @default(now()) @map("created_at")
   organization      Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign          Campaign?          @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  team              Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull)
   turf              Turf?              @relation(fields: [turfId], references: [id], onDelete: SetNull)
   initiatedByUser   User?              @relation("ExportBatchesInitiated", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
   exportedVisits    ExportBatchVisit[]
@@ -522,6 +591,8 @@ model ExportBatch {
   @@index([profileCode])
   @@index([organizationId])
   @@index([campaignId])
+  @@index([teamId])
+  @@index([regionCode])
   @@index([turfId])
   @@index([initiatedByUserId])
   @@index([createdAt])
@@ -548,6 +619,8 @@ model ImportBatch {
   filename              String
   organizationId        String?          @map("organization_id") @db.Uuid
   campaignId            String?          @map("campaign_id") @db.Uuid
+  teamId                String?          @map("team_id") @db.Uuid
+  regionCode            String?          @map("region_code")
   initiatedByUserId     String?          @map("initiated_by_user_id") @db.Uuid
   mode                  String
   duplicateStrategy     String           @map("duplicate_strategy")
@@ -566,11 +639,14 @@ model ImportBatch {
   createdAt             DateTime         @default(now()) @map("created_at")
   organization          Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign              Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  team                  Team?            @relation(fields: [teamId], references: [id], onDelete: SetNull)
   initiatedByUser       User?            @relation("ImportBatchesInitiated", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
   rows                  ImportBatchRow[]
 
   @@index([organizationId])
   @@index([campaignId])
+  @@index([teamId])
+  @@index([regionCode])
   @@index([initiatedByUserId])
   @@index([createdAt])
   @@map("import_batches")
@@ -630,6 +706,7 @@ model OperationalPolicy {
   retentionPurgeDays       Int?          @map("retention_purge_days")
   requireArchiveReason     Boolean       @default(false) @map("require_archive_reason")
   allowOrgOutcomeFallback  Boolean       @default(true) @map("allow_org_outcome_fallback")
+  supervisorScopeMode      SupervisorScopeMode @default(campaign) @map("supervisor_scope_mode")
   createdAt                DateTime      @default(now()) @map("created_at")
   updatedAt                DateTime      @updatedAt @map("updated_at")
   organization             Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -688,6 +765,8 @@ model AddressRequest {
   turfId            String               @map("turf_id") @db.Uuid
   organizationId    String?              @map("organization_id") @db.Uuid
   campaignId        String?              @map("campaign_id") @db.Uuid
+  teamId            String?              @map("team_id") @db.Uuid
+  regionCode        String?              @map("region_code")
   requestedByUserId String               @map("requested_by_user_id") @db.Uuid
   reviewedByUserId  String?              @map("reviewed_by_user_id") @db.Uuid
   approvedAddressId String?              @map("approved_address_id") @db.Uuid
@@ -707,6 +786,7 @@ model AddressRequest {
   turf              Turf                 @relation(fields: [turfId], references: [id], onDelete: Cascade)
   organization      Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign          Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  team              Team?                @relation(fields: [teamId], references: [id], onDelete: SetNull)
   requestedByUser   User                 @relation("AddressRequestSubmitter", fields: [requestedByUserId], references: [id], onDelete: Cascade)
   reviewedByUser    User?                @relation("AddressRequestReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
   approvedAddress   Address?             @relation("AddressRequestApprovedAddress", fields: [approvedAddressId], references: [id], onDelete: SetNull)
@@ -714,6 +794,8 @@ model AddressRequest {
   @@index([turfId])
   @@index([organizationId])
   @@index([campaignId])
+  @@index([teamId])
+  @@index([regionCode])
   @@index([requestedByUserId])
   @@index([reviewedByUserId])
   @@index([status])

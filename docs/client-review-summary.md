@@ -8,6 +8,7 @@ The application suite has been built and brought to a review-ready state across 
   - Authentication, refresh/logout, password reset, activation, lockout, and MFA
   - Step-up MFA enforcement on sensitive admin/supervisor actions
   - Admin/supervisor impersonation support with audit tracking
+  - Policy-driven organization, campaign, team, and region scope enforcement for supervisor-facing operational queries
   - Turf creation, assignment, lifecycle management, and field session tracking
   - Visit logging with offline-safe sync metadata, idempotency, GPS validation, and audit history
   - Canonical household records plus turf-level address membership for cross-turf/cross-campaign reuse without breaking current address workflows
@@ -22,11 +23,13 @@ The application suite has been built and brought to a review-ready state across 
 - **Admin Dashboard**
   - Dashboard and operational summary views
   - Turf management and assignment
+  - Team management with campaign and region binding
   - Field-user management for supervisors and canvassers
   - MFA-protected archive/delete workflows for field users and turfs
   - MFA account management
   - Sensitive-action MFA confirmation flow for exports, overrides, conflict resolution, and turf control changes
   - Policy management for configurable operational defaults such as field visit/GPS thresholds, auth/recovery timing, import behavior, MFA freshness, retention planning, and organization outcome fallback, with step-up MFA required for policy edits and explicit overrides that can be cleared back to inherited defaults
+  - Supervisor scope configuration across campaign, team, and region modes
   - System-wide settings management for deployment-level auth throttling and retention automation timing, with step-up MFA required for save/reset actions
   - Retention summary and manual cleanup workflow for purgeable artifacts and expired credential records
   - Outcomes management
@@ -82,6 +85,7 @@ Please review:
 - Admin dashboard workflows
 - Field/mobile workflow
 - Policy-management defaults and whether they should be set at organization level or campaign level
+- Team and region structure, including whether supervisors should default to campaign, team, or region scope
 - Deployment-wide auth throttling and retention automation settings in the `System-Wide` policy card
 - Field visit/GPS thresholds and whether the initial defaults match your expected operations
 - Reporting views
@@ -96,7 +100,7 @@ Please review:
 Please confirm whether you want any of the following added before release:
 
 - Any additional CSV/VAN import rules beyond the current review-ready baseline with replace-membership imports, expanded VAN field mapping, deferred duplicate review, and duplicate handling
-- Deeper team/geography scoping beyond the current organization-and-campaign scope
+- Any geography model deeper than the current campaign/team/region scope design
 - Whether you want lifecycle automation expanded beyond the current safe cleanup targets of address requests, import/export artifacts, and expired credential records
 - Any changes to impersonation policy, correction windows, or review permissions
 
@@ -130,4 +134,4 @@ The only major items still outside the repository are:
 
 - Final release credentials for signed mobile binaries
 - Additional CSV/VAN import workflow depth if you want richer source-specific policy beyond the current baseline, expanded mapping, and duplicate-review workflow
-- Any additional scope decisions you want included before production rollout
+- Any additional geography/scope decisions you want included beyond the current campaign/team/region model

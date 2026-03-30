@@ -54,6 +54,16 @@ export class ReportFiltersDto {
   campaignId?: string;
 
   @IsOptional()
+  @Transform(({ value, obj }) => emptyToUndefined(fromAliases(value, obj, 'team_id')))
+  @IsUUID()
+  teamId?: string;
+
+  @IsOptional()
+  @Transform(({ value, obj }) => emptyToUndefined(fromAliases(value, obj, 'region_code')))
+  @IsString()
+  regionCode?: string;
+
+  @IsOptional()
   @Transform(({ value, obj }) => emptyToUndefined(fromAliases(value, obj, 'sync_status')))
   @IsIn(syncStatuses)
   syncStatus?: (typeof syncStatuses)[number];

@@ -15,6 +15,8 @@ const safeUserSelect = {
   role: true,
   organizationId: true,
   campaignId: true,
+  teamId: true,
+  regionCode: true,
   isActive: true,
   status: true,
   mfaEnabled: true,
@@ -34,7 +36,9 @@ const reviewAddressSelect = {
 
 const reviewTurfSelect = {
   id: true,
-  name: true
+  name: true,
+  teamId: true,
+  regionCode: true
 } as const;
 
 const syncConflictReviewInclude = {
@@ -60,10 +64,41 @@ export class AdminService {
   ) {}
 
   private scopeWhere(scope: AccessScope) {
-    return {
+    const where = {
       organizationId: scope.organizationId,
       ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
-    } as const;
+    } as Record<string, unknown>;
+
+    if (scope.role === UserRole.supervisor) {
+      if (scope.supervisorScopeMode === 'team' && scope.teamId) {
+        where.teamId = scope.teamId;
+      } else if (scope.supervisorScopeMode === 'region' && scope.regionCode) {
+        where.regionCode = scope.regionCode;
+      }
+    }
+
+    return where;
+  }
+
+  private addressScopeWhere(scope: AccessScope): Prisma.AddressWhereInput {
+    return {
+      deletedAt: null,
+      turf: this.scopeWhere(scope)
+    };
+  }
+
+  private sessionScopeWhere(scope: AccessScope): Prisma.TurfSessionWhereInput {
+    return {
+      endTime: null,
+      turf: this.scopeWhere(scope)
+    };
+  }
+
+  private visitScopeWhere(scope: AccessScope): Prisma.VisitLogWhereInput {
+    return {
+      deletedAt: null,
+      turf: this.scopeWhere(scope)
+    };
   }
 
   private buildPurgeAt(days?: number | null) {
@@ -89,20 +124,20 @@ export class AdminService {
     const [users, turfs, addresses, assignments, activeSessions, visits] = await Promise.all([
       this.prisma.user.count({ where: { ...organizationScope, deletedAt: null } }),
       this.prisma.turf.count({ where: { ...organizationScope, deletedAt: null } }),
-      this.prisma.address.count({ where: { ...organizationScope, deletedAt: null } }),
-      this.prisma.turfAssignment.count({ where: organizationScope }),
-      this.prisma.turfSession.count({ where: { ...organizationScope, endTime: null } }),
-      this.prisma.visitLog.count({ where: { ...organizationScope, deletedAt: null } })
+      this.prisma.address.count({ where: this.addressScopeWhere(scope) }),
+      this.prisma.turfAssignment.count({ where: { turf: organizationScope } }),
+      this.prisma.turfSession.count({ where: this.sessionScopeWhere(scope) }),
+      this.prisma.visitLog.count({ where: this.visitScopeWhere(scope) })
     ]);
 
     const completedAddresses = await this.prisma.visitLog.findMany({
-      where: { ...organizationScope, deletedAt: null },
+      where: this.visitScopeWhere(scope),
       distinct: ['addressId'],
       select: { addressId: true }
     });
 
     const activeCanvassers = await this.prisma.turfSession.findMany({
-      where: { ...organizationScope, endTime: null },
+      where: this.sessionScopeWhere(scope),
       include: {
         canvasser: {
           select: safeUserSelect
@@ -118,7 +153,7 @@ export class AdminService {
     });
 
     const perTurf = await this.prisma.turf.findMany({
-      where: organizationScope,
+      where: { ...organizationScope, deletedAt: null },
       include: {
         addresses: {
           where: { deletedAt: null }
@@ -165,7 +200,7 @@ export class AdminService {
 
   async activeCanvassers(scope: AccessScope) {
     return this.prisma.turfSession.findMany({
-      where: { ...this.scopeWhere(scope), endTime: null },
+      where: this.sessionScopeWhere(scope),
       orderBy: { startTime: 'desc' },
       include: {
         canvasser: {
@@ -207,6 +242,140 @@ export class AdminService {
       },
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }]
     });
+  }
+
+  async listTeams(scope: AccessScope) {
+    const where = {
+      ...(scope.organizationId ? { organizationId: scope.organizationId } : {}),
+      ...(scope.campaignId ? { campaignId: scope.campaignId } : {}),
+      ...(scope.role === UserRole.supervisor && scope.supervisorScopeMode === 'team' && scope.teamId ? { id: scope.teamId } : {}),
+      ...(scope.role === UserRole.supervisor && scope.supervisorScopeMode === 'region' && scope.regionCode ? { regionCode: scope.regionCode } : {})
+    };
+
+    return this.prisma.team.findMany({
+      where,
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }]
+    });
+  }
+
+  async createTeam(
+    scope: AccessScope,
+    input: { code: string; name: string; campaignId?: string | null; regionCode?: string | null; isActive?: boolean },
+    actorUserId: string
+  ) {
+    if (!scope.organizationId) {
+      throw new BadRequestException('Teams require an organization-scoped account');
+    }
+
+    const campaignId = scope.campaignId ?? input.campaignId ?? null;
+    if (scope.campaignId && input.campaignId && input.campaignId !== scope.campaignId) {
+      throw new BadRequestException('Team is outside your campaign scope');
+    }
+    if (campaignId) {
+      await this.policiesService.assertCampaignInOrganization(scope.organizationId, campaignId);
+    }
+
+    const team = await this.prisma.team.create({
+      data: {
+        organizationId: scope.organizationId,
+        campaignId,
+        code: input.code.trim(),
+        name: input.name.trim(),
+        regionCode: input.regionCode?.trim() || null,
+        isActive: input.isActive ?? true
+      }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      actionType: 'team_created',
+      entityType: 'team',
+      entityId: team.id,
+      newValuesJson: {
+        campaignId: team.campaignId,
+        regionCode: team.regionCode,
+        isActive: team.isActive
+      }
+    });
+
+    return team;
+  }
+
+  async updateTeam(
+    scope: AccessScope,
+    teamId: string,
+    input: Partial<{ code: string; name: string; campaignId: string | null; regionCode: string | null; isActive: boolean }>,
+    actorUserId: string
+  ) {
+    if (!scope.organizationId) {
+      throw new BadRequestException('Teams require an organization-scoped account');
+    }
+
+    const existing = await this.prisma.team.findFirst({
+      where: {
+        id: teamId,
+        organizationId: scope.organizationId,
+        ...(scope.campaignId ? { campaignId: scope.campaignId } : {})
+      }
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Team not found');
+    }
+
+    const nextCampaignId = input.campaignId === undefined ? existing.campaignId : input.campaignId;
+    if (scope.campaignId && nextCampaignId && nextCampaignId !== scope.campaignId) {
+      throw new BadRequestException('Team is outside your campaign scope');
+    }
+    if (nextCampaignId) {
+      await this.policiesService.assertCampaignInOrganization(scope.organizationId, nextCampaignId);
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.team.update({
+        where: { id: teamId },
+        data: {
+          ...(input.code !== undefined ? { code: input.code.trim() } : {}),
+          ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+          ...(input.campaignId !== undefined ? { campaignId: input.campaignId } : {}),
+          ...(input.regionCode !== undefined ? { regionCode: input.regionCode?.trim() || null } : {}),
+          ...(input.isActive !== undefined ? { isActive: input.isActive } : {})
+        }
+      });
+
+      if (input.regionCode !== undefined || input.campaignId !== undefined) {
+        await tx.user.updateMany({
+          where: { teamId: next.id },
+          data: {
+            campaignId: next.campaignId,
+            regionCode: next.regionCode
+          }
+        });
+        await tx.turf.updateMany({
+          where: { teamId: next.id },
+          data: {
+            campaignId: next.campaignId,
+            regionCode: next.regionCode
+          }
+        });
+      }
+
+      return next;
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      actionType: 'team_updated',
+      entityType: 'team',
+      entityId: updated.id,
+      newValuesJson: {
+        campaignId: updated.campaignId,
+        regionCode: updated.regionCode,
+        isActive: updated.isActive
+      }
+    });
+
+    return updated;
   }
 
   async listOutcomeDefinitions(scope: AccessScope) {

@@ -11,7 +11,10 @@ describe('VisitsController', () => {
   const usersService = {
     findById: jest.fn()
   };
-  const controller = new VisitsController(visitsService as never, usersService as never);
+  const policiesService = {
+    getEffectivePolicy: jest.fn()
+  };
+  const controller = new VisitsController(visitsService as never, usersService as never, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -25,7 +28,7 @@ describe('VisitsController', () => {
       organizationId: 'org-1'
     });
 
-    expect(visitsService.listActiveOutcomes).toHaveBeenCalledWith(scope);
+    expect(visitsService.listActiveOutcomes).toHaveBeenCalledWith(expect.objectContaining(scope));
   });
 
   it('injects the current user id into visit logging', () => {
@@ -62,7 +65,7 @@ describe('VisitsController', () => {
     expect(visitsService.listRecentVisits).toHaveBeenCalledWith({
       requesterId: 'admin-1',
       requesterRole: 'admin',
-      scope,
+      scope: expect.objectContaining(scope),
       turfId: 'turf-1',
       canvasserId: 'user-2',
       addressId: undefined
@@ -71,7 +74,7 @@ describe('VisitsController', () => {
       visitId: '9f870efe-98f7-4d34-9ef7-16b1965de5b6',
       actorUserId: 'admin-1',
       actorRole: 'admin',
-      scope,
+      scope: expect.objectContaining(scope),
       outcomeCode: 'talked_to_voter',
       notes: 'Corrected',
       reason: 'Fix typo'

@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
 import { resolveAccessScope } from '../common/utils/access-scope.util';
+import { PoliciesService } from '../policies/policies.service';
 import { TurfsService } from '../turfs/turfs.service';
 import { UsersService } from '../users/users.service';
 import { InviteCanvasserDto } from './dto/invite-canvasser.dto';
@@ -25,11 +26,12 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly usersService: UsersService,
     private readonly authService: AuthService,
-    private readonly turfsService: TurfsService
+    private readonly turfsService: TurfsService,
+    private readonly policiesService: PoliciesService
   ) {}
 
   private async resolveScope(user: JwtUserPayload) {
-    return resolveAccessScope(user, this.usersService);
+    return resolveAccessScope(user, this.usersService, this.policiesService);
   }
 
   private enforceRequestedCampaign(scope: { organizationId: string | null; campaignId?: string | null }, requestedCampaignId?: string | null) {
@@ -81,6 +83,31 @@ export class AdminController {
   @Roles(UserRole.admin, UserRole.supervisor)
   async listCampaigns(@CurrentUser() user: JwtUserPayload) {
     return this.adminService.listCampaigns(await this.resolveScope(user));
+  }
+
+  @Get('teams')
+  @Roles(UserRole.admin, UserRole.supervisor)
+  async listTeams(@CurrentUser() user: JwtUserPayload) {
+    return this.adminService.listTeams(await this.resolveScope(user));
+  }
+
+  @Post('teams')
+  @RequireFreshMfa()
+  async createTeam(
+    @Body() body: { code: string; name: string; campaignId?: string | null; regionCode?: string | null; isActive?: boolean },
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.adminService.createTeam(await this.resolveScope(user), body, user.sub);
+  }
+
+  @Patch('teams/:id')
+  @RequireFreshMfa()
+  async updateTeam(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: Partial<{ code: string; name: string; campaignId: string | null; regionCode: string | null; isActive: boolean }>,
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.adminService.updateTeam(await this.resolveScope(user), id, body, user.sub);
   }
 
   @Get('outcomes')
@@ -230,7 +257,7 @@ export class AdminController {
   @Post('canvassers')
   async createCanvasser(
     @Body()
-    body: { firstName: string; lastName: string; email: string; password: string; role?: UserRole; campaignId?: string | null },
+    body: { firstName: string; lastName: string; email: string; password: string; role?: UserRole; campaignId?: string | null; teamId?: string | null },
     @CurrentUser() user: JwtUserPayload
   ) {
     const scope = await this.resolveScope(user);
@@ -258,7 +285,7 @@ export class AdminController {
   async updateCanvasser(
     @Param('id') id: string,
     @Body()
-    body: Partial<{ firstName: string; lastName: string; email: string; password: string; role: UserRole; isActive: boolean; campaignId: string | null }>,
+    body: Partial<{ firstName: string; lastName: string; email: string; password: string; role: UserRole; isActive: boolean; campaignId: string | null; teamId: string | null }>,
     @CurrentUser() user: JwtUserPayload
   ) {
     const scope = await this.resolveScope(user);

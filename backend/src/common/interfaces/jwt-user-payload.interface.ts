@@ -6,6 +6,7 @@ export interface JwtUserPayload {
   role: UserRole;
   organizationId?: string | null;
   campaignId?: string | null;
+  teamId?: string | null;
   mfaVerifiedAt?: string | null;
   impersonationSessionId?: string | null;
   impersonatorUserId?: string | null;

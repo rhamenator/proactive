@@ -12,10 +12,19 @@ describe('ExportsController', () => {
   const usersService = {
     findById: jest.fn()
   };
-  const controller = new ExportsController(exportsService as never, usersService as never);
+  const policiesService = {
+    getEffectivePolicy: jest.fn()
+  };
+  const controller = new ExportsController(exportsService as never, usersService as never, policiesService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
+    usersService.findById.mockResolvedValue({
+      id: 'admin-1',
+      organizationId: 'org-1',
+      campaignId: null,
+      role: 'admin'
+    });
   });
 
   it('returns the raw result when no response object is provided', async () => {
@@ -26,7 +35,7 @@ describe('ExportsController', () => {
         sub: 'admin-1',
         email: 'admin@example.com',
         role: 'admin' as never,
-        organizationId: null
+        organizationId: 'org-1'
       })
     ).resolves.toEqual({ csv: 'csv-data', count: 1, filename: 'van-results.csv' });
 
@@ -34,7 +43,7 @@ describe('ExportsController', () => {
       turfId: 'turf-1',
       markExported: true,
       actorUserId: 'admin-1',
-      organizationId: null,
+      organizationId: 'org-1',
       campaignId: null
     });
   });
@@ -97,7 +106,7 @@ describe('ExportsController', () => {
       )
     ).resolves.toBe('sent-internal');
 
-    expect(exportsService.exportHistory).toHaveBeenCalledWith(scope);
+    expect(exportsService.exportHistory).toHaveBeenCalledWith(expect.objectContaining(scope));
     expect(exportsService.internalMasterCsv).toHaveBeenCalledWith({
       turfId: 'turf-1',
       actorUserId: 'admin-1',
@@ -129,7 +138,7 @@ describe('ExportsController', () => {
       )
     ).resolves.toBe('sent-history');
 
-    expect(exportsService.downloadExportBatch).toHaveBeenCalledWith('batch-1', scope);
+    expect(exportsService.downloadExportBatch).toHaveBeenCalledWith('batch-1', expect.objectContaining(scope));
     expect(response.setHeader).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="historical.csv"');
     expect(response.send).toHaveBeenCalledWith('historical-csv');
   });

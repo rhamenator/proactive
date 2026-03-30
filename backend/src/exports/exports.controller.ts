@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
 import { resolveAccessScope } from '../common/utils/access-scope.util';
+import { PoliciesService } from '../policies/policies.service';
 import { UsersService } from '../users/users.service';
 import { ExportsService } from './exports.service';
 
@@ -18,12 +19,13 @@ import { ExportsService } from './exports.service';
 export class ExportsController {
   constructor(
     private readonly exportsService: ExportsService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
+    private readonly policiesService: PoliciesService
   ) {}
 
   @Get('history')
   async exportHistory(@CurrentUser() user: JwtUserPayload) {
-    return this.exportsService.exportHistory(await resolveAccessScope(user, this.usersService));
+    return this.exportsService.exportHistory(await resolveAccessScope(user, this.usersService, this.policiesService));
   }
 
   @Get('history/:id/download')
@@ -33,7 +35,7 @@ export class ExportsController {
     @CurrentUser() user: JwtUserPayload,
     @Res() response: Response
   ) {
-    const result = await this.exportsService.downloadExportBatch(batchId, await resolveAccessScope(user, this.usersService));
+    const result = await this.exportsService.downloadExportBatch(batchId, await resolveAccessScope(user, this.usersService, this.policiesService));
     response.setHeader('Content-Type', 'text/csv; charset=utf-8');
     response.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
     return response.send(result.csv);
@@ -47,7 +49,7 @@ export class ExportsController {
     @CurrentUser() user?: JwtUserPayload,
     @Res() response?: Response
   ) {
-    const scope = user ? await resolveAccessScope(user, this.usersService) : { organizationId: null, campaignId: null };
+    const scope = user ? await resolveAccessScope(user, this.usersService, this.policiesService) : { organizationId: null, campaignId: null };
     const result = await this.exportsService.vanResultsCsv({
       turfId,
       markExported: markExported === 'true',
@@ -72,7 +74,7 @@ export class ExportsController {
     @CurrentUser() user?: JwtUserPayload,
     @Res() response?: Response
   ) {
-    const scope = user ? await resolveAccessScope(user, this.usersService) : { organizationId: null, campaignId: null };
+    const scope = user ? await resolveAccessScope(user, this.usersService, this.policiesService) : { organizationId: null, campaignId: null };
     const result = await this.exportsService.internalMasterCsv({
       turfId,
       actorUserId: user?.sub,

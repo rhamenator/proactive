@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { href: '/retention', label: 'Retention', roles: ['admin'] },
   { href: '/outcomes', label: 'Outcomes', roles: ['admin', 'supervisor'] },
   { href: '/policies', label: 'Policies', roles: ['admin', 'supervisor'] },
+  { href: '/teams', label: 'Teams', roles: ['admin'] },
   { href: '/canvassers', label: 'Field Users', roles: ['admin', 'supervisor'] },
   { href: '/exports', label: 'Exports', roles: ['admin'] },
   { href: '/field-preview', label: 'Field Preview', roles: ['canvasser'] },
