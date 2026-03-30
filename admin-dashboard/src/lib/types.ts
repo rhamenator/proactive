@@ -152,6 +152,8 @@ export interface MfaStatusResponse {
   backupCodeCount: number;
 }
 
+export interface MfaStepUpResponse extends LoginResponse {}
+
 export interface ReportFilters {
   dateFrom?: string;
   dateTo?: string;

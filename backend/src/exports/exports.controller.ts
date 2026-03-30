@@ -2,6 +2,8 @@ import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { RequireFreshMfa } from '../common/decorators/require-fresh-mfa.decorator';
+import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -11,7 +13,7 @@ import { UsersService } from '../users/users.service';
 import { ExportsService } from './exports.service';
 
 @Controller('exports')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, FreshMfaGuard)
 @Roles(UserRole.admin)
 export class ExportsController {
   constructor(
@@ -25,6 +27,7 @@ export class ExportsController {
   }
 
   @Get('history/:id/download')
+  @RequireFreshMfa()
   async downloadExportBatch(
     @Param('id') batchId: string,
     @CurrentUser() user: JwtUserPayload,
@@ -37,6 +40,7 @@ export class ExportsController {
   }
 
   @Get('van-results')
+  @RequireFreshMfa()
   async vanResultsCsv(
     @Query('turfId') turfId?: string,
     @Query('markExported') markExported?: string,
@@ -62,6 +66,7 @@ export class ExportsController {
   }
 
   @Get('internal-master')
+  @RequireFreshMfa()
   async internalMasterCsv(
     @Query('turfId') turfId?: string,
     @CurrentUser() user?: JwtUserPayload,

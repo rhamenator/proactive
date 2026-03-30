@@ -13,6 +13,7 @@ describe('AuthController', () => {
     verifyMfaChallenge: jest.fn(),
     mfaStatus: jest.fn(),
     disableMfa: jest.fn(),
+    stepUpMfa: jest.fn(),
     getActiveImpersonation: jest.fn(),
     startImpersonation: jest.fn(),
     stopImpersonation: jest.fn()
@@ -51,7 +52,7 @@ describe('AuthController', () => {
     expect(authService.activateAccount).toHaveBeenCalledWith('activation-token', 'Password123!');
   });
 
-  it('delegates MFA setup, verification, status, and disable flows to the auth service', () => {
+  it('delegates MFA setup, verification, status, disable, and step-up flows to the auth service', () => {
     controller.mfaSetupInit({ challengeToken: 'setup-challenge-token' });
     controller.mfaSetupComplete({ challengeToken: 'setup-challenge-token', code: '123456' });
     controller.mfaVerify({ challengeToken: 'verify-challenge-token', code: '654321' });
@@ -60,12 +61,20 @@ describe('AuthController', () => {
       { sub: 'user-1', email: 'admin@example.com', role: 'admin' as never },
       { password: 'Password123!', code: '123456' }
     );
+    controller.mfaStepUp(
+      { sub: 'user-1', email: 'admin@example.com', role: 'admin' as never },
+      { code: '123456' }
+    );
 
     expect(authService.initializeMfaSetup).toHaveBeenCalledWith('setup-challenge-token');
     expect(authService.completeMfaSetup).toHaveBeenCalledWith('setup-challenge-token', '123456');
     expect(authService.verifyMfaChallenge).toHaveBeenCalledWith('verify-challenge-token', '654321');
     expect(authService.mfaStatus).toHaveBeenCalledWith('user-1');
     expect(authService.disableMfa).toHaveBeenCalledWith('user-1', 'Password123!', '123456');
+    expect(authService.stepUpMfa).toHaveBeenCalledWith(
+      { sub: 'user-1', email: 'admin@example.com', role: 'admin' as never },
+      '123456'
+    );
   });
 
   it('delegates impersonation lifecycle calls to the auth service', () => {

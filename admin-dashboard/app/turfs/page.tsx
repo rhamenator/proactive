@@ -20,7 +20,7 @@ const mappingFields = [
 ] as const;
 
 export default function TurfsPage() {
-  const { user } = useAuth();
+  const { user, runSensitiveAction } = useAuth();
   const api = useAuthedApi();
   const isAdmin = user?.role === 'admin';
   const [turfs, setTurfs] = useState<TurfListItem[]>([]);
@@ -142,7 +142,9 @@ export default function TurfsPage() {
     setError(null);
     setMessage(null);
     try {
-      await api.reassignTurf(turfId, canvasserId);
+      await runSensitiveAction('reassign a turf', (freshApi) =>
+        freshApi.reassignTurf(turfId, canvasserId)
+      );
       setMessage('Turf reassigned.');
       await load();
     } catch (value) {
@@ -154,7 +156,7 @@ export default function TurfsPage() {
     setError(null);
     setMessage(null);
     try {
-      await api.reopenTurf(turfId);
+      await runSensitiveAction('reopen a turf', (freshApi) => freshApi.reopenTurf(turfId));
       setMessage('Turf reopened.');
       await load();
     } catch (value) {

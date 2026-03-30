@@ -22,6 +22,7 @@ import type {
   TrendReport,
   MfaSetupInitResponse,
   MfaStatusResponse,
+  MfaStepUpResponse,
   OutcomeDefinitionRecord,
   SafeUser,
   SyncConflictItem,
@@ -190,6 +191,12 @@ export function createApiClient(token?: string | null) {
         method: 'POST',
         body: JSON.stringify({ challengeToken, code })
       });
+    },
+    mfaStepUp(code: string) {
+      return requestJson<MfaStepUpResponse>('/auth/mfa/step-up', {
+        method: 'POST',
+        body: JSON.stringify({ code })
+      }, token);
     },
     mfaStatus() {
       return requestJson<MfaStatusResponse>('/auth/mfa/status', {}, token);

@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { createApiClient } from './api';
+import { createApiClient, getErrorMessage } from './api';
+import { Button, Input } from '../components/ui';
 import {
   clearOriginalSession,
   clearStoredSession,
@@ -23,6 +24,7 @@ type AuthContextValue = {
   initializeMfaSetup: (challengeToken: string) => Promise<MfaSetupInitResponse>;
   completeMfaSetup: (challengeToken: string, code: string) => Promise<string[]>;
   verifyMfa: (challengeToken: string, code: string) => Promise<void>;
+  runSensitiveAction: <T>(actionLabel: string, operation: (api: ReturnType<typeof createApiClient>) => Promise<T>) => Promise<T>;
   startImpersonation: (targetUserId: string, reason?: string) => Promise<void>;
   stopImpersonation: () => Promise<void>;
   logout: () => Promise<void>;
@@ -36,6 +38,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<SafeUser | null>(null);
   const [impersonation, setImpersonation] = useState<NonNullable<SafeUser['impersonation']> | null>(null);
+  const [stepUpRequest, setStepUpRequest] = useState<{
+    actionLabel: string;
+    resolve: (value: string | null) => void;
+    reject: (error: Error) => void;
+  } | null>(null);
+  const [stepUpCode, setStepUpCode] = useState('');
+  const [stepUpError, setStepUpError] = useState<string | null>(null);
+  const [stepUpSubmitting, setStepUpSubmitting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -141,6 +151,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     finalizeLogin(response);
   }
 
+  async function stepUpMfa(code: string) {
+    if (!token) {
+      throw new Error('You must be signed in to verify MFA.');
+    }
+    const api = createApiClient(token);
+    const response = await api.mfaStepUp(code);
+    finalizeLogin(response, false);
+    return response.accessToken || response.token || null;
+  }
+
+  async function promptForStepUp(actionLabel: string) {
+    return new Promise<string | null>((resolve, reject) => {
+      setStepUpCode('');
+      setStepUpError(null);
+      setStepUpSubmitting(false);
+      setStepUpRequest({
+        actionLabel,
+        resolve,
+        reject
+      });
+    });
+  }
+
+  async function runSensitiveAction<T>(actionLabel: string, operation: (api: ReturnType<typeof createApiClient>) => Promise<T>) {
+    const freshToken = await promptForStepUp(actionLabel);
+    return operation(createApiClient(freshToken ?? token));
+  }
+
+  function closeStepUpModal() {
+    if (stepUpSubmitting) {
+      return;
+    }
+    stepUpRequest?.reject(new Error('MFA verification cancelled.'));
+    setStepUpRequest(null);
+    setStepUpCode('');
+    setStepUpError(null);
+  }
+
+  async function submitStepUp() {
+    const normalizedCode = stepUpCode.trim();
+    if (!normalizedCode) {
+      setStepUpError('Enter an MFA or backup code.');
+      return;
+    }
+
+    setStepUpSubmitting(true);
+    setStepUpError(null);
+    try {
+      const freshToken = await stepUpMfa(normalizedCode);
+      stepUpRequest?.resolve(freshToken);
+      setStepUpRequest(null);
+      setStepUpCode('');
+    } catch (error) {
+      setStepUpError(getErrorMessage(error));
+    } finally {
+      setStepUpSubmitting(false);
+    }
+  }
+
   async function logout() {
     clearOriginalSession();
     clearStoredSession();
@@ -225,6 +294,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         initializeMfaSetup,
         completeMfaSetup,
         verifyMfa,
+        runSensitiveAction,
         startImpersonation,
         stopImpersonation,
         logout,
@@ -232,6 +302,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      {stepUpRequest ? (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="step-up-title">
+            <div className="stack">
+              <div>
+                <p className="section-kicker">Sensitive Action</p>
+                <h2 className="heading-reset" id="step-up-title">Verify MFA to continue</h2>
+                <p className="muted">
+                  Enter your current authenticator code or a backup code to {stepUpRequest.actionLabel}.
+                </p>
+              </div>
+
+              {stepUpError ? <div className="notice notice-error">{stepUpError}</div> : null}
+
+              <div className="field-group">
+                <label htmlFor="step-up-code">MFA or backup code</label>
+                <Input
+                  id="step-up-code"
+                  autoFocus
+                  value={stepUpCode}
+                  onChange={(event) => setStepUpCode(event.target.value)}
+                  placeholder="123456 or ABCD-EF12"
+                />
+              </div>
+
+              <div className="inline-actions">
+                <Button variant="ghost" type="button" onClick={closeStepUpModal} disabled={stepUpSubmitting}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={() => void submitStepUp()} disabled={stepUpSubmitting}>
+                  {stepUpSubmitting ? 'Verifying...' : 'Verify And Continue'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AuthContext.Provider>
   );
 }

@@ -28,6 +28,7 @@ export class AuthService {
   private readonly loginLockoutThreshold = Number(process.env.LOGIN_LOCKOUT_THRESHOLD ?? 5);
   private readonly loginLockoutMinutes = Number(process.env.LOGIN_LOCKOUT_MINUTES ?? 15);
   private readonly mfaChallengeTtlMinutes = Number(process.env.MFA_CHALLENGE_TTL_MINUTES ?? 10);
+  private readonly sensitiveMfaTtlMinutes = Number(process.env.SENSITIVE_ACTION_MFA_WINDOW_MINUTES ?? 15);
   private readonly mfaIssuer = process.env.MFA_ISSUER ?? 'PROACTIVE FCS';
   private readonly exposeResetTokens = process.env.EXPOSE_RESET_TOKENS === 'true';
 
@@ -71,13 +72,14 @@ export class AuthService {
     role: UserRole;
     organizationId?: string | null;
     campaignId?: string | null;
-  }) {
+  }, options?: { mfaVerifiedAt?: Date | null }) {
     return {
       sub: user.id,
       email: user.email,
       role: user.role,
       organizationId: user.organizationId ?? null,
-      campaignId: user.campaignId ?? null
+      campaignId: user.campaignId ?? null,
+      mfaVerifiedAt: options?.mfaVerifiedAt ? options.mfaVerifiedAt.toISOString() : null
     };
   }
 
@@ -248,8 +250,8 @@ export class AuthService {
     activatedAt: Date | null;
     lastLoginAt: Date | null;
     createdAt: Date;
-  }) {
-    const payload = this.buildJwtPayload(user);
+  }, options?: { mfaVerifiedAt?: Date | null }) {
+    const payload = this.buildJwtPayload(user, options);
     const accessToken = await this.jwtService.signAsync(payload);
     const refreshToken = this.createOpaqueToken();
 
@@ -435,7 +437,8 @@ export class AuthService {
     const backupCodes = await this.replaceBackupCodes(challenge.userId);
 
     const user = await this.usersService.findById(challenge.userId);
-    const session = await this.issueSession(user);
+    const mfaVerifiedAt = new Date();
+    const session = await this.issueSession(user, { mfaVerifiedAt });
     await this.markInteractiveLoginComplete(challenge.userId);
 
     await this.auditService.log({
@@ -469,7 +472,8 @@ export class AuthService {
     }
 
     await this.consumeMfaChallenge(challenge.id);
-    const session = await this.issueSession(challenge.user);
+    const mfaVerifiedAt = new Date();
+    const session = await this.issueSession(challenge.user, { mfaVerifiedAt });
     await this.markInteractiveLoginComplete(challenge.userId);
 
     await this.auditService.log({
@@ -513,7 +517,7 @@ export class AuthService {
 
     const normalizedCode = code.trim();
     const validTotp = verifyTotp(user.mfaSecret, normalizedCode);
-    const usedBackupCode = validTotp ? false : await this.consumeBackupCode(userId, normalizedCode);
+    const usedBackupCode = validTotp ? false : await this.consumeBackupCode(user.id, normalizedCode);
     if (!validTotp && !usedBackupCode) {
       throw new UnauthorizedException('Invalid MFA or backup code');
     }
@@ -552,6 +556,45 @@ export class AuthService {
     });
 
     return { success: true, setupRequiredOnNextLogin: this.requiresMfa(user) };
+  }
+
+  async stepUpMfa(currentUser: { sub: string; impersonatorUserId?: string | null }, code: string) {
+    if (currentUser.impersonatorUserId) {
+      throw new ForbiddenException('Sensitive actions are unavailable during impersonation');
+    }
+
+    const user = await this.usersService.findById(currentUser.sub);
+
+    if (!this.requiresMfa(user) || !user.mfaEnabled || !user.mfaSecret) {
+      throw new ForbiddenException('MFA step-up is unavailable for this account');
+    }
+
+    const normalizedCode = code.trim();
+    const validTotp = verifyTotp(user.mfaSecret, normalizedCode);
+    const usedBackupCode = validTotp ? false : await this.consumeBackupCode(user.id, normalizedCode);
+    if (!validTotp && !usedBackupCode) {
+      throw new UnauthorizedException('Invalid MFA or backup code');
+    }
+
+    const mfaVerifiedAt = new Date();
+    const accessToken = await this.issueAccessToken(this.buildJwtPayload(user, { mfaVerifiedAt }));
+
+    await this.auditService.log({
+      actorUserId: user.id,
+      actionType: usedBackupCode ? 'mfa_step_up_backup_code_used' : 'mfa_step_up_verified',
+      entityType: 'user_auth',
+      entityId: user.id,
+      newValuesJson: {
+        validForMinutes: this.sensitiveMfaTtlMinutes
+      }
+    });
+
+    return {
+      accessToken,
+      token: accessToken,
+      role: user.role,
+      user: this.buildSafeUser(user)
+    };
   }
 
   async getActiveImpersonation(actorUserId: string) {
@@ -973,6 +1016,30 @@ export class AuthService {
       entityType: 'user_auth',
       entityId: storedToken.userId
     });
+
+    if (this.requiresMfa(user)) {
+      const setupRequired = !user.mfaEnabled;
+      const challengeToken = await this.createMfaChallenge(
+        user.id,
+        setupRequired ? MfaChallengePurpose.setup : MfaChallengePurpose.verify
+      );
+
+      await this.auditService.log({
+        actorUserId: user.id,
+        actionType: setupRequired ? 'mfa_setup_challenge_issued' : 'mfa_verify_challenge_issued',
+        entityType: 'user_auth',
+        entityId: user.id,
+        reasonText: 'post_activation'
+      });
+
+      return {
+        mfaRequired: true,
+        setupRequired,
+        challengeToken,
+        role: user.role,
+        user: this.buildSafeUser(user)
+      };
+    }
 
     return this.issueSession(user);
   }

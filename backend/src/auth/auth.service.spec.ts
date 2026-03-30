@@ -327,7 +327,36 @@ describe('AuthService', () => {
 
     const result = await service.activateAccount('activation-token', 'Password123!');
 
-    expect(result.accessToken).toBe('signed-access-token');
+    expect('accessToken' in result ? result.accessToken : null).toBe('signed-access-token');
+  });
+
+  it('requires MFA enrollment after activating an admin account', async () => {
+    const user = buildUser({
+      role: UserRole.admin,
+      mfaEnabled: false,
+      activatedAt: null
+    });
+    prisma.activationToken.findFirst.mockResolvedValue({
+      id: 'activation-1',
+      userId: user.id,
+      user
+    });
+    usersService.findById.mockResolvedValue({
+      ...user,
+      activatedAt: new Date('2026-03-28T01:00:00.000Z')
+    });
+
+    const result = await service.activateAccount('activation-token', 'Password123!');
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        mfaRequired: true,
+        setupRequired: true,
+        challengeToken: expect.any(String),
+        role: UserRole.admin
+      })
+    );
+    expect(prisma.authRefreshToken.create).not.toHaveBeenCalled();
   });
 
   it('invites a supervisor and records a field-user audit event', async () => {
@@ -478,6 +507,39 @@ describe('AuthService', () => {
       }
     });
     verifySpy.mockRestore();
+  });
+
+  it('issues a fresh access token after a valid MFA step-up verification', async () => {
+    const user = buildUser({
+      role: UserRole.admin,
+      mfaEnabled: true,
+      mfaSecret: 'JBSWY3DPEHPK3PXP'
+    });
+    usersService.findById.mockResolvedValue(user);
+    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(true);
+
+    const result = await service.stepUpMfa({ sub: user.id }, '123456');
+
+    expect(result.accessToken).toBe('signed-access-token');
+    expect(jwtService.signAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sub: user.id,
+        mfaVerifiedAt: expect.any(String)
+      })
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: 'mfa_step_up_verified',
+        entityId: user.id
+      })
+    );
+    verifySpy.mockRestore();
+  });
+
+  it('rejects MFA step-up during impersonation', async () => {
+    await expect(
+      service.stepUpMfa({ sub: 'user-1', impersonatorUserId: 'admin-1' }, '123456')
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('disables MFA only after validating password and the current TOTP code', async () => {

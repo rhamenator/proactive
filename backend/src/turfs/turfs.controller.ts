@@ -14,7 +14,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import multer from 'multer';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { RequireFreshMfa } from '../common/decorators/require-fresh-mfa.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
@@ -53,8 +55,9 @@ export class TurfsController {
   }
 
   @Post('turfs/:id/assign')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, FreshMfaGuard)
   @Roles(UserRole.admin, UserRole.supervisor)
+  @RequireFreshMfa()
   async assignTurf(
     @Param('id', ParseUUIDPipe) turfId: string,
     @Body() body: AssignTurfDto,

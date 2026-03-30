@@ -28,7 +28,7 @@ The system now covers the main operational v1 workflow:
 - VAN-compatible export, internal master export, export history, historical CSV re-download, stored export artifacts, and per-row export traceability
 - CI, build verification, regression tests, and GitHub release-build automation
 
-The remaining gaps are now mostly in deeper architecture and release policy rather than missing operational screens. They are concentrated in offline-first storage depth, normalized household modeling, step-up MFA for sensitive actions, and external mobile signing inputs.
+The remaining gaps are now mostly in deeper architecture and release policy rather than missing operational screens. They are concentrated in offline-first storage depth, normalized household modeling, richer CSV import architecture, and external mobile signing inputs.
 
 ## What Is In Place
 
@@ -87,23 +87,23 @@ What remains:
 - decide whether to keep the current queue persistence for v1 or upgrade to SQLite-backed storage in v1.x
 - if upgraded, migrate queue/address persistence to a real device database and carry forward the same sync semantics
 
-### 3. Step-up MFA is still not enforced for sensitive admin actions
+### 3. Sensitive-action MFA is now enforced, but the policy may still evolve
 
 Current state:
 
 - login MFA is enforced for admins and supervisors
 - backup codes exist and account-level MFA management exists
-- sensitive actions such as export generation, GPS overrides, turf reassignment/reopen, and conflict resolution are still role-guarded but do not require a fresh MFA step-up challenge
+- sensitive actions such as export generation, GPS overrides, turf reassignment/reopen, and conflict resolution now require a fresh MFA step-up challenge
 
 Why it matters:
 
-- this is the main remaining security-policy gap against the stricter client packet
-- role checks alone are sufficient for pilot use but weaker than the written security requirements
+- this closes the main security-policy gap against the stricter client packet
+- the remaining question is policy tuning rather than missing enforcement
 
 What remains:
 
-- decide whether v1 production requires true step-up MFA or whether login-time MFA is sufficient
-- if required, add challenge-on-action UX plus backend enforcement for sensitive routes
+- decide whether the current strict per-action challenge should stay in place or whether a longer freshness window is preferable
+- extend sensitive-action coverage further only if the client wants more routes behind the same guard
 
 ### 4. Normalized households, soft-delete/retention metadata, and deeper export lineage are still not full-packet complete
 
@@ -177,7 +177,7 @@ Still blocked for full source-packet alignment:
 
 - deeper team/geography scope policy and enforcement if the client wants that in v1.x
 - stronger offline-first storage if the client insists on a true local database in v1
-- step-up MFA for sensitive actions if the client insists on full security-packet parity in v1
+- fuller CSV import architecture if the client insists on full CSV/VAN packet parity in v1
 - household normalization and retention metadata if the client insists on full schema-packet parity in v1
 - final signed mobile app distribution without real external signing credentials
 
@@ -187,6 +187,6 @@ Remaining non-blocking enhancements:
 
 ## Recommended Next Sequence
 
-1. Decide whether v1 production needs step-up MFA and/or a true on-device database, and implement either if required.
+1. Decide whether v1 production needs a true on-device database and/or fuller CSV import architecture.
 2. Decide whether household normalization and retention metadata belong in v1.x or the post-pilot schema roadmap.
 3. Provide production release secrets and final app identifiers for EAS/App Store/Play.

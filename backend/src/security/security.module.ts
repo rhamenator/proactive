@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
@@ -13,7 +14,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
       }
     })
   ],
-  providers: [JwtAuthGuard, RolesGuard],
-  exports: [JwtModule, JwtAuthGuard, RolesGuard]
+  providers: [JwtAuthGuard, RolesGuard, FreshMfaGuard],
+  exports: [JwtModule, JwtAuthGuard, RolesGuard, FreshMfaGuard]
 })
 export class SecurityModule {}

@@ -11,6 +11,7 @@ import { DisableMfaDto } from './dto/disable-mfa.dto';
 import { LoginDto } from './dto/login.dto';
 import { MfaChallengeDto } from './dto/mfa-challenge.dto';
 import { MfaCodeDto } from './dto/mfa-code.dto';
+import { MfaStepUpDto } from './dto/mfa-step-up.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { StartImpersonationDto } from './dto/start-impersonation.dto';
@@ -80,6 +81,12 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   mfaDisable(@CurrentUser() user: JwtUserPayload, @Body() body: DisableMfaDto) {
     return this.authService.disableMfa(user.sub, body.password, body.code);
+  }
+
+  @Post('mfa/step-up')
+  @UseGuards(JwtAuthGuard)
+  mfaStepUp(@CurrentUser() user: JwtUserPayload, @Body() body: MfaStepUpDto) {
+    return this.authService.stepUpMfa(user, body.code);
   }
 
   @Get('impersonation/active')

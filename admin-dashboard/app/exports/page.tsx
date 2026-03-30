@@ -9,7 +9,7 @@ import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
 import type { ExportBatchRecord, TurfListItem } from '../../src/lib/types';
 
 export default function ExportsPage() {
-  const { user } = useAuth();
+  const { user, runSensitiveAction } = useAuth();
   const api = useAuthedApi();
   const [turfs, setTurfs] = useState<TurfListItem[]>([]);
   const [history, setHistory] = useState<ExportBatchRecord[]>([]);
@@ -53,15 +53,18 @@ export default function ExportsPage() {
     setMessage(null);
 
     try {
-      const result =
-        profile === 'van'
-          ? await api.exportVanResults({
-              turfId: selectedTurfId || undefined,
-              markExported
-            })
-          : await api.exportInternalMaster({
-              turfId: selectedTurfId || undefined
-            });
+      const result = await runSensitiveAction(
+        profile === 'van' ? 'generate a VAN export' : 'generate an internal master export',
+        (freshApi) =>
+          profile === 'van'
+            ? freshApi.exportVanResults({
+                turfId: selectedTurfId || undefined,
+                markExported
+              })
+            : freshApi.exportInternalMaster({
+                turfId: selectedTurfId || undefined
+              })
+      );
       const url = URL.createObjectURL(result.blob);
       const link = document.createElement('a');
       link.href = url;
@@ -83,7 +86,9 @@ export default function ExportsPage() {
     setMessage(null);
 
     try {
-      const result = await api.downloadExportBatch(batchId);
+      const result = await runSensitiveAction('download a historical export', (freshApi) =>
+        freshApi.downloadExportBatch(batchId)
+      );
       const url = URL.createObjectURL(result.blob);
       const link = document.createElement('a');
       link.href = url;

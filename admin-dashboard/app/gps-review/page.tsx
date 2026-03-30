@@ -5,10 +5,11 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, Input } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
-import { useAuthedApi } from '../../src/lib/auth-context';
+import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
 import type { GpsReviewItem } from '../../src/lib/types';
 
 export default function GpsReviewPage() {
+  const { runSensitiveAction } = useAuth();
   const api = useAuthedApi();
   const [items, setItems] = useState<GpsReviewItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +44,9 @@ export default function GpsReviewPage() {
     setError(null);
     setMessage(null);
     try {
-      await api.overrideGpsResult(visitLogId, reason);
+      await runSensitiveAction('approve a GPS override', (freshApi) =>
+        freshApi.overrideGpsResult(visitLogId, reason)
+      );
       setMessage('GPS override saved.');
       setReasons((current) => ({ ...current, [visitLogId]: '' }));
       await load();

@@ -6,6 +6,7 @@ The application suite has been built and brought to a review-ready state across 
 
 - **Backend API**
   - Authentication, refresh/logout, password reset, activation, lockout, and MFA
+  - Step-up MFA enforcement on sensitive admin/supervisor actions
   - Admin/supervisor impersonation support with audit tracking
   - Turf creation, assignment, lifecycle management, and field session tracking
   - Visit logging with offline-safe sync metadata, idempotency, GPS validation, and audit history
@@ -21,6 +22,7 @@ The application suite has been built and brought to a review-ready state across 
   - Turf management and assignment
   - Field-user management for supervisors and canvassers
   - MFA account management
+  - Sensitive-action MFA confirmation flow for exports, overrides, conflict resolution, and turf control changes
   - Outcomes management
   - GPS review
   - Sync-conflict review
@@ -82,8 +84,8 @@ Please review:
 
 Please confirm whether you want any of the following added before release:
 
-- Step-up MFA for sensitive admin actions such as exports and GPS overrides
 - A stronger on-device database implementation for the mobile offline queue
+- A fuller CSV/VAN import workflow beyond the current review-ready baseline
 - Deeper team/geography scoping beyond the current organization-and-campaign scope
 - Household normalization / retention-policy schema work beyond the current operational model
 - Any changes to impersonation policy, correction windows, or review permissions
@@ -117,4 +119,6 @@ The system is now ready for client review and ready for controlled internal/pilo
 The only major items still outside the repository are:
 
 - Final release credentials for signed mobile binaries
+- A true on-device mobile database if you want full offline-first parity with the strict architecture packet
+- Additional CSV/VAN import workflow depth if you want the richer import policy beyond the current baseline
 - Any additional scope decisions you want included before production rollout

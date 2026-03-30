@@ -5,10 +5,11 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { ProtectedFrame } from '../../src/components/protected-frame';
 import { Badge, Button, Card, TextArea } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
-import { useAuthedApi } from '../../src/lib/auth-context';
+import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
 import type { SyncConflictItem } from '../../src/lib/types';
 
 export default function SyncConflictsPage() {
+  const { runSensitiveAction } = useAuth();
   const api = useAuthedApi();
   const [items, setItems] = useState<SyncConflictItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +46,9 @@ export default function SyncConflictsPage() {
     setMessage(null);
     try {
       setSubmittingId(visitLogId);
-      await api.resolveSyncConflict(visitLogId, reason);
+      await runSensitiveAction('resolve a sync conflict', (freshApi) =>
+        freshApi.resolveSyncConflict(visitLogId, reason)
+      );
       setMessage('Sync conflict cleared.');
       setReasons((current) => ({ ...current, [visitLogId]: '' }));
       await load();
