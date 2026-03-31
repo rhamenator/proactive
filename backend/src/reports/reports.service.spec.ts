@@ -19,6 +19,7 @@ describe('ReportsService', () => {
       findMany: jest.fn()
     }
   };
+  const originalReportBucketTimeZone = process.env.REPORT_BUCKET_TIME_ZONE;
   const policiesService = {
     getEffectivePolicy: jest.fn().mockResolvedValue({
       supervisorScopeMode: 'team'
@@ -29,6 +30,14 @@ describe('ReportsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    if (originalReportBucketTimeZone === undefined) {
+      delete process.env.REPORT_BUCKET_TIME_ZONE;
+    } else {
+      process.env.REPORT_BUCKET_TIME_ZONE = originalReportBucketTimeZone;
+    }
   });
 
   it('builds an overview report with KPI and freshness summaries', async () => {
@@ -537,75 +546,99 @@ describe('ReportsService', () => {
     expect(result.summary.attemptOnlyVisits).toBe(1);
   });
 
-    it('includes visits throughout a UTC day when dateTo is a date-only string (YYYY-MM-DD)', async () => {
-      // Regression for: date-only dateTo was parsed as UTC midnight (start of day),
-      // so visitTime.lte ended up at 2026-03-30T00:00:00Z, excluding all day's visits.
-      prisma.visitLog.findMany
-        .mockResolvedValueOnce([
-          {
-            id: 'visit-eod',
-            addressId: 'address-1',
-            canvasserId: 'user-1',
-            sessionId: 'session-1',
-            turfId: 'turf-1',
-            visitTime: new Date('2026-03-30T22:45:00.000Z'),
-            contactMade: true,
-            gpsStatus: 'verified',
-            syncStatus: 'synced',
-            syncConflictFlag: false,
-            outcomeCode: 'contact',
-            outcomeLabel: 'Contact Made',
-            result: 'contacted',
-            outcomeDefinition: { isFinalDisposition: true },
-            canvasser: {
-              id: 'user-1',
-              firstName: 'Taylor',
-              lastName: 'Field',
-              email: 'taylor@example.com',
-              role: 'canvasser'
-            },
-            turf: { id: 'turf-1', name: 'Ward 1' },
-            address: {
-              id: 'address-1',
-              addressLine1: '100 Main St',
-              addressLine2: null,
-              unit: null,
-              city: 'Detroit',
-              state: 'MI',
-              zip: '48201'
-            },
-            geofenceResult: null
-          }
-        ])
-        .mockResolvedValueOnce([]);
-      prisma.turfSession.findMany.mockResolvedValue([]);
-      prisma.auditLog.findMany.mockResolvedValue([]);
+  it('uses the configured report timezone consistently for byDay, byTimeOfDay, and byDayOfWeek', async () => {
+    process.env.REPORT_BUCKET_TIME_ZONE = 'America/Detroit';
 
-      await service.getOverview({
-        organizationId: 'org-1',
-        // date-only strings from an HTML type="date" input
-        dateFrom: '2026-03-30',
-        dateTo: '2026-03-30'
-      });
+    prisma.visitLog.findMany
+      .mockResolvedValueOnce([
+        {
+          id: 'visit-1',
+          addressId: 'address-1',
+          canvasserId: 'user-1',
+          sessionId: 'session-1',
+          turfId: 'turf-1',
+          visitTime: new Date('2026-03-30T02:30:00.000Z'),
+          contactMade: true,
+          gpsStatus: 'verified',
+          syncStatus: 'synced',
+          syncConflictFlag: false,
+          outcomeCode: 'contact',
+          outcomeLabel: 'Contact Made',
+          result: 'contacted',
+          outcomeDefinition: { isFinalDisposition: true },
+          canvasser: { id: 'user-1', firstName: 'Taylor', lastName: 'Field', email: 'taylor@example.com', role: 'canvasser' },
+          turf: { id: 'turf-1', name: 'Ward 1' },
+          address: {
+            id: 'address-1',
+            addressLine1: '100 Main St',
+            addressLine2: null,
+            unit: null,
+            city: 'Detroit',
+            state: 'MI',
+            zip: '48201'
+          },
+          geofenceResult: null
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'visit-1',
+          turfId: 'turf-1',
+          addressId: 'address-1',
+          visitTime: new Date('2026-03-30T02:30:00.000Z')
+        }
+      ]);
 
-      const visitWhereArg = (prisma.visitLog.findMany as jest.Mock).mock.calls[0][0];
-      expect(visitWhereArg.where.visitTime.gte).toEqual(new Date('2026-03-30T00:00:00.000Z'));
-      expect(visitWhereArg.where.visitTime.lte).toEqual(new Date('2026-03-30T23:59:59.999Z'));
+    const result = await service.getTrendSummary({
+      organizationId: 'org-1',
+      dateFrom: '2026-03-29',
+      dateTo: '2026-03-29'
     });
 
-    it('leaves datetime strings with explicit time component unchanged in getRange', async () => {
-      prisma.visitLog.findMany.mockResolvedValue([]).mockResolvedValueOnce([]);
-      prisma.turfSession.findMany.mockResolvedValue([]);
-      prisma.auditLog.findMany.mockResolvedValue([]);
+    expect(result.bucketTimeZone).toBe('America/Detroit');
+    expect(result.byDay).toEqual([
+      expect.objectContaining({
+        day: '2026-03-29',
+        visits: 1,
+        contactsMade: 1,
+        uniqueAddressesVisited: 1
+      })
+    ]);
+    expect(result.byTimeOfDay).toEqual(expect.arrayContaining([{ bucket: 'late_evening', total: 1 }]));
+    expect(result.byDayOfWeek).toEqual(expect.arrayContaining([{ bucket: 'Sunday', total: 1 }]));
+  });
 
-      await service.getOverview({
-        organizationId: 'org-1',
-        dateFrom: '2026-03-30T00:00:00.000Z',
-        dateTo: '2026-03-30T23:59:59.999Z'
-      });
+  it('interprets date-only filters as report-timezone day boundaries when report timezone is non-UTC', async () => {
+    process.env.REPORT_BUCKET_TIME_ZONE = 'America/Detroit';
+    prisma.visitLog.findMany.mockResolvedValue([]).mockResolvedValueOnce([]);
+    prisma.turfSession.findMany.mockResolvedValue([]);
+    prisma.auditLog.findMany.mockResolvedValue([]);
 
-      const visitWhereArg = (prisma.visitLog.findMany as jest.Mock).mock.calls[0][0];
-      expect(visitWhereArg.where.visitTime.gte).toEqual(new Date('2026-03-30T00:00:00.000Z'));
-      expect(visitWhereArg.where.visitTime.lte).toEqual(new Date('2026-03-30T23:59:59.999Z'));
+    await service.getOverview({
+      organizationId: 'org-1',
+      dateFrom: '2026-03-29',
+      dateTo: '2026-03-29'
     });
+
+    const visitWhereArg = (prisma.visitLog.findMany as jest.Mock).mock.calls[0][0];
+    expect(visitWhereArg.where.visitTime.gte).toEqual(new Date('2026-03-29T04:00:00.000Z'));
+    expect(visitWhereArg.where.visitTime.lte).toEqual(new Date('2026-03-30T03:59:59.999Z'));
+  });
+
+  it('leaves datetime strings with explicit time component unchanged in getRange', async () => {
+    process.env.REPORT_BUCKET_TIME_ZONE = 'America/Detroit';
+    prisma.visitLog.findMany.mockResolvedValue([]).mockResolvedValueOnce([]);
+    prisma.turfSession.findMany.mockResolvedValue([]);
+    prisma.auditLog.findMany.mockResolvedValue([]);
+
+    await service.getOverview({
+      organizationId: 'org-1',
+      dateFrom: '2026-03-30T00:00:00.000Z',
+      dateTo: '2026-03-30T23:59:59.999Z'
+    });
+
+    const visitWhereArg = (prisma.visitLog.findMany as jest.Mock).mock.calls[0][0];
+    expect(visitWhereArg.where.visitTime.gte).toEqual(new Date('2026-03-30T00:00:00.000Z'));
+    expect(visitWhereArg.where.visitTime.lte).toEqual(new Date('2026-03-30T23:59:59.999Z'));
+  });
 });

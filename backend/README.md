@@ -40,5 +40,5 @@ npm run prisma:seed
 - UTC remains the canonical storage/comparison/audit timezone.
 - Reporting and export timezone behavior is centralized in `src/common/utils/timezone-policy.util.ts`.
 - Optional environment variables:
-	- `REPORT_BUCKET_TIME_ZONE` (default `UTC`) controls trend bucket timezone labels/calculations.
-	- `EXPORT_TIME_ZONE` (default `UTC`) controls export timestamp rendering and `time_zone` column labeling.
+  - `REPORT_BUCKET_TIME_ZONE` (default `UTC`) controls trend bucket timezone labels/calculations.
+  - `EXPORT_TIME_ZONE` (default `UTC`) controls export timestamp rendering and `time_zone` column labeling.

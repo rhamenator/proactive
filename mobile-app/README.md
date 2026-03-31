@@ -11,13 +11,13 @@ cd /home/rich/dev/proactive/mobile-app
 npm install
 ```
 
-2. Set your API URL:
+1. Set your API URL:
 
 ```bash
 cp .env.example .env
 ```
 
-3. Start the app:
+1. Start the app:
 
 ```bash
 npm start
@@ -33,19 +33,19 @@ Use this path for development and day-to-day QA.
 npm run dev:backend
 ```
 
-2. Start the Expo app from [mobile-app](/home/rich/dev/proactive/mobile-app):
+1. Start the Expo app from [mobile-app](/home/rich/dev/proactive/mobile-app):
 
 ```bash
 npm start
 ```
 
-3. Open the app on:
+1. Open the app on:
 
 - an iOS simulator
 - an Android emulator
 - a physical device through Expo Go or a development build
 
-4. Sign in with a canvasser account and verify:
+1. Sign in with a canvasser account and verify:
 
 - assigned turf appears
 - session start/pause/resume/complete actions work
@@ -110,7 +110,7 @@ cp .env.preview.example .env.preview
 cp .env.production.example .env.production
 ```
 
-2. Set the required identifiers and release settings:
+1. Set the required identifiers and release settings:
 
 - `EXPO_PUBLIC_API_URL`
 - `EXPO_OWNER`
@@ -118,7 +118,7 @@ cp .env.production.example .env.production
 - `IOS_BUNDLE_IDENTIFIER`
 - `ANDROID_APPLICATION_ID`
 
-3. Log in to Expo and link the app to an EAS project:
+1. Log in to Expo and link the app to an EAS project:
 
 ```bash
 npx eas login
@@ -169,9 +169,9 @@ Recommended path:
 npm run eas:build:ios:preview
 ```
 
-2. Upload/distribute through TestFlight.
-3. Add internal testers in App Store Connect.
-4. Testers install the app through the TestFlight app.
+1. Upload/distribute through TestFlight.
+1. Add internal testers in App Store Connect.
+1. Testers install the app through the TestFlight app.
 
 Notes:
 
@@ -188,10 +188,10 @@ Recommended path for fastest in-org testing:
 npm run eas:build:android:preview
 ```
 
-2. Download the generated APK or internal artifact from EAS.
-3. Transfer it to the tester device.
-4. On the Android device, allow installs from the file manager/browser if prompted.
-5. Open the APK and install it.
+1. Download the generated APK or internal artifact from EAS.
+1. Transfer it to the tester device.
+1. On the Android device, allow installs from the file manager/browser if prompted.
+1. Open the APK and install it.
 
 Alternative managed path:
 
@@ -238,11 +238,11 @@ Use this only for changes compatible with the installed runtime version. Native 
 ## Recommended In-Org Test Flow
 
 1. Build `preview` binaries, not `production`.
-2. Point preview builds at a non-production backend.
-3. Seed or create canvasser test accounts before distribution.
-4. Assign one or more test turfs before testers sign in.
-5. Distribute through TestFlight on iOS and either direct APK install or Play Internal Testing on Android.
-6. Ask testers to verify:
+1. Point preview builds at a non-production backend.
+1. Seed or create canvasser test accounts before distribution.
+1. Assign one or more test turfs before testers sign in.
+1. Distribute through TestFlight on iOS and either direct APK install or Play Internal Testing on Android.
+1. Ask testers to verify:
 
 - login
 - turf visibility

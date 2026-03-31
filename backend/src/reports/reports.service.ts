@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, SyncStatus, GpsStatus } from '@prisma/client';
 import { getDayOfWeekBucket, getTimeOfDayBucket, attachVisitAttemptMetrics } from '../common/utils/visit-analytics.util';
-import { REPORT_BUCKET_TIME_ZONE } from '../common/utils/timezone-policy.util';
+import { getReportBucketDate, getReportBucketTimeZone, getReportDateBoundary } from '../common/utils/timezone-policy.util';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -132,16 +132,8 @@ export class ReportsService {
   ) {}
 
   private getRange(filters: ReportFilters) {
-    const from = filters.dateFrom ? new Date(filters.dateFrom) : null;
-    // A date-only string (YYYY-MM-DD) parses as UTC midnight, which is the start
-    // of that day, not the end. Snap date-only dateTo values to end-of-day UTC so
-    // that selecting the same date for both bounds returns the full day's visits.
-    let to: Date | null = null;
-    if (filters.dateTo) {
-      to = /^\d{4}-\d{2}-\d{2}$/.test(filters.dateTo)
-        ? new Date(`${filters.dateTo}T23:59:59.999Z`)
-        : new Date(filters.dateTo);
-    }
+    const from = filters.dateFrom ? getReportDateBoundary(filters.dateFrom, 'start') : null;
+    const to = filters.dateTo ? getReportDateBoundary(filters.dateTo, 'end') : null;
     return { from, to };
   }
 
@@ -962,7 +954,7 @@ export class ReportsService {
     let revisitVisits = 0;
 
     for (const visit of visits) {
-      const day = visit.visitTime.toISOString().slice(0, 10);
+      const day = getReportBucketDate(visit.visitTime);
       const dayBucket = byDay.get(day) ?? { visits: 0, contactsMade: 0, addresses: new Set<string>() };
       dayBucket.visits += 1;
       dayBucket.addresses.add(visit.addressId);
@@ -997,7 +989,7 @@ export class ReportsService {
 
     return {
       filters: this.normalizeFilters(filters),
-      bucketTimeZone: REPORT_BUCKET_TIME_ZONE,
+      bucketTimeZone: getReportBucketTimeZone(),
       summary: {
         days: byDay.size,
         totalVisits: visits.length,

@@ -31,8 +31,8 @@ npm run prisma:seed:e2e --workspace @proactive/backend
 - browser storage helper tests
 - MSW-backed API tests (`api.msw.spec.ts`) using shared fake-data scenarios
 - Playwright browser e2e with project split:
-	- `mocked`: deterministic route-level coverage with fake data
-	- `seeded`: real backend/test DB flow coverage scaffold
+  - `mocked`: deterministic route-level coverage with fake data
+  - `seeded`: real backend/test DB flow coverage scaffold
 
 Run:
 
@@ -72,10 +72,10 @@ Notes:
 ## Shared Fake Data And Mocking
 
 - Shared deterministic factories/scenarios:
-	- `testing/fake-data/factories.ts`
-	- `testing/fake-data/scenarios.ts`
+  - `testing/fake-data/factories.ts`
+  - `testing/fake-data/scenarios.ts`
 - Shared admin mock scenario + MSW handlers:
-	- `testing/mocks/admin-dashboard/scenario.ts`
+  - `testing/mocks/admin-dashboard/scenario.ts`
 
 These fixtures are designed to support both mocked tests and backend seeding.
 
@@ -85,9 +85,9 @@ Initial seeded browser suite focuses on high-risk semantics first:
 
 - login + MFA verification flow
 - MFA-sensitive export action flow
-- reports filtering flow with timezone-aware assertions
+- reports filtering flow with timezone-aware assertions, including report-local date-only filters
 - queue surface loading (sync conflicts, import review, address requests)
-- export CSV timezone-label regression assertion (`time_zone` includes `UTC`)
+- export CSV timestamp regression assertions for UTC and non-UTC formatting
 - team-first supervisor policy invariant coverage (reject/normalize legacy `campaign` scope mode)
 
 ## Full Repo Commands
@@ -117,6 +117,7 @@ High-confidence areas:
 
 - backend auth and turf lifecycle logic
 - backend visit/GPS logic
+- report bucket timezone/date-filter behavior
 - admin API helper behavior
 - admin mocked browser interaction flows for reports + queue pages
 - mobile client/storage utility behavior
@@ -137,5 +138,7 @@ This repo is not relying only on linting or typechecks. The current test suite i
 - broken auth/session logic
 - turf lifecycle regressions
 - visit deduplication and sync mistakes
+- report timezone/day-boundary regressions
+- export timestamp ambiguity regressions
 - client API contract regressions
 - storage normalization regressions

@@ -9,6 +9,9 @@
         "jsx",
         "tsx"
     ],
+    "files.associations": {
+        "**/backend/prisma/migrations/**/*.sql": "plaintext"
+    },
     "files.exclude": {
         "**/.git": true,
         "**/.svn": true,

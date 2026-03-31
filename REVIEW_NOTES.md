@@ -44,6 +44,20 @@ Date: 2026-03-30 (updated 2026-03-30 — product-alignment pass; anti-drift pass
 - The current reusable-household model is materially better than turf-owned addresses alone, but future schema evolution may still add broader lifecycle/archive automation if the client wants it.
 - Final signed mobile release binaries still require external Expo/Apple/Google credentials that are intentionally not stored in the repo.
 
+## Final Cleanup Pass
+
+### Resolved Semantics
+
+- **Report bucket timezone semantics**: trend `byDay`, `byTimeOfDay`, and `byDayOfWeek` now all derive from the same configured report bucket timezone. The API's `bucketTimeZone` value matches the day and bucket calculations returned in the payload.
+- **Date-only report filter semantics**: `YYYY-MM-DD` report filters now mean that calendar day in the configured report bucket timezone, not UTC midnight-to-midnight. Explicit datetime inputs with offsets/timestamps still pass through unchanged.
+- **Export timestamp semantics**: UTC exports still emit ISO timestamps ending in `Z`. Non-UTC exports now emit localized timestamps with an explicit numeric offset in the timestamp itself, so configurable CSV profiles remain unambiguous even if they omit the `time_zone` column.
+
+### Targeted Regression Coverage Added
+
+- Non-UTC trend bucketing around midnight UTC now verifies internal consistency between `byDay`, `byTimeOfDay`, and `byDayOfWeek`.
+- Non-UTC date-only report filters now verify the generated UTC query boundaries correspond to the configured reporting timezone day.
+- Non-UTC export formatting now verifies localized timestamps remain unambiguous even when a profile excludes the `time_zone` column.
+
 ## First Deployment Readiness Review
 
 ### Findings

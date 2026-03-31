@@ -3,6 +3,7 @@ import { GpsStatus, SyncStatus, VisitResult } from '@prisma/client';
 import { ExportsService } from './exports.service';
 
 describe('ExportsService', () => {
+  const originalExportTimeZone = process.env.EXPORT_TIME_ZONE;
   const scope = { organizationId: 'org-1', campaignId: null };
   const prisma = {
     visitLog: {
@@ -44,6 +45,14 @@ describe('ExportsService', () => {
       filename: 'export-batch.csv',
       sha256Checksum: 'checksum-1'
     });
+  });
+
+  afterEach(() => {
+    if (originalExportTimeZone === undefined) {
+      delete process.env.EXPORT_TIME_ZONE;
+    } else {
+      process.env.EXPORT_TIME_ZONE = originalExportTimeZone;
+    }
   });
 
   it('generates VAN CSV output and marks visits exported when requested', async () => {
@@ -334,6 +343,65 @@ describe('ExportsService', () => {
       }
     });
     expect(history).toEqual([{ id: 'batch-1', profileCode: 'internal_master' }]);
+  });
+
+  it('keeps localized timestamps unambiguous even when the configured profile omits the time_zone column', async () => {
+    process.env.EXPORT_TIME_ZONE = 'America/Detroit';
+    csvProfilesService.resolveProfile.mockResolvedValueOnce({
+      code: 'van_compatible',
+      name: 'VAN Compatible Export',
+      settingsJson: {
+        columns: ['van_id', 'visit_time']
+      }
+    });
+    prisma.visitLog.findMany.mockResolvedValue([
+      {
+        id: 'visit-1',
+        visitTime: new Date('2026-03-28T10:00:00.000Z'),
+        result: VisitResult.knocked,
+        contactMade: true,
+        notes: 'Met voter',
+        gpsStatus: GpsStatus.verified,
+        latitude: 42.9634,
+        longitude: -85.6681,
+        accuracyMeters: 5,
+        syncStatus: SyncStatus.synced,
+        syncConflictFlag: false,
+        address: {
+          household: null,
+          vanId: 'VAN-123',
+          addressLine1: '100 Main St',
+          addressLine2: null,
+          unit: null,
+          city: 'Grand Rapids',
+          state: 'MI',
+          zip: '49503'
+        },
+        canvasser: {
+          firstName: 'Pat',
+          lastName: 'Field'
+        },
+        outcomeDefinition: {
+          id: 'outcome-1',
+          isFinalDisposition: true
+        },
+        turf: {
+          id: 'turf-1',
+          name: 'North'
+        },
+        geofenceResult: {
+          distanceFromTargetFeet: 12.3
+        }
+      }
+    ]);
+
+    const result = await service.vanResultsCsv({
+      organizationId: 'org-1'
+    });
+
+    expect(result.csv).toContain('visit_time');
+    expect(result.csv).not.toContain('time_zone');
+    expect(result.csv).toContain('2026-03-28T06:00:00-04:00');
   });
 
   it('fails historical download when the stored artifact has been purged', async () => {
