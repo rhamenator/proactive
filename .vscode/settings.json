@@ -9,8 +9,14 @@
         "jsx",
         "tsx"
     ],
+    "mssql.intelliSense.enableIntelliSense": false,
+    "mssql.intelliSense.enableErrorChecking": false,
+    "mssql.intelliSense.enableSuggestions": false,
+    "mssql.intelliSense.enableQuickInfo": false,
     "files.associations": {
-        "**/backend/prisma/migrations/**/*.sql": "plaintext"
+        "**/backend/prisma/migrations/**/*.sql": "plaintext",
+        "**/prisma/migrations/**/*.sql": "plaintext",
+        "*.sql": "plaintext"
     },
     "files.exclude": {
         "**/.git": true,
@@ -18,6 +24,10 @@
         "**/.hg": true,
         "**/.DS_Store": true,
         "**/Thumbs.db": true
+    },
+    "problems.exclude": {
+        "**/backend/prisma/migrations/**/*.sql": true,
+        "**/prisma/migrations/**/*.sql": true
     },
     "explorerExclude.backup": {},
     "cSpell.words": [
