@@ -9,6 +9,7 @@
     "test": "jest",
     "prisma:generate": "prisma generate",
     "prisma:seed": "sh -c 'set -a && . ./.env && set +a && tsx prisma/seed.ts'",
+    "prisma:seed:e2e": "sh -c 'set -a && . ./.env && set +a && npx prisma migrate deploy && E2E_ALLOW_DATABASE_SEED=true tsx prisma/seed.e2e.ts'",
     "lint": "eslint ."
   },
   "dependencies": {

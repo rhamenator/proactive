@@ -39,6 +39,8 @@ describe('AddressRequestsService', () => {
     id: 'request-1',
     status: AddressRequestStatus.pending,
     addressLine1: '123 Main',
+    addressLine2: null,
+    unit: null,
     city: 'Detroit',
     state: 'MI',
     zip: null,
@@ -92,6 +94,8 @@ describe('AddressRequestsService', () => {
       approvedAddress: {
         id: 'address-1',
         addressLine1: '123 Main',
+        addressLine2: null,
+        unit: null,
         city: 'Detroit',
         state: 'MI',
         zip: null,
@@ -125,6 +129,8 @@ describe('AddressRequestsService', () => {
             approvedAddress: {
               id: 'address-1',
               addressLine1: '123 Main',
+              addressLine2: null,
+              unit: null,
               city: 'Detroit',
               state: 'MI',
               zip: null,
@@ -346,6 +352,123 @@ describe('AddressRequestsService', () => {
         organizationId: 'org-1'
       })
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('preserves addressLine2 and unit through submission and serialization', async () => {
+    const recordWithUnit = {
+      ...requestRecord,
+      addressLine2: 'Apt 4B',
+      unit: '4B'
+    };
+    prisma.addressRequest.create.mockResolvedValue(recordWithUnit);
+
+    const result = await service.submitRequest({
+      actorUserId: 'user-1',
+      actorRole: UserRole.canvasser,
+      organizationId: 'org-1',
+      turfId: 'turf-1',
+      addressLine1: '123 Main',
+      addressLine2: 'Apt 4B',
+      unit: '4B',
+      city: 'Detroit',
+      state: 'MI'
+    });
+
+    expect(prisma.addressRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          addressLine2: 'Apt 4B',
+          unit: '4B'
+        })
+      })
+    );
+    expect(result.requestedAddress.addressLine2).toBe('Apt 4B');
+    expect(result.requestedAddress.unit).toBe('4B');
+  });
+
+  it('passes addressLine2 and unit through into the created address on approval', async () => {
+    const recordWithUnit = {
+      ...requestRecord,
+      addressLine2: 'Suite 200',
+      unit: '200',
+      turf: { id: 'turf-1', name: 'Northside' }
+    };
+    prisma.addressRequest.findFirst.mockResolvedValue(recordWithUnit);
+
+    let capturedTx: {
+      address: { create: jest.Mock };
+      addressRequest: { update: jest.Mock };
+      household: { findFirst: jest.Mock; create: jest.Mock; update: jest.Mock };
+    };
+
+    prisma.$transaction.mockImplementationOnce(async (callback: (tx: typeof capturedTx) => Promise<unknown>) => {
+      const tx = {
+        household: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue({ id: 'household-1' }),
+          update: jest.fn().mockResolvedValue({ id: 'household-1' })
+        },
+        address: {
+          create: jest.fn().mockResolvedValue({ id: 'address-1' })
+        },
+        addressRequest: {
+          update: jest.fn().mockResolvedValue({
+            ...recordWithUnit,
+            status: AddressRequestStatus.approved,
+            reviewedByUserId: 'admin-1',
+            approvedAddressId: 'address-1',
+            approvedAddress: {
+              id: 'address-1',
+              addressLine1: '123 Main',
+              addressLine2: 'Suite 200',
+              unit: '200',
+              city: 'Detroit',
+              state: 'MI',
+              zip: null,
+              latitude: null,
+              longitude: null
+            },
+            reviewedByUser: {
+              id: 'admin-1',
+              firstName: 'Jordan',
+              lastName: 'Admin',
+              email: 'admin@example.com',
+              role: UserRole.admin
+            }
+          })
+        }
+      };
+      capturedTx = tx;
+      return callback(tx);
+    });
+
+    await service.approveRequest({
+      requestId: 'request-1',
+      actorUserId: 'admin-1',
+      actorRole: UserRole.admin,
+      organizationId: 'org-1',
+      reason: 'Validated'
+    });
+
+    // ensureHousehold uses this.prisma (outer mock), not the tx
+    expect(prisma.household.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          addressLine2: 'Suite 200',
+          unit: '200'
+        })
+      })
+    );
+
+    // address.create runs inside the tx
+    expect(capturedTx!.address.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          addressLine2: 'Suite 200',
+          unit: '200'
+        })
+      })
+    );
   });
 
   it('requires a reason when rejecting a request', async () => {

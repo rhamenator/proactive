@@ -15,6 +15,6 @@
     "strict": true,
     "types": ["node", "jest"]
   },
-  "include": ["src/**/*", "prisma/seed.ts", "test/**/*", "jest.config.cjs"],
+  "include": ["src/**/*", "prisma/**/*.ts", "test/**/*", "jest.config.cjs"],
   "exclude": ["node_modules", "dist"]
 }

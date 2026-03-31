@@ -26,6 +26,8 @@ type RequestTurf = {
 type RequestAddress = {
   id: string;
   addressLine1: string;
+  addressLine2: string | null;
+  unit: string | null;
   city: string;
   state: string;
   zip: string | null;
@@ -37,6 +39,8 @@ type RequestRecord = {
   id: string;
   status: AddressRequestStatus;
   addressLine1: string;
+  addressLine2: string | null;
+  unit: string | null;
   city: string;
   state: string;
   zip: string | null;
@@ -68,6 +72,8 @@ type SerializedAddressRequest = {
   campaignId: string | null;
   requestedAddress: {
     addressLine1: string;
+    addressLine2: string | null;
+    unit: string | null;
     city: string;
     state: string;
     zip: string | null;
@@ -80,6 +86,8 @@ type SerializedAddressRequest = {
   approvedAddress: {
     id: string;
     addressLine1: string;
+    addressLine2: string | null;
+    unit: string | null;
     city: string;
     state: string;
     zip: string | null;
@@ -121,6 +129,8 @@ export class AddressRequestsService {
       select: {
         id: true,
         addressLine1: true,
+        addressLine2: true,
+        unit: true,
         city: true,
         state: true,
         zip: true,
@@ -144,12 +154,16 @@ export class AddressRequestsService {
 
   private normalizeAddress(input: {
     addressLine1: string;
+    addressLine2?: string | null;
+    unit?: string | null;
     city: string;
     state: string;
-    zip?: string;
+    zip?: string | null;
   }) {
     return {
       addressLine1: input.addressLine1.trim(),
+      addressLine2: input.addressLine2?.trim() || null,
+      unit: input.unit?.trim() || null,
       city: input.city.trim(),
       state: input.state.trim().toUpperCase(),
       zip: input.zip?.trim() || null
@@ -176,6 +190,8 @@ export class AddressRequestsService {
       campaignId: record.campaignId,
       requestedAddress: {
         addressLine1: record.addressLine1,
+        addressLine2: record.addressLine2,
+        unit: record.unit,
         city: record.city,
         state: record.state,
         zip: record.zip,
@@ -189,6 +205,8 @@ export class AddressRequestsService {
         ? {
             id: record.approvedAddress.id,
             addressLine1: record.approvedAddress.addressLine1,
+            addressLine2: record.approvedAddress.addressLine2,
+            unit: record.approvedAddress.unit,
             city: record.approvedAddress.city,
             state: record.approvedAddress.state,
             zip: record.approvedAddress.zip,
@@ -282,6 +300,8 @@ export class AddressRequestsService {
   private async ensureHousehold(input: {
     organizationId: string | null;
     addressLine1: string;
+    addressLine2?: string | null;
+    unit?: string | null;
     city: string;
     state: string;
     zip: string | null;
@@ -311,6 +331,8 @@ export class AddressRequestsService {
       data: {
         organizationId: input.organizationId!,
         addressLine1: input.addressLine1,
+        addressLine2: input.addressLine2 ?? null,
+        unit: input.unit ?? null,
         city: input.city,
         state: input.state,
         zip: input.zip,
@@ -326,6 +348,8 @@ export class AddressRequestsService {
   private buildPendingDuplicateWhere(input: {
     turfId: string;
     addressLine1: string;
+    addressLine2?: string | null;
+    unit?: string | null;
     city: string;
     state: string;
     zip: string | null;
@@ -337,6 +361,12 @@ export class AddressRequestsService {
         equals: input.addressLine1,
         mode: 'insensitive'
       },
+      addressLine2: input.addressLine2
+        ? { equals: input.addressLine2, mode: 'insensitive' }
+        : { equals: null },
+      unit: input.unit
+        ? { equals: input.unit, mode: 'insensitive' }
+        : { equals: null },
       city: {
         equals: input.city,
         mode: 'insensitive'
@@ -371,6 +401,8 @@ export class AddressRequestsService {
     organizationId: string | null;
     turfId: string;
     addressLine1: string;
+    addressLine2?: string | null;
+    unit?: string | null;
     city: string;
     state: string;
     zip?: string;
@@ -387,7 +419,14 @@ export class AddressRequestsService {
       organizationId: input.organizationId
     });
 
-    const normalized = this.normalizeAddress(input);
+    const normalized = this.normalizeAddress({
+      addressLine1: input.addressLine1,
+      addressLine2: input.addressLine2,
+      unit: input.unit,
+      city: input.city,
+      state: input.state,
+      zip: input.zip
+    });
 
     const [existingAddress, existingPendingRequest] = await Promise.all([
       this.prisma.address.findFirst({
@@ -420,6 +459,8 @@ export class AddressRequestsService {
         campaignId: turf.campaignId,
         requestedByUserId: input.actorUserId,
         addressLine1: normalized.addressLine1,
+        addressLine2: normalized.addressLine2,
+        unit: normalized.unit,
         city: normalized.city,
         state: normalized.state,
         zip: normalized.zip,
@@ -506,6 +547,8 @@ export class AddressRequestsService {
 
     const normalized = this.normalizeAddress({
       addressLine1: request.addressLine1,
+      addressLine2: request.addressLine2,
+      unit: request.unit,
       city: request.city,
       state: request.state,
       zip: request.zip ?? undefined
@@ -527,6 +570,8 @@ export class AddressRequestsService {
       const household = await this.ensureHousehold({
         organizationId: request.organizationId,
         addressLine1: normalized.addressLine1,
+        addressLine2: normalized.addressLine2,
+        unit: normalized.unit,
         city: normalized.city,
         state: normalized.state,
         zip: normalized.zip,
@@ -541,6 +586,8 @@ export class AddressRequestsService {
           organizationId: request.organizationId,
           campaignId: request.campaignId,
           addressLine1: normalized.addressLine1,
+          addressLine2: normalized.addressLine2,
+          unit: normalized.unit,
           city: normalized.city,
           state: normalized.state,
           zip: normalized.zip,

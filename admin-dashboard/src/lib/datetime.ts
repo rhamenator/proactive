@@ -4,11 +4,18 @@ export function formatLocalDateTime(value: string | Date | null | undefined) {
   }
 
   const date = value instanceof Date ? value : new Date(value);
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZoneName: 'short'
-  }).format(date);
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZoneName: 'short'
+    }).format(date);
+  } catch {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(date);
+  }
 }
 
 export function getLocalTimeZoneLabel() {

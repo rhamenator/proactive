@@ -347,6 +347,58 @@ describe('AdminService', () => {
     expect(result).toHaveLength(1);
   });
 
+  it('scopes a supervisor query to their team, not their campaignId', async () => {
+    // Product direction: supervisors are team-scoped; campaignId is a tag/filter only.
+    // supervisors should never get a campaign-level scopeWhere fallback.
+    prisma.user.findMany.mockResolvedValue([]);
+
+    const supervisorScope = {
+      organizationId: 'org-1',
+      campaignId: 'campaign-99',
+      role: UserRole.supervisor,
+      teamId: 'team-1',
+      regionCode: null,
+      supervisorScopeMode: 'team' as const
+    };
+
+    await service.listCanvassers(supervisorScope);
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: 'org-1',
+          teamId: 'team-1'
+        })
+      })
+    );
+    // campaignId must NOT appear as a scope filter
+    const whereArg = (prisma.user.findMany as jest.Mock).mock.calls[0][0].where;
+    expect(whereArg).not.toHaveProperty('campaignId', 'campaign-99');
+  });
+
+  it('falls back to org-level scope when a supervisor has no teamId or regionCode', async () => {
+    // A supervisor that is misconfigured (no teamId, no regionCode) must not be granted
+    // access to campaign-scoped data even if campaignId is present on the scope.
+    prisma.user.findMany.mockResolvedValue([]);
+
+    const orphanedSupervisorScope = {
+      organizationId: 'org-1',
+      campaignId: 'campaign-99',
+      role: UserRole.supervisor,
+      teamId: null,
+      regionCode: null,
+      supervisorScopeMode: 'team' as const
+    };
+
+    await service.listCanvassers(orphanedSupervisorScope);
+
+    const whereArg = (prisma.user.findMany as jest.Mock).mock.calls[0][0].where;
+    expect(whereArg).toHaveProperty('organizationId', 'org-1');
+    expect(whereArg).not.toHaveProperty('campaignId', 'campaign-99');
+    expect(whereArg).not.toHaveProperty('teamId');
+    expect(whereArg).not.toHaveProperty('regionCode');
+  });
+
   it('lists configurable outcomes in display order', async () => {
     policiesService.getEffectivePolicy.mockResolvedValue({ allowOrgOutcomeFallback: false });
     prisma.outcomeDefinition.findMany.mockResolvedValue([{ id: 'outcome-1', code: 'knocked' }]);

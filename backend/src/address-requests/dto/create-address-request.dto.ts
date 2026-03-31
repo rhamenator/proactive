@@ -9,6 +9,16 @@ export class CreateAddressRequestDto {
   @MaxLength(255)
   addressLine1!: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  addressLine2?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  unit?: string;
+
   @IsString()
   @MaxLength(120)
   city!: string;

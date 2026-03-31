@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module';
 import { PoliciesModule } from '../policies/policies.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SecurityModule } from '../security/security.module';
@@ -8,7 +9,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
 @Module({
-  imports: [PrismaModule, SecurityModule, UsersModule, PoliciesModule, SystemSettingsModule],
+  imports: [PrismaModule, SecurityModule, UsersModule, PoliciesModule, SystemSettingsModule, AuditModule],
   controllers: [AuthController],
   providers: [AuthService],
   exports: [AuthService]

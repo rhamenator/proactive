@@ -16,7 +16,7 @@ describe('AdminController', () => {
     teamId: null,
     regionCode: null,
     role: UserRole.supervisor,
-    supervisorScopeMode: 'campaign'
+    supervisorScopeMode: 'team'
   };
   const adminService = {
     dashboardSummary: jest.fn(),
@@ -78,7 +78,7 @@ describe('AdminController', () => {
       role: id.startsWith('supervisor') ? UserRole.supervisor : UserRole.admin
     }));
     policiesService.getEffectivePolicy.mockResolvedValue({
-      supervisorScopeMode: 'campaign'
+      supervisorScopeMode: 'team'
     });
   });
 

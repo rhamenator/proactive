@@ -21,7 +21,7 @@ describe('ReportsService', () => {
   };
   const policiesService = {
     getEffectivePolicy: jest.fn().mockResolvedValue({
-      supervisorScopeMode: 'campaign'
+      supervisorScopeMode: 'team'
     })
   };
 

@@ -59,6 +59,35 @@ npm start
 - Visit logs, queue state, and local address state are persisted in the on-device SQLite store when the device is offline or the API call fails.
 - Location permission is required for turf starts, turf ends, and visit submission.
 
+## Automated Testing Layers
+
+### Fast deterministic tests (Vitest)
+
+```bash
+npm run test
+```
+
+Includes:
+
+- API client behavior
+- SQLite-backed storage helpers
+- offline/local-first flow persistence coverage (`src/storage.offline-flow.spec.ts`)
+
+### Mobile E2E scaffold (Detox)
+
+```bash
+npm run build:e2e:mobile:ios
+npm run test:e2e:mobile:ios
+```
+
+Detox is intentionally scaffolded for incremental rollout and lives in:
+
+- `.detoxrc.js`
+- `e2e/jest.config.js`
+- `e2e/smoke.e2e.ts`
+
+The current Detox smoke spec is a scaffold placeholder while simulator/device pipeline hardening is completed.
+
 ## Mobile Release Pipeline
 
 This app is configured for Expo Application Services (EAS) builds and store submission.

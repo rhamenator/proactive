@@ -183,14 +183,13 @@ export class ReportsService {
       return { impossible: true as const };
     }
 
+    // Supervisor scope is team-primary per product direction. Campaign is a
+    // reporting/filter layer only, not a structural supervisory scope.
     if (supervisor.teamId) {
       return { teamId: supervisor.teamId };
     }
     if (supervisor.regionCode) {
       return { regionCode: supervisor.regionCode };
-    }
-    if (supervisor.campaignId) {
-      return { campaignId: supervisor.campaignId };
     }
 
     return {};
@@ -206,13 +205,6 @@ export class ReportsService {
       return where;
     }
 
-    if (constraints.campaignId) {
-      if (filters.campaignId && filters.campaignId !== constraints.campaignId) {
-        (where as Prisma.VisitLogWhereInput).id = '__no_matching_supervisor_scope__';
-        return where;
-      }
-      (where as Prisma.VisitLogWhereInput).campaignId = constraints.campaignId;
-    }
     if (constraints.teamId) {
       if (filters.teamId && filters.teamId !== constraints.teamId) {
         (where as Prisma.VisitLogWhereInput).id = '__no_matching_supervisor_scope__';

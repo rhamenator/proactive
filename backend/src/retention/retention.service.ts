@@ -33,6 +33,10 @@ export class RetentionService implements OnModuleInit, OnModuleDestroy {
       this.timer = null;
     }
 
+    if (process.env.DISABLE_RETENTION_AUTOMATION === 'true') {
+      return;
+    }
+
     const settings = await this.systemSettingsService.getEffectiveSettings();
     if (!settings.retentionJobEnabled) {
       return;

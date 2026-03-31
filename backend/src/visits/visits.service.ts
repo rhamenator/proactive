@@ -78,12 +78,12 @@ export class VisitsService {
     } as Record<string, unknown>;
 
     if (scope.role === UserRole.supervisor) {
+      // Supervisor scope is team-primary per product direction. Campaign is a
+      // reporting/filter layer only, not a structural scope for supervisors.
       if (scope.teamId) {
         where.teamId = scope.teamId;
       } else if (scope.regionCode) {
         where.regionCode = scope.regionCode;
-      } else if (scope.campaignId) {
-        where.campaignId = scope.campaignId;
       }
     } else if (scope.campaignId) {
       where.campaignId = scope.campaignId;

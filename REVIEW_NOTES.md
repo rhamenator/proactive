@@ -1,6 +1,6 @@
 # Review Notes
 
-Date: 2026-03-30 (updated 2026-03-30 — product-alignment pass)
+Date: 2026-03-30 (updated 2026-03-30 — product-alignment pass; anti-drift pass)
 
 ## What I Found
 
@@ -12,6 +12,9 @@ Date: 2026-03-30 (updated 2026-03-30 — product-alignment pass)
 - Structured apartment/unit data from CSV imports was being flattened into `addressLine1`, which was lossy.
 - Sync conflict handling had scaffolding and some real cases, but duplicate local-record/idempotency payload mismatches were not being classified as true conflicts.
 - Reporting and exports were functional, but a few clearly-supported slices and columns were still missing from the current schema-backed implementation.
+- **Supervisor scope campaign fallback (anti-drift)** — Four service `scopeWhere`/constraint methods (`admin.service.ts`, `visits.service.ts`, `turfs.service.ts`, `reports.service.ts`) all had an `else if (scope.campaignId)` / `return { campaignId }` fallback inside the supervisor branch. This directly contradicts the product model: campaign is a tag/filter layer and supervisors are team-scoped. The policy layer (`normalizeSupervisorScopeMode`) already rejects `'campaign'` and `resolveAccessScope` correctly assigns team mode — but the service layer was silently undoing that by falling back to campaignId when no teamId/regionCode was set.
+- **Test fixture drift** — `admin.controller.spec.ts` and `reports.service.spec.ts` both had mock policies returning `supervisorScopeMode: 'campaign'`. Since the real policy service rejects `'campaign'` and defaults it to `'team'`, these fixtures were testing behavior that can never occur in production.
+- **AddressRequest missing `addressLine2`/`unit`** — The `AddressRequest` DB model, DTO, service types, and all code paths (`submitRequest`, `approveRequest`, `ensureHousehold`) were missing the structured secondary address fields that already exist on `Household` and `Address`. Field canvassers submitting apt/unit corrections were losing that data silently.
 
 ## What I Fixed
 
@@ -29,6 +32,9 @@ Date: 2026-03-30 (updated 2026-03-30 — product-alignment pass)
 - Expanded reports to support supervisor filtering, final-disposition filtering, revisit/attempt semantics, and time-of-day/day-of-week trend buckets using the current data model.
 - Expanded export row generation to include additional operational and audit columns already supported by the schema.
 - Added and updated regression tests across backend and mobile for the fixes above.
+- **Removed supervisor `campaignId` scope fallback** — Deleted the `else if (scope.campaignId)` branch from the supervisor section of `scopeWhere` / `resolveSupervisorConstraints` in all four service files, plus the now-dead `constraints.campaignId` block in `applySupervisorConstraints` (reports). Supervisor scope is now strictly `teamId → regionCode → org-level` with no possible campaign leak. Added two new regression tests in `admin.service.spec.ts` verifying: (a) a supervisor with teamId scopes by teamId only (campaignId is never injected into the where), (b) a misconfigured supervisor with neither teamId nor regionCode falls back to org-level (not campaign-wide).
+- **Corrected test fixture drift** — Changed `supervisorScopeMode: 'campaign'` to `'team'` in mock policy objects in `admin.controller.spec.ts` (fixture + mock) and `reports.service.spec.ts` (mock). Tests now exercise the real product invariant.
+- **AddressRequest address fidelity** — Added `addressLine2` and `unit` columns to `AddressRequest` (Prisma schema + migration `20260330160000_address_request_fidelity`). Updated `CreateAddressRequestDto`, all internal `RequestRecord`/`RequestAddress`/`SerializedAddressRequest` types, `normalizeAddress`, `serializeRequest`, `submitRequest`, `approveRequest`, `ensureHousehold`, and `buildPendingDuplicateWhere`. Field-submitted address requests now preserve unit/apt data end-to-end: from submission → pending-duplicate check → approval → `Address` record → serialized response. Added regression tests in `address-requests.service.spec.ts` covering both paths.
 
 ## Remaining Limitations
 

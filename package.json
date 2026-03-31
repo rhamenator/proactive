@@ -17,7 +17,13 @@
     "prisma:generate": "npm run prisma:generate --workspace @proactive/backend",
     "dev:backend": "npm run start:dev --workspace @proactive/backend",
     "dev:admin": "npm run dev --workspace @proactive/admin-dashboard",
-    "dev:mobile": "npm run start --workspace mobile-app"
+    "dev:mobile": "npm run start --workspace mobile-app",
+    "test:ui": "npm run test:e2e --workspace @proactive/admin-dashboard",
+    "test:ui:mocked": "npm run test:e2e:mocked --workspace @proactive/admin-dashboard",
+    "test:ui:seeded": "npm run test:e2e:seeded --workspace @proactive/admin-dashboard",
+    "seed:e2e": "npm run prisma:seed:e2e --workspace @proactive/backend",
+    "test:mobile:e2e:ios": "npm run test:e2e:mobile:ios --workspace mobile-app",
+    "build:mobile:e2e:ios": "npm run build:e2e:mobile:ios --workspace mobile-app"
   },
   "engines": {
     "node": ">=22.0.0"

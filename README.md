@@ -98,6 +98,28 @@ npm run test
 npm run test:coverage
 ```
 
+## Automated UI Testing
+
+Layered UI automation now exists for conservative production-sane coverage:
+
+- fast mocked browser/UI flows (deterministic)
+- seeded browser integration flows against a real backend/test database
+- mobile offline-state automation now, with Detox scaffold for simulator/device e2e expansion
+
+Run from the repo root:
+
+```bash
+npm run test:ui:mocked
+npm run test:ui:seeded
+npm run test:mobile:e2e:ios
+```
+
+Notes:
+
+- `test:ui:seeded` runs deterministic seeding first via `npm run seed:e2e` and expects backend API availability.
+- Mocked and seeded browser tests are configured in `admin-dashboard/playwright.config.ts`.
+- Shared fake data lives in `testing/fake-data/` and shared mock scenarios in `testing/mocks/admin-dashboard/`.
+
 ## Trusted Release Builds
 
 GitHub Actions now provides a release-oriented build path in `.github/workflows/release-builds.yml`.

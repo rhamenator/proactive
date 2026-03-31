@@ -816,6 +816,8 @@ model AddressRequest {
   approvedAddressId String?              @map("approved_address_id") @db.Uuid
   status            AddressRequestStatus @default(pending)
   addressLine1      String               @map("address_line1")
+  addressLine2      String?              @map("address_line2")
+  unit              String?
   city              String
   state             String
   zip               String?

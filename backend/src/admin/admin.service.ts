@@ -71,13 +71,15 @@ export class AdminService {
     } as Record<string, unknown>;
 
     if (scope.role === UserRole.supervisor) {
+      // Supervisor scope is team-primary per product direction. Campaign is a
+      // reporting/filter layer only, not a structural scope for supervisors.
       if (scope.teamId) {
         where.teamId = scope.teamId;
       } else if (scope.regionCode) {
         where.regionCode = scope.regionCode;
-      } else if (scope.campaignId) {
-        where.campaignId = scope.campaignId;
       }
+      // If neither teamId nor regionCode is set the supervisor is misconfigured;
+      // fall back to org-level scope rather than granting campaign-wide access.
     } else if (scope.campaignId) {
       where.campaignId = scope.campaignId;
     }
