@@ -162,6 +162,29 @@ describe('PoliciesService', () => {
     expect(result.defaultImportMode).toBe('replace_turf_membership');
   });
 
+  it('normalizes unsupported supervisor scope mode to team during upsert', async () => {
+    prisma.operationalPolicy.findUnique.mockResolvedValue(null);
+    prisma.operationalPolicy.upsert.mockResolvedValue({ id: 'policy-org' });
+
+    await service.upsertPolicy(
+      { organizationId: 'org-1', campaignId: null },
+      {
+        supervisorScopeMode: 'campaign' as unknown as never
+      }
+    );
+
+    expect(prisma.operationalPolicy.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          supervisorScopeMode: 'team'
+        }),
+        update: expect.objectContaining({
+          supervisorScopeMode: 'team'
+        })
+      })
+    );
+  });
+
   it('clears a campaign policy and falls back to inherited organization values', async () => {
     prisma.operationalPolicy.deleteMany.mockResolvedValue({ count: 1 });
     prisma.operationalPolicy.findUnique

@@ -85,7 +85,6 @@ enum CsvProfileDirection {
 }
 
 enum SupervisorScopeMode {
-  campaign
   team
   region
 }
@@ -729,7 +728,7 @@ model OperationalPolicy {
   organizationId           String        @map("organization_id") @db.Uuid
   campaignId               String?       @map("campaign_id") @db.Uuid
   defaultImportProfileCode String        @default("van_standard") @map("default_import_profile_code")
-  defaultImportMode        String        @default("create_only") @map("default_import_mode")
+  defaultImportMode        String        @default("replace_turf_membership") @map("default_import_mode")
   defaultDuplicateStrategy String        @default("skip") @map("default_duplicate_strategy")
   defaultVanExportProfileCode String     @default("van_compatible") @map("default_van_export_profile_code")
   defaultInternalExportProfileCode String @default("internal_master") @map("default_internal_export_profile_code")

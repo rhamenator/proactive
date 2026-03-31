@@ -107,6 +107,6 @@ export class UpsertOperationalPolicyDto {
   allowOrgOutcomeFallback?: boolean;
 
   @IsOptional()
-  @IsEnum(SupervisorScopeMode)
+  @IsIn([SupervisorScopeMode.team, SupervisorScopeMode.region])
   supervisorScopeMode?: SupervisorScopeMode;
 }

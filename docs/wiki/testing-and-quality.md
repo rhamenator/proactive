@@ -88,6 +88,7 @@ Initial seeded browser suite focuses on high-risk semantics first:
 - reports filtering flow with timezone-aware assertions
 - queue surface loading (sync conflicts, import review, address requests)
 - export CSV timezone-label regression assertion (`time_zone` includes `UTC`)
+- team-first supervisor policy invariant coverage (reject/normalize legacy `campaign` scope mode)
 
 ## Full Repo Commands
 

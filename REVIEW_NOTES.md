@@ -43,3 +43,35 @@ Date: 2026-03-30 (updated 2026-03-30 — product-alignment pass; anti-drift pass
 - CSV/VAN support is substantially stronger, but source-specific import rules can still be extended further if the client wants deeper parity than the current configurable-profile baseline.
 - The current reusable-household model is materially better than turf-owned addresses alone, but future schema evolution may still add broader lifecycle/archive automation if the client wants it.
 - Final signed mobile release binaries still require external Expo/Apple/Google credentials that are intentionally not stored in the repo.
+
+## First Deployment Readiness Review
+
+### Findings
+
+- **Policy enum drift remained possible at write-time**: `UpsertOperationalPolicyDto` accepted all Prisma enum values, and the DB enum still exposed `campaign`, even though runtime behavior is team-first.
+- **Schema default drift on import mode**: `OperationalPolicy.defaultImportMode` DB default was still `create_only` while runtime effective defaults use `replace_turf_membership`.
+
+### Targeted Fixes Applied
+
+- Restricted policy update validation to `team|region` in `upsert-operational-policy.dto.ts`.
+- Added service-level normalization in `PoliciesService.upsertPolicy()` so direct callers cannot persist legacy campaign scope mode.
+- Added Prisma migration `20260331120000_first_deploy_policy_hardening` to:
+  - backfill any lingering `campaign` values to `team`
+  - remove `campaign` from `SupervisorScopeMode`
+  - align `default_import_mode` DB default with runtime (`replace_turf_membership`)
+- Updated Prisma schema to match the migration and prevent future drift.
+- Added policy regression coverage ensuring unsupported supervisor mode input normalizes to `team` at persistence time.
+
+### Readiness Status
+
+- **Ready for first deployment** on this scope: supervisor policy invariants and default policy persistence now match product direction and runtime behavior.
+
+### Deferred (Intentionally)
+
+- Broader cleanup of historical migration defaults was not expanded beyond the two confirmed drift points above.
+- No additional feature work was introduced outside deployment-readiness hardening.
+
+### Hotspots To Watch Post-Deploy
+
+- Any direct SQL writes to `operational_policies` should remain constrained to valid enum values and default-compatible import modes.
+- Policy admin UI/API clients should continue sending `supervisorScopeMode` values only from the team/region set.

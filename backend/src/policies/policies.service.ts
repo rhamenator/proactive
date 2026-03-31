@@ -449,7 +449,10 @@ export class PoliciesService {
       retentionPurgeDays: normalizedPurgeDays === undefined ? current.retentionPurgeDays : normalizedPurgeDays,
       requireArchiveReason: input.requireArchiveReason ?? current.requireArchiveReason,
       allowOrgOutcomeFallback: input.allowOrgOutcomeFallback ?? current.allowOrgOutcomeFallback,
-      supervisorScopeMode: input.supervisorScopeMode ?? current.supervisorScopeMode
+      supervisorScopeMode:
+        input.supervisorScopeMode === undefined
+          ? current.supervisorScopeMode
+          : this.normalizeSupervisorScopeMode(input.supervisorScopeMode)
     };
 
     if (next.retentionArchiveDays && next.retentionPurgeDays && next.retentionPurgeDays <= next.retentionArchiveDays) {
