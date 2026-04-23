@@ -60,11 +60,15 @@ jobs:
       - name: Resolve artifact version
         id: artifact_meta
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name || '' }}
+          ARTIFACT_LABEL_INPUT: ${{ inputs.artifact_label || '' }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            RAW_VERSION="${{ github.event.release.tag_name }}"
-          elif [ -n "${{ inputs.artifact_label }}" ]; then
-            RAW_VERSION="${{ inputs.artifact_label }}"
+          if [ "$EVENT_NAME" = "release" ]; then
+            RAW_VERSION="$RELEASE_TAG_NAME"
+          elif [ -n "$ARTIFACT_LABEL_INPUT" ]; then
+            RAW_VERSION="$ARTIFACT_LABEL_INPUT"
           else
             RAW_VERSION="${GITHUB_SHA::7}"
           fi
