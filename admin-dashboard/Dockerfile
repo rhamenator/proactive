@@ -3,6 +3,10 @@
 # ── Stage 1: build ──────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 
+# Upgrade all system packages to pick up any security patches published since
+# the base image was built (no-op today if image is already fully patched).
+RUN apk upgrade --no-cache
+
 WORKDIR /repo
 
 # Copy workspace manifests first so Docker can cache the install layer
@@ -32,7 +36,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-RUN apk add --no-cache dumb-init
+RUN apk upgrade --no-cache && apk add --no-cache dumb-init
 
 # Standalone output is fully self-contained (includes its own node_modules).
 # In a monorepo the server entry point lives at the workspace-relative path.

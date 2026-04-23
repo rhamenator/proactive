@@ -3,6 +3,10 @@
 # ── Stage 1: build ──────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 
+# Upgrade all system packages to pick up any security patches published since
+# the base image was built (no-op today if image is already fully patched).
+RUN apk upgrade --no-cache
+
 WORKDIR /repo
 
 # Copy workspace manifests first so Docker can cache the install layer
@@ -31,7 +35,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # dumb-init ensures proper PID 1 signal handling (SIGTERM → graceful shutdown)
-RUN apk add --no-cache dumb-init
+RUN apk upgrade --no-cache && apk add --no-cache dumb-init
 
 # Re-copy workspace manifests and install *production-only* deps
 COPY package.json package-lock.json ./
