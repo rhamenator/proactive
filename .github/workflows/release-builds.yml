@@ -194,18 +194,18 @@ jobs:
           if-no-files-found: error
 
       - name: Attest backend artifact
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: packaged-artifacts/proactive-backend-${{ steps.artifact_meta.outputs.version }}.tar.gz
 
       - name: Attest admin artifact
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: packaged-artifacts/proactive-admin-dashboard-${{ steps.artifact_meta.outputs.version }}.tar.gz
 
       - name: Attest mobile release-prep artifact
         if: github.event_name == 'release' || inputs.include_mobile_preflight
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: packaged-artifacts/proactive-mobile-release-prep-${{ steps.artifact_meta.outputs.version }}.tar.gz
 
