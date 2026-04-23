@@ -17,7 +17,7 @@ on:
       - published
 
 permissions:
-  contents: write
+  contents: read
   attestations: write
   id-token: write
 
@@ -33,6 +33,8 @@ jobs:
     name: Build Release Artifacts
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      artifact_version: ${{ steps.artifact_meta.outputs.version }}
 
     steps:
       - name: Check out repository
@@ -209,11 +211,30 @@ jobs:
         with:
           subject-path: packaged-artifacts/proactive-mobile-release-prep-${{ steps.artifact_meta.outputs.version }}.tar.gz
 
+  publish-release-assets:
+    name: Publish Release Assets
+    if: github.event_name == 'release'
+    needs: build-release-artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: proactive-*-${{ needs.build-release-artifacts.outputs.artifact_version }}
+          path: release-downloads
+
+      - name: Download release metadata artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: proactive-release-metadata-${{ needs.build-release-artifacts.outputs.artifact_version }}
+          path: release-downloads/proactive-release-metadata-${{ needs.build-release-artifacts.outputs.artifact_version }}
+
       - name: Attach assets to GitHub Release
-        if: github.event_name == 'release'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
-            packaged-artifacts/*.tar.gz
-            packaged-artifacts/BUILD-MANIFEST.txt
-            packaged-artifacts/SHA256SUMS.txt
+            release-downloads/**/*.tar.gz
+            release-downloads/**/BUILD-MANIFEST.txt
+            release-downloads/**/SHA256SUMS.txt
