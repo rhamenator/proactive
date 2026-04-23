@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     lineHeight: 21
   },
   error: {
-    color: colors.red,
+    color: colors.danger,
     fontWeight: '700'
   },
   statsRow: {

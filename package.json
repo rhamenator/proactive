@@ -32,7 +32,10 @@
   },
   "overrides": {
     "path-to-regexp": "8.4.0",
-    "effect": "3.21.0"
+    "effect": "3.21.0",
+    "xcode": {
+      "uuid": "14.0.0"
+    }
   },
   "dependencies": {
     "effect": "3.21.0",

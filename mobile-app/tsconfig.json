@@ -4,5 +4,6 @@
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
     "strict": true
-  }
+  },
+  "exclude": ["e2e"]
 }
