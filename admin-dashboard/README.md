@@ -4,13 +4,28 @@ Next.js admin dashboard for the PROACTIVE Field Canvassing System.
 
 ## Setup
 
+Recommended first-time setup is from the repository root:
+
 ```bash
-cd admin-dashboard
-npm install
+npm run setup:local
+```
+
+Dashboard-only setup for experienced developers:
+
+```bash
 cp .env.example .env.local
+npm install
 ```
 
 ## Development
+
+From the repository root:
+
+```bash
+npm run dev:admin
+```
+
+From `admin-dashboard/`:
 
 ```bash
 npm run dev

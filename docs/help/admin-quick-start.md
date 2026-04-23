@@ -25,7 +25,7 @@ Admins use the web dashboard to:
 5. Save the one-time backup codes shown after MFA setup.
 6. Enter the authenticator code, or a saved backup code on later logins, to finish the session.
 
-If login fails, see [Troubleshooting](/home/rich/dev/proactive/docs/help/troubleshooting.md).
+If login fails, see [Troubleshooting](troubleshooting.md).
 
 ## Manage MFA
 

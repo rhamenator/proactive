@@ -4,14 +4,33 @@ NestJS backend for the PROACTIVE Field Canvassing System.
 
 ## Setup
 
+Recommended first-time setup is from the repository root:
+
 ```bash
-cd backend
+npm run setup:local
+```
+
+That command installs workspace dependencies, creates missing environment files, generates Prisma, applies checked-in migrations, and seeds demo data.
+
+Backend-only setup for experienced developers:
+
+```bash
+cp .env.example .env
 npm install
 npm run prisma:generate
-cp .env.example .env
+npx prisma migrate deploy
+npm run prisma:seed
 ```
 
 ## Development
+
+From the repository root:
+
+```bash
+npm run dev:backend
+```
+
+From `backend/`:
 
 ```bash
 npm run start:dev
@@ -25,12 +44,14 @@ npm run build
 
 ## Database
 
-The Prisma schema targets PostgreSQL. After wiring a database, run:
+The Prisma schema targets PostgreSQL. For normal local setup, use checked-in migrations:
 
 ```bash
-npx prisma migrate dev
+npx prisma migrate deploy
 npm run prisma:seed
 ```
+
+Use `npx prisma migrate dev` only when intentionally creating a new migration during schema development.
 
 ## Notes
 

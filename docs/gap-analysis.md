@@ -4,8 +4,8 @@ Date: 2026-03-30
 
 Reference sources:
 
-- [v1-final-spec.md](/home/rich/dev/proactive/docs/v1-final-spec.md)
-- the full client document packet in `/home/rich/Documents`, including acceptance criteria, reporting, deployment, security, permissions, and interaction design addenda
+- [v1-final-spec.md](v1-final-spec.md)
+- the full client document packet, including acceptance criteria, reporting, deployment, security, permissions, and interaction design addenda
 
 ## Summary
 

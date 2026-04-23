@@ -61,6 +61,7 @@ Run:
 
 ```bash
 npm test --workspace mobile-app
+npm run build:e2e:mobile:ios --workspace mobile-app
 npm run test:e2e:mobile:ios --workspace mobile-app
 ```
 

@@ -16,7 +16,7 @@
 
 ## Documentation Cross-Reference
 
-For the formal gap list, see [Gap Analysis](/home/rich/dev/proactive/docs/gap-analysis.md).
+For the formal gap list, see [Gap Analysis](../gap-analysis.md).
 
 ## Guidance
 

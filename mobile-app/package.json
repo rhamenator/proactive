@@ -19,8 +19,8 @@
     "eas:build:android:production": "npx eas build --platform android --profile production",
     "eas:submit:ios": "npx eas submit --platform ios --profile production",
     "eas:submit:android": "npx eas submit --platform android --profile production",
-    "eas:update:preview": "npx eas update --branch preview",
-    "eas:update:production": "npx eas update --branch production"
+    "eas:update:preview": "npx eas update --branch preview --environment preview",
+    "eas:update:production": "npx eas update --branch production --environment production"
   },
   "dependencies": {
     "@react-native-community/netinfo": "^12.0.1",

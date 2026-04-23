@@ -13,7 +13,7 @@ PROACTIVE Field Canvassing System is a monorepo application for:
 
 ### Backend
 
-Path: [backend](/home/rich/dev/proactive/backend)
+Path: [backend](../../backend)
 
 Responsibilities:
 
@@ -27,7 +27,7 @@ Responsibilities:
 
 ### Admin Dashboard
 
-Path: [admin-dashboard](/home/rich/dev/proactive/admin-dashboard)
+Path: [admin-dashboard](../../admin-dashboard)
 
 Responsibilities:
 
@@ -41,7 +41,7 @@ Responsibilities:
 
 ### Mobile App
 
-Path: [mobile-app](/home/rich/dev/proactive/mobile-app)
+Path: [mobile-app](../../mobile-app)
 
 Responsibilities:
 
@@ -79,5 +79,5 @@ Operationally exposed:
 
 ## Source Of Truth
 
-- product and implementation baseline: [v1 Final Spec](/home/rich/dev/proactive/docs/v1-final-spec.md)
-- implementation gaps: [Gap Analysis](/home/rich/dev/proactive/docs/gap-analysis.md)
+- product and implementation baseline: [v1 Final Spec](../v1-final-spec.md)
+- implementation gaps: [Gap Analysis](../gap-analysis.md)

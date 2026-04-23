@@ -14,6 +14,8 @@
     "test:coverage": "npm test --workspace @proactive/backend -- --runInBand --coverage --coverageReporters=text-summary && npm run test:coverage --workspace @proactive/admin-dashboard && npm run test:coverage --workspace mobile-app",
     "typecheck": "npm run typecheck --workspace @proactive/admin-dashboard && npm run typecheck --workspace mobile-app",
     "verify": "npm run prisma:generate && npm run build && npm test",
+    "setup:local": "bash scripts/install-local.sh",
+    "setup:mobile": "bash scripts/install-mobile.sh",
     "prisma:generate": "npm run prisma:generate --workspace @proactive/backend",
     "dev:backend": "npm run start:dev --workspace @proactive/backend",
     "dev:admin": "npm run dev --workspace @proactive/admin-dashboard",

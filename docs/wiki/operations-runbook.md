@@ -5,15 +5,16 @@
 From repo root:
 
 ```bash
+npm run setup:local
+```
+
+Manual equivalent:
+
+```bash
 npm install
 cp backend/.env.example backend/.env
 cp admin-dashboard/.env.example admin-dashboard/.env.local
 cp mobile-app/.env.example mobile-app/.env
-```
-
-Then:
-
-```bash
 npm run prisma:generate
 cd backend
 npx prisma migrate deploy
@@ -53,9 +54,9 @@ npm run build
 
 Detailed mobile release and internal install instructions are in:
 
-- [Repo README](/home/rich/dev/proactive/README.md)
-- [Mobile README](/home/rich/dev/proactive/mobile-app/README.md)
-- [Canvasser Mobile Help](/home/rich/dev/proactive/docs/help/canvasser-mobile-guide.md)
+- [Repo README](../../README.md)
+- [Mobile README](../../mobile-app/README.md)
+- [Canvasser Mobile Help](../help/canvasser-mobile-guide.md)
 
 ## Safe Operational Checks
 

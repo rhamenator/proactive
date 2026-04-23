@@ -4,23 +4,24 @@ Expo-based canvasser app for turf work, house-by-house logging, GPS capture, and
 
 ## Setup
 
-1. Install dependencies:
+Recommended first-time setup is from the repository root:
 
 ```bash
-cd /home/rich/dev/proactive/mobile-app
-npm install
+npm run setup:mobile
 ```
 
-1. Set your API URL:
+For full local system setup, use:
+
+```bash
+npm run setup:local
+```
+
+Mobile-only setup for experienced developers:
 
 ```bash
 cp .env.example .env
-```
-
-1. Start the app:
-
-```bash
-npm start
+npm install
+npm run typecheck
 ```
 
 ## Local App Use
@@ -33,7 +34,13 @@ Use this path for development and day-to-day QA.
 npm run dev:backend
 ```
 
-1. Start the Expo app from [mobile-app](/home/rich/dev/proactive/mobile-app):
+1. Start the Expo app from the repo root:
+
+```bash
+npm run dev:mobile
+```
+
+1. Or start it from [mobile-app](.):
 
 ```bash
 npm start
@@ -103,7 +110,7 @@ That artifact is useful for auditing and handoff, but it is not an installable b
 
 ### Required configuration
 
-1. Copy one of the environment templates and fill in the real values:
+1. Copy one of the environment templates for local reference:
 
 ```bash
 cp .env.preview.example .env.preview
@@ -118,12 +125,18 @@ cp .env.production.example .env.production
 - `IOS_BUNDLE_IDENTIFIER`
 - `ANDROID_APPLICATION_ID`
 
-1. Log in to Expo and link the app to an EAS project:
+Local `.env.preview` and `.env.production` files are ignored by EAS cloud builds through `.easignore`. Configure the same values in EAS environment variables/secrets before building.
+
+1. Log in to Expo, link the app to an EAS project, and set EAS environment variables:
 
 ```bash
 npx eas login
 npx eas project:init
+npx eas env:create --name EXPO_PUBLIC_API_URL --value https://api-preview.example.com --environment preview --visibility plaintext
+npx eas env:create --name EXPO_PUBLIC_API_URL --value https://api.example.com --environment production --visibility plaintext
 ```
+
+The `preview` and `production` build profiles in `eas.json` are wired to the matching EAS environments.
 
 ### What GitHub can and cannot do today
 
@@ -233,7 +246,7 @@ npm run eas:update:preview
 npm run eas:update:production
 ```
 
-Use this only for changes compatible with the installed runtime version. Native dependency or permission changes still require a new store build.
+These scripts pass the matching EAS environment to `eas update`. Use this only for changes compatible with the installed runtime version. Native dependency or permission changes still require a new store build.
 
 ## Recommended In-Org Test Flow
 

@@ -80,8 +80,8 @@ For in-org testing:
 
 Detailed build/distribution steps:
 
-- [Repo README](/home/rich/dev/proactive/README.md)
-- [Mobile README](/home/rich/dev/proactive/mobile-app/README.md)
+- [Repo README](../../README.md)
+- [Mobile README](../../mobile-app/README.md)
 
 ## Good Field Habits
 

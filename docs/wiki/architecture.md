@@ -4,10 +4,10 @@
 
 Root paths:
 
-- [backend](/home/rich/dev/proactive/backend)
-- [admin-dashboard](/home/rich/dev/proactive/admin-dashboard)
-- [mobile-app](/home/rich/dev/proactive/mobile-app)
-- [docs](/home/rich/dev/proactive/docs)
+- [backend](../../backend)
+- [admin-dashboard](../../admin-dashboard)
+- [mobile-app](../../mobile-app)
+- [docs](..)
 
 ## Backend Stack
 
@@ -33,15 +33,24 @@ Primary domains:
 
 Primary app routes:
 
-- [login](/home/rich/dev/proactive/admin-dashboard/app/login/page.tsx)
-- [account](/home/rich/dev/proactive/admin-dashboard/app/account/page.tsx)
-- [dashboard](/home/rich/dev/proactive/admin-dashboard/app/dashboard/page.tsx)
-- [canvassers](/home/rich/dev/proactive/admin-dashboard/app/canvassers/page.tsx)
-- [turfs](/home/rich/dev/proactive/admin-dashboard/app/turfs/page.tsx)
-- [gps-review](/home/rich/dev/proactive/admin-dashboard/app/gps-review/page.tsx)
-- [sync-conflicts](/home/rich/dev/proactive/admin-dashboard/app/sync-conflicts/page.tsx)
-- [outcomes](/home/rich/dev/proactive/admin-dashboard/app/outcomes/page.tsx)
-- [exports](/home/rich/dev/proactive/admin-dashboard/app/exports/page.tsx)
+- [login](../../admin-dashboard/app/login/page.tsx)
+- [account](../../admin-dashboard/app/account/page.tsx)
+- [address-requests](../../admin-dashboard/app/address-requests/page.tsx)
+- [dashboard](../../admin-dashboard/app/dashboard/page.tsx)
+- [canvassers](../../admin-dashboard/app/canvassers/page.tsx)
+- [csv-profiles](../../admin-dashboard/app/csv-profiles/page.tsx)
+- [turfs](../../admin-dashboard/app/turfs/page.tsx)
+- [field-preview](../../admin-dashboard/app/field-preview/page.tsx)
+- [gps-review](../../admin-dashboard/app/gps-review/page.tsx)
+- [import-reviews](../../admin-dashboard/app/import-reviews/page.tsx)
+- [sync-conflicts](../../admin-dashboard/app/sync-conflicts/page.tsx)
+- [outcomes](../../admin-dashboard/app/outcomes/page.tsx)
+- [exports](../../admin-dashboard/app/exports/page.tsx)
+- [policies](../../admin-dashboard/app/policies/page.tsx)
+- [reports](../../admin-dashboard/app/reports/page.tsx)
+- [retention](../../admin-dashboard/app/retention/page.tsx)
+- [teams](../../admin-dashboard/app/teams/page.tsx)
+- [visit-corrections](../../admin-dashboard/app/visit-corrections/page.tsx)
 
 ## Mobile Stack
 
@@ -53,7 +62,18 @@ Primary app routes:
 
 Primary state layer:
 
-- [AppContext.tsx](/home/rich/dev/proactive/mobile-app/src/context/AppContext.tsx)
+- [AppContext.tsx](../../mobile-app/src/context/AppContext.tsx)
+
+Primary mobile screens:
+
+- [LoginScreen](../../mobile-app/src/screens/LoginScreen.tsx)
+- [DashboardScreen](../../mobile-app/src/screens/DashboardScreen.tsx)
+- [AddressListScreen](../../mobile-app/src/screens/AddressListScreen.tsx)
+- [AddressDetailScreen](../../mobile-app/src/screens/AddressDetailScreen.tsx)
+- [AddressRequestScreen](../../mobile-app/src/screens/AddressRequestScreen.tsx)
+- [QueueScreen](../../mobile-app/src/screens/QueueScreen.tsx)
+- [PerformanceScreen](../../mobile-app/src/screens/PerformanceScreen.tsx)
+- [SessionNotesScreen](../../mobile-app/src/screens/SessionNotesScreen.tsx)
 
 ## Data And Sync Model
 

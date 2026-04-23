@@ -4,9 +4,9 @@ User-facing help for PROACTIVE operators and canvassers.
 
 ## Contents
 
-- [Admin Quick Start](/home/rich/dev/proactive/docs/help/admin-quick-start.md)
-- [Canvasser Mobile Guide](/home/rich/dev/proactive/docs/help/canvasser-mobile-guide.md)
-- [Troubleshooting](/home/rich/dev/proactive/docs/help/troubleshooting.md)
+- [Admin Quick Start](admin-quick-start.md)
+- [Canvasser Mobile Guide](canvasser-mobile-guide.md)
+- [Troubleshooting](troubleshooting.md)
 
 ## Audience
 
@@ -18,4 +18,4 @@ User-facing help for PROACTIVE operators and canvassers.
 
 For implementation and operations detail, use the wiki:
 
-- [Wiki Index](/home/rich/dev/proactive/docs/wiki/README.md)
+- [Wiki Index](../wiki/README.md)
