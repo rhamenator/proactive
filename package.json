@@ -33,11 +33,31 @@
   "overrides": {
     "path-to-regexp": "8.4.0",
     "effect": "3.21.0",
+    "expo": "55.0.17",
+    "@expo/cli": "55.0.26",
+    "@expo/config": "55.0.15",
+    "@expo/config-plugins": "55.0.8",
+    "@expo/dom-webview": "55.0.5",
+    "@expo/local-build-cache-provider": "55.0.11",
+    "@expo/log-box": "55.0.11",
+    "@expo/metro": "55.1.0",
+    "@expo/metro-config": "55.0.17",
+    "@expo/prebuild-config": "55.0.16",
+    "@expo/router-server": "55.0.15",
+    "babel-preset-expo": "55.0.18",
+    "expo-asset": "55.0.16",
+    "expo-constants": "55.0.15",
+    "expo-file-system": "55.0.17",
+    "expo-font": "55.0.6",
+    "expo-keep-awake": "55.0.6",
+    "expo-modules-autolinking": "55.0.18",
+    "expo-modules-core": "55.0.23",
     "xcode": {
       "uuid": "14.0.0"
     }
   },
   "dependencies": {
+    "@nestjs/common": "11.1.19",
     "effect": "3.21.0",
     "path-to-regexp": "8.4.0"
   }
