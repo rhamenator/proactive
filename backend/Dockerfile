@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1
 
 # ── Stage 1: build ──────────────────────────────────────────────────────────
+# node:22-alpine may carry a high-severity CVE in the Node.js binary itself
+# for which no Alpine-level patch is yet available.  Mitigation: `apk upgrade
+# --no-cache` (see below) applies all available OS-level fixes automatically;
+# the image will self-heal on the next build once an upstream patch ships.
+# trivy.yaml suppresses this unfixed CVE in CI scanning.
 FROM node:22-alpine AS builder
 
 # Upgrade all system packages to pick up any security patches published since
@@ -28,6 +33,7 @@ RUN npx prisma generate --schema=./backend/prisma/schema.prisma
 RUN npm run build -w backend
 
 # ── Stage 2: production image ────────────────────────────────────────────────
+# Same base-image note as Stage 1 above — apk upgrade handles OS patches.
 FROM node:22-alpine AS runner
 
 WORKDIR /app

@@ -28,7 +28,7 @@ CREATE DATABASE proactive;
 
 The default connection string is:
 
-```
+```text
 postgresql://postgres:postgres@localhost:5432/proactive?schema=public
 ```
 
@@ -294,18 +294,18 @@ Keep these in mind during testing to avoid false failures:
 
 ## 10. Quick Reference
 
-| What                      | Where                                    |
-|---------------------------|------------------------------------------|
-| Admin dashboard           | `http://localhost:3000`                  |
-| Backend API               | `http://localhost:3001`                  |
-| Seed admin account        | `admin@proactive.local` / `Password123!` |
-| Seed canvasser account    | `canvasser@proactive.local` / `Password123!` |
-| Reinstall from scratch    | `npm run setup:local`                    |
-| Reset database            | `cd backend && npx prisma migrate reset --force` |
-| E2E seed                  | `E2E_ALLOW_DATABASE_SEED=true npm run seed:e2e` |
-| Full test suite           | `npm test`                               |
-| Browser E2E (mocked)      | `npm run test:ui:mocked`                 |
-| Browser E2E (real backend)| `npm run test:ui:seeded`                 |
+| What                       | Where                                              |
+|----------------------------|----------------------------------------------------|
+| Admin dashboard            | `http://localhost:3000`                            |
+| Backend API                | `http://localhost:3001`                            |
+| Seed admin account         | `admin@proactive.local` / `Password123!`           |
+| Seed canvasser account     | `canvasser@proactive.local` / `Password123!`       |
+| Reinstall from scratch     | `npm run setup:local`                              |
+| Reset database             | `cd backend && npx prisma migrate reset --force`   |
+| E2E seed                   | `E2E_ALLOW_DATABASE_SEED=true npm run seed:e2e`    |
+| Full test suite            | `npm test`                                         |
+| Browser E2E (mocked)       | `npm run test:ui:mocked`                           |
+| Browser E2E (real backend) | `npm run test:ui:seeded`                           |
 
 For more detail, see:
 
