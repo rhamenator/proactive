@@ -36,10 +36,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -163,14 +163,14 @@ jobs:
           EOF
 
       - name: Upload backend artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: proactive-backend-${{ steps.artifact_meta.outputs.version }}
           path: packaged-artifacts/proactive-backend-${{ steps.artifact_meta.outputs.version }}.tar.gz
           if-no-files-found: error
 
       - name: Upload admin artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: proactive-admin-dashboard-${{ steps.artifact_meta.outputs.version }}
           path: packaged-artifacts/proactive-admin-dashboard-${{ steps.artifact_meta.outputs.version }}.tar.gz
@@ -178,14 +178,14 @@ jobs:
 
       - name: Upload mobile release-prep artifact
         if: github.event_name == 'release' || inputs.include_mobile_preflight
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: proactive-mobile-release-prep-${{ steps.artifact_meta.outputs.version }}
           path: packaged-artifacts/proactive-mobile-release-prep-${{ steps.artifact_meta.outputs.version }}.tar.gz
           if-no-files-found: error
 
       - name: Upload build manifest and checksums
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: proactive-release-metadata-${{ steps.artifact_meta.outputs.version }}
           path: |
@@ -194,24 +194,24 @@ jobs:
           if-no-files-found: error
 
       - name: Attest backend artifact
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: packaged-artifacts/proactive-backend-${{ steps.artifact_meta.outputs.version }}.tar.gz
 
       - name: Attest admin artifact
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: packaged-artifacts/proactive-admin-dashboard-${{ steps.artifact_meta.outputs.version }}.tar.gz
 
       - name: Attest mobile release-prep artifact
         if: github.event_name == 'release' || inputs.include_mobile_preflight
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: packaged-artifacts/proactive-mobile-release-prep-${{ steps.artifact_meta.outputs.version }}.tar.gz
 
       - name: Attach assets to GitHub Release
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
             packaged-artifacts/*.tar.gz

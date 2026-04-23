@@ -134,7 +134,7 @@ fi
 
 if [[ "$SKIP_INSTALL" -eq 0 ]]; then
   log "Installing npm dependencies"
-  npm install
+  npm ci
 else
   log "Skipping npm install"
 fi
