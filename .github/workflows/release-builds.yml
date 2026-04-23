@@ -169,14 +169,14 @@ jobs:
           EOF
 
       - name: Upload backend artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: proactive-backend-${{ steps.artifact_meta.outputs.version }}
           path: packaged-artifacts/proactive-backend-${{ steps.artifact_meta.outputs.version }}.tar.gz
           if-no-files-found: error
 
       - name: Upload admin artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: proactive-admin-dashboard-${{ steps.artifact_meta.outputs.version }}
           path: packaged-artifacts/proactive-admin-dashboard-${{ steps.artifact_meta.outputs.version }}.tar.gz
@@ -184,14 +184,14 @@ jobs:
 
       - name: Upload mobile release-prep artifact
         if: github.event_name == 'release' || inputs.include_mobile_preflight
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: proactive-mobile-release-prep-${{ steps.artifact_meta.outputs.version }}
           path: packaged-artifacts/proactive-mobile-release-prep-${{ steps.artifact_meta.outputs.version }}.tar.gz
           if-no-files-found: error
 
       - name: Upload build manifest and checksums
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: proactive-release-metadata-${{ steps.artifact_meta.outputs.version }}
           path: |
