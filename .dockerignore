@@ -1,0 +1,42 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Node dependencies — re-installed inside the image by npm ci
+node_modules
+*/node_modules
+
+# Build artefacts — rebuilt inside the image
+*/dist
+*/.next
+*/.expo
+
+# Test & coverage output
+*/coverage
+*/test-results
+*/playwright-report
+**/__snapshots__
+
+# Mobile app source — not built inside Docker images
+mobile-app/src
+mobile-app/assets
+mobile-app/e2e
+
+# Environment / secret files — never bake secrets into images
+.env
+.env.*
+!.env.*.example
+
+# Editor / OS artefacts
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# CI / documentation — not needed at runtime
+.github
+docs
+
+# Temporary / snapshot files
+.history

@@ -1,0 +1,97 @@
+name: Publish Containers
+
+# Builds and pushes Docker images to GitHub Container Registry (GHCR).
+# Triggered on pushes to main and on published releases.
+# Pull-request runs are intentionally excluded — PRs must not push images.
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write       # push to GHCR
+  attestations: write   # build provenance / SBOM
+  id-token: write       # OIDC token required for attestation signing
+
+concurrency:
+  group: publish-containers-${{ github.ref }}
+  cancel-in-progress: false   # do not cancel mid-push; prefer queueing
+
+env:
+  REGISTRY: ghcr.io
+  OWNER:    rhamenator
+
+jobs:
+  publish:
+    name: Build & push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service:    backend
+            dockerfile: backend/Dockerfile
+          - service:    admin-dashboard
+            dockerfile: admin-dashboard/Dockerfile
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Buildx enables multi-platform builds and advanced cache drivers
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Generate OCI-compliant image tags and labels from Git metadata
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/proactive/${{ matrix.service }}
+          tags: |
+            # branch push → :latest (main only)
+            type=raw,value=latest,enable={{is_default_branch}}
+            # release tag → :v1.2.3
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # short SHA → :sha-abc1234
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push image
+        id: push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context:    .
+          file:       ${{ matrix.dockerfile }}
+          push:       true
+          tags:       ${{ steps.meta.outputs.tags }}
+          labels:     ${{ steps.meta.outputs.labels }}
+          # Layer cache stored in GHCR alongside the image
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/proactive/${{ matrix.service }}:cache
+          cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/proactive/${{ matrix.service }}:cache,mode=max
+          # Attach SBOM and provenance to the image manifest
+          sbom:        true
+          provenance:  mode=max
+
+      # Attach a signed build-provenance attestation (Sigstore / cosign)
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v2
+        with:
+          subject-name:   ${{ env.REGISTRY }}/${{ env.OWNER }}/proactive/${{ matrix.service }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

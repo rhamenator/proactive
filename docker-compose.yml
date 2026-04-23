@@ -1,0 +1,65 @@
+# docker-compose.yml — local development / self-hosted deployment
+#
+# Quick start:
+#   cp .env.docker.example .env   # then edit .env with real secrets
+#   docker compose up --build
+#
+# Images are built locally from source.  For pre-built GHCR images replace
+# the `build:` blocks with `image: ghcr.io/rhamenator/proactive/<service>:latest`.
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-proactive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — see .env.docker.example}
+      POSTGRES_DB:       ${POSTGRES_DB:-proactive}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proactive} -d ${POSTGRES_DB:-proactive}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── NestJS backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: ghcr.io/rhamenator/proactive/backend:local
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: >-
+        postgresql://${POSTGRES_USER:-proactive}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proactive}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required — see .env.docker.example}
+      PORT: 3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Next.js admin dashboard ────────────────────────────────────────────────
+  admin-dashboard:
+    build:
+      context: .
+      dockerfile: admin-dashboard/Dockerfile
+    image: ghcr.io/rhamenator/proactive/admin-dashboard:local
+    restart: unless-stopped
+    ports:
+      - "${DASHBOARD_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:3001}
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
