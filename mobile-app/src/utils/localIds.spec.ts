@@ -16,10 +16,20 @@ describe('createLocalRecordUuid', () => {
     expect(createLocalRecordUuid()).toBe('uuid-from-crypto');
   });
 
-  it('falls back to an RFC4122-like id when crypto.randomUUID is unavailable', () => {
-    vi.stubGlobal('crypto', {});
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+  it('falls back to crypto.getRandomValues when crypto.randomUUID is unavailable', () => {
+    vi.stubGlobal('crypto', {
+      getRandomValues: vi.fn((bytes: Uint8Array) => {
+        bytes.fill(0xaa);
+        return bytes;
+      })
+    });
 
-    expect(createLocalRecordUuid()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(createLocalRecordUuid()).toBe('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa');
+  });
+
+  it('throws when secure random UUID generation is unavailable', () => {
+    vi.stubGlobal('crypto', {});
+
+    expect(() => createLocalRecordUuid()).toThrow('Secure UUID generation is unavailable');
   });
 });

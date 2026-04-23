@@ -9,10 +9,7 @@ import { deleteSessionNote, loadSessionNotes, saveSessionNote } from '../storage
 import { colors, radius, spacing, typography } from '../theme';
 import type { SessionNote } from '../types';
 import { formatLocalDateTime } from '../utils/datetime';
-
-function createNoteId() {
-  return globalThis.crypto?.randomUUID?.() ?? `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
+import { createSecureUuid } from '../utils/localIds';
 
 export function SessionNotesScreen() {
   const { turf, session } = useApp();
@@ -51,7 +48,7 @@ export function SessionNotesScreen() {
     try {
       const now = new Date().toISOString();
       await saveSessionNote({
-        id: createNoteId(),
+        id: createSecureUuid(),
         turfId: turf.id,
         sessionId: session?.id ?? null,
         createdAt: now,
