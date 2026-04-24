@@ -1,8 +1,10 @@
-# Mobile Installation
+# Mobile Build Workstation Setup
 
-Use this guide for the Expo mobile app, local simulator/device testing, internal preview builds, and installing the resulting app on phones.
+Use this guide to prepare a developer or CI build workstation for the Expo mobile app, local simulator/device testing, internal preview builds, and installing the resulting app on phones.
 
 The install script in this repo does not run on iOS or Android devices. It runs on a developer/build machine and prepares the mobile app workspace. Phones install the app through Expo Go, TestFlight, Google Play Internal Testing, or an Android APK.
+
+Important: `npm run setup:mobile` and the platform-specific `install-mobile` scripts do not create signed mobile binaries. They prepare the build workspace, write environment files, install dependencies, and run validation checks. Preview and production binaries are built later with EAS commands.
 
 ## What This Installs
 
@@ -25,16 +27,26 @@ The install script in this repo does not run on iOS or Android devices. It runs 
 From the repo root:
 
 ```bash
-scripts/install-mobile.sh
-```
-
-Or through npm:
-
-```bash
 npm run setup:mobile
 ```
 
+Direct platform-specific commands:
+
+```bash
+scripts/install-mobile.sh
+```
+
+```bash
+bash scripts/install-mobile-macos.sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-mobile.ps1
+```
+
 This installs dependencies and prepares mobile environment files on your computer. It does not install anything directly onto a phone.
+
+If you need deployment or release steps after setup, continue with [deployment.md](deployment.md).
 
 ## Set The Mobile API URL
 
@@ -43,7 +55,7 @@ The mobile app reads `EXPO_PUBLIC_API_URL`.
 Use the installer to set it:
 
 ```bash
-scripts/install-mobile.sh --api-url http://localhost:3001
+npm run setup:mobile -- --api-url http://localhost:3001
 ```
 
 Recommended local values:
@@ -95,7 +107,7 @@ Development build path:
 Create a local preview environment file for review and manual reference:
 
 ```bash
-scripts/install-mobile.sh --preview-env
+npm run setup:mobile -- --preview-env
 ```
 
 Edit `mobile-app/.env.preview` and set real values:
@@ -152,7 +164,15 @@ Android:
 Create a local production environment file for review and manual reference:
 
 ```bash
-scripts/install-mobile.sh --production-env
+npm run setup:mobile -- --production-env
+```
+
+On Windows PowerShell, use named parameters instead:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-mobile.ps1 -ApiUrl http://localhost:3001
+powershell -ExecutionPolicy Bypass -File scripts/install-mobile.ps1 -PreviewEnv
+powershell -ExecutionPolicy Bypass -File scripts/install-mobile.ps1 -ProductionEnv
 ```
 
 Edit `mobile-app/.env.production` with production API and store identifiers.

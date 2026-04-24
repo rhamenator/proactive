@@ -55,6 +55,7 @@ npm run build
 Detailed mobile release and internal install instructions are in:
 
 - [Repo README](../../README.md)
+- [Deployment guide](../installation/deployment.md)
 - [Mobile README](../../mobile-app/README.md)
 - [Canvasser Mobile Help](../help/canvasser-mobile-guide.md)
 

@@ -3,17 +3,24 @@
 Choose the path that matches what you need to install.
 
 - [Local installation](local-install.md): full backend, admin dashboard, mobile dev server, database migration, and demo seed data.
-- [Mobile installation](mobile-install.md): Expo setup on a developer/build machine, plus instructions for installing the resulting app on phones.
+- [Mobile build workstation setup](mobile-install.md): Expo setup on a developer/build machine. This prepares the mobile workspace but does not build signed mobile binaries.
 - [Configuration reference](configuration.md): environment files, ports, API URLs, and database notes.
+- [Deployment guide](deployment.md): production-oriented deployment flow for backend, admin dashboard, Docker containers, and mobile release delivery.
 
 Recommended first install:
 
 ```bash
-scripts/install-local.sh
+npm run setup:local
 ```
 
 Recommended mobile app setup on a developer/build machine:
 
 ```bash
-scripts/install-mobile.sh
+npm run setup:mobile
 ```
+
+Platform-specific direct entrypoints:
+
+- Linux: `scripts/install-local.sh`, `scripts/install-mobile.sh`
+- macOS: `bash scripts/install-local-macos.sh`, `bash scripts/install-mobile-macos.sh`
+- Windows PowerShell: `powershell -ExecutionPolicy Bypass -File scripts/install-local.ps1`, `powershell -ExecutionPolicy Bypass -File scripts/install-mobile.ps1`

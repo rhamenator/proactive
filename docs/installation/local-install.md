@@ -31,13 +31,21 @@ Create that database before running migrations, or edit `backend/.env` after the
 From the repo root:
 
 ```bash
+npm run setup:local
+```
+
+Direct platform-specific commands:
+
+```bash
 scripts/install-local.sh
 ```
 
-Or through npm:
-
 ```bash
-npm run setup:local
+bash scripts/install-local-macos.sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-local.ps1
 ```
 
 The installer keeps existing environment files and only creates missing ones.
@@ -45,13 +53,21 @@ The installer keeps existing environment files and only creates missing ones.
 ## Installer Options
 
 ```bash
-scripts/install-local.sh --help
-scripts/install-local.sh --skip-db
-scripts/install-local.sh --skip-install
+npm run setup:local -- --help
+npm run setup:local -- --skip-db
+npm run setup:local -- --skip-install
 ```
 
 - `--skip-db`: install dependencies and generate Prisma without applying migrations or seed data.
 - `--skip-install`: keep existing `node_modules` and continue with Prisma/database setup.
+
+On Windows PowerShell, use parameter names instead:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-local.ps1 -Help
+powershell -ExecutionPolicy Bypass -File scripts/install-local.ps1 -SkipDb
+powershell -ExecutionPolicy Bypass -File scripts/install-local.ps1 -SkipInstall
+```
 
 ## Manual Install
 

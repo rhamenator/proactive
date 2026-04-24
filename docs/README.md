@@ -3,8 +3,9 @@
 ## Installation And Setup
 
 - [Local installation](installation/local-install.md)
-- [Mobile installation](installation/mobile-install.md)
+- [Mobile build workstation setup](installation/mobile-install.md)
 - [Configuration reference](installation/configuration.md)
+- [Deployment guide](installation/deployment.md)
 
 ## User Documentation
 

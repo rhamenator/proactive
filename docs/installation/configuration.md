@@ -98,3 +98,5 @@ npm run prisma:seed
 - Use a long random `JWT_SECRET` outside local demo installs.
 - Keep Expo, Apple, and Google signing credentials outside the repo.
 - Use a non-production backend for internal preview mobile builds.
+
+For production deployment sequencing and release flow, see [deployment.md](deployment.md).
