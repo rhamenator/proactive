@@ -32,7 +32,7 @@
     "expo-location": "~55.1.8",
     "expo-sqlite": "~55.0.15",
     "expo-status-bar": "~55.0.5",
-    "react": "19.2.0",
+    "react": "19.2.5",
     "react-native": "0.85.2",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0"
@@ -42,7 +42,7 @@
     "@vitest/coverage-v8": "^4.1.5",
     "detox": "^20.51.0",
     "jest": "^30.3.0",
-    "typescript": "~5.9.2",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.5"
   },
   "private": true
