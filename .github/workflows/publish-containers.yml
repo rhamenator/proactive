@@ -15,9 +15,6 @@ on:
 
 permissions:
   contents: read
-  packages: write       # push to GHCR
-  attestations: write   # build provenance / SBOM
-  id-token: write       # OIDC token required for attestation signing
 
 concurrency:
   group: publish-containers-${{ github.ref }}
@@ -32,6 +29,11 @@ jobs:
     name: Build & push ${{ matrix.service }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write       # push to GHCR
+      attestations: write   # build provenance / SBOM
+      id-token: write       # OIDC token required for attestation signing
 
     strategy:
       fail-fast: false

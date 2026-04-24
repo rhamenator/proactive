@@ -18,8 +18,6 @@ on:
 
 permissions:
   contents: read
-  attestations: write
-  id-token: write
 
 concurrency:
   group: release-builds-${{ github.event.release.tag_name || github.ref_name || github.run_id }}
@@ -33,6 +31,10 @@ jobs:
     name: Build Release Artifacts
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
     outputs:
       artifact_version: ${{ steps.artifact_meta.outputs.version }}
 

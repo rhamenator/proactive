@@ -6,7 +6,7 @@
 # --no-cache` (see below) applies all available OS-level fixes automatically;
 # the image will self-heal on the next build once an upstream patch ships.
 # trivy.yaml suppresses this unfixed CVE in CI scanning.
-FROM node:22-alpine AS builder
+FROM node:22-alpine@sha256:8ea2348b068a9544dae7317b4f3aafcdc032df1647bb7d768a05a5cad1a7683f AS builder
 
 # Upgrade all system packages to pick up any security patches published since
 # the base image was built (no-op today if image is already fully patched).
@@ -34,7 +34,7 @@ RUN npm run build -w backend
 
 # ── Stage 2: production image ────────────────────────────────────────────────
 # Same base-image note as Stage 1 above — apk upgrade handles OS patches.
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:8ea2348b068a9544dae7317b4f3aafcdc032df1647bb7d768a05a5cad1a7683f AS runner
 
 WORKDIR /app
 
@@ -62,5 +62,7 @@ COPY --chown=node:node backend/prisma ./prisma
 EXPOSE 3001
 
 USER node
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD node -e "fetch('http://127.0.0.1:3001/').then((r)=>process.exit(r.ok ? 0 : 1)).catch(()=>process.exit(1))"
 
 CMD ["dumb-init", "node", "dist/main.js"]

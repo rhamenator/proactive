@@ -6,7 +6,7 @@
 # --no-cache` (see below) applies all available OS-level fixes automatically;
 # the image will self-heal on the next build once an upstream patch ships.
 # trivy.yaml suppresses this unfixed CVE in CI scanning.
-FROM node:22-alpine AS builder
+FROM node:22-alpine@sha256:8ea2348b068a9544dae7317b4f3aafcdc032df1647bb7d768a05a5cad1a7683f AS builder
 
 # Upgrade all system packages to pick up any security patches published since
 # the base image was built (no-op today if image is already fully patched).
@@ -32,7 +32,7 @@ RUN npm run build -w admin-dashboard
 # ── Stage 2: production image ────────────────────────────────────────────────
 # next build --output=standalone produces a self-contained server directory.
 # Same base-image note as Stage 1 above — apk upgrade handles OS patches.
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:8ea2348b068a9544dae7317b4f3aafcdc032df1647bb7d768a05a5cad1a7683f AS runner
 
 WORKDIR /app
 
@@ -59,6 +59,8 @@ COPY --from=builder --chown=node:node /repo/admin-dashboard/public \
 EXPOSE 3000
 
 USER node
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok ? 0 : 1)).catch(()=>process.exit(1))"
 
 # server.js is created by Next.js at the root of the standalone directory
 CMD ["dumb-init", "node", "admin-dashboard/server.js"]
