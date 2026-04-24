@@ -20,11 +20,13 @@ COPY backend/package.json        ./backend/
 COPY admin-dashboard/package.json ./admin-dashboard/
 COPY mobile-app/package.json     ./mobile-app/
 
-# Install ALL deps (including devDependencies needed for next build)
-RUN npm ci
+# Install ALL deps (including devDependencies needed for next build).
+# Ignore root postinstall because this image does not copy the backend Prisma schema.
+RUN npm ci --ignore-scripts
 
 # Copy admin-dashboard source
 COPY admin-dashboard/ ./admin-dashboard/
+COPY testing/ ./testing/
 
 # Build Next.js with standalone output (configured in next.config.mjs)
 RUN npm run build -w admin-dashboard

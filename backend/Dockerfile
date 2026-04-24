@@ -20,14 +20,15 @@ COPY backend/package.json        ./backend/
 COPY admin-dashboard/package.json ./admin-dashboard/
 COPY mobile-app/package.json     ./mobile-app/
 
-# Install ALL deps (including devDependencies needed for tsc + prisma generate)
-RUN npm ci
+# Install ALL deps (including devDependencies needed for tsc + prisma generate).
+# Prisma generation runs after the backend schema has been copied below.
+RUN npm ci --ignore-scripts
 
 # Copy backend source + Prisma schema
 COPY backend/ ./backend/
 
 # Generate Prisma client (writes into node_modules/.prisma/)
-RUN npx prisma generate --schema=./backend/prisma/schema.prisma
+RUN npm run prisma:generate --workspace @proactive/backend -- --schema=./prisma/schema.prisma
 
 # Compile TypeScript
 RUN npm run build -w backend
@@ -48,16 +49,16 @@ COPY package.json package-lock.json ./
 COPY backend/package.json        ./backend/
 COPY admin-dashboard/package.json ./admin-dashboard/
 COPY mobile-app/package.json     ./mobile-app/
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
-# Copy the Prisma query engine (generated binary – not in npm registry)
-COPY --from=builder --chown=node:node /repo/node_modules/.prisma ./node_modules/.prisma
+# Copy the Prisma query engine (generated binary - not in npm registry)
+COPY --from=builder --chown=node:node /repo/backend/node_modules/.prisma ./backend/node_modules/.prisma
 
 # Copy compiled application
-COPY --from=builder --chown=node:node /repo/backend/dist ./dist
+COPY --from=builder --chown=node:node /repo/backend/dist ./backend/dist
 
 # Copy Prisma schema so `prisma migrate deploy` can run at startup if needed
-COPY --chown=node:node backend/prisma ./prisma
+COPY --chown=node:node backend/prisma ./backend/prisma
 
 EXPOSE 3001
 
@@ -65,4 +66,4 @@ USER node
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD node -e "fetch('http://127.0.0.1:3001/').then((r)=>process.exit(r.ok ? 0 : 1)).catch(()=>process.exit(1))"
 
-CMD ["dumb-init", "node", "dist/main.js"]
+CMD ["dumb-init", "node", "backend/dist/src/main.js"]
