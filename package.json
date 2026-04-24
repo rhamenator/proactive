@@ -33,6 +33,13 @@
   },
   "overrides": {
     "path-to-regexp": "8.4.2",
+    "postcss": "8.5.10",
+    "next@16.2.4": {
+      "postcss": "8.5.10"
+    },
+    "@expo/metro-config@55.0.17": {
+      "postcss": "8.5.10"
+    },
     "effect": "3.21.2",
     "expo": "55.0.17",
     "@expo/cli": "55.0.26",
