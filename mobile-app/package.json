@@ -42,7 +42,7 @@
     "@vitest/coverage-v8": "^4.1.5",
     "detox": "^20.51.0",
     "jest": "^30.3.0",
-    "typescript": "~5.9.2",
+    "typescript": "~6.0.3",
     "vitest": "^4.1.5"
   },
   "private": true
