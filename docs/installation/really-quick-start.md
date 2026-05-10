@@ -1,4 +1,4 @@
-# Really Quick Start (Non-Technical, Step-by-Step)
+# Really Quick Start (Step-by-Step)
 
 This guide is the fastest, safest path to build and deploy all parts of PROACTIVE using Node, npm, and containers.
 

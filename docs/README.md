@@ -2,7 +2,7 @@
 
 ## Installation And Setup
 
-- [Really quick start (non-technical, step-by-step)](installation/really-quick-start.md)
+- [Really quick start (step-by-step)](installation/really-quick-start.md)
 - [One-page runbook (printable)](installation/one-page-runbook.md)
 - [CI operator runbook (release and deploy only)](installation/ci-operator-runbook.md)
 - [Local installation](installation/local-install.md)
