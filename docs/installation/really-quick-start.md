@@ -12,7 +12,7 @@ If you follow this guide in order, you should not need to guess.
 
 ## 0. Zero-Assumption Setup (Do This First)
 
-If you are not technical, start here and do not skip.
+If you are not familiar with this stack, start here and do not skip.
 
 ### 0.1 Install required apps from official pages
 
