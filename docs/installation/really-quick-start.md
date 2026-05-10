@@ -10,6 +10,62 @@ It covers:
 
 If you follow this guide in order, you should not need to guess.
 
+## 0. Zero-Assumption Setup (Do This First)
+
+If you are not technical, start here and do not skip.
+
+### 0.1 Install required apps from official pages
+
+1. Install Node.js 22 LTS: [nodejs.org](https://nodejs.org/)
+2. Install Git: [git-scm.com/downloads](https://git-scm.com/downloads)
+3. Install Docker Desktop (includes Docker Compose): [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/)
+
+### 0.2 Open a terminal window
+
+Use one of these options:
+
+- Windows: open `PowerShell`
+- macOS: open `Terminal`
+- Linux: open your normal terminal app
+
+### 0.3 Clone the project and enter the project folder
+
+If you do not already have the code:
+
+```bash
+git clone https://github.com/rhamenator/proactive.git
+cd proactive
+```
+
+If you already have the code:
+
+```bash
+cd /path/to/your/proactive
+```
+
+### 0.4 Verify tools and location
+
+Run this exactly:
+
+```bash
+node --version
+npm --version
+docker --version
+docker compose version
+git --version
+pwd
+```
+
+PASS if all of these are true:
+
+- every command prints a version
+- Node starts with `v22` or higher
+- `pwd` ends with `/proactive`
+
+FAIL if any command says `not found`, errors, or `pwd` does not end with `/proactive`.
+
+If FAIL, stop here and ask for help before continuing.
+
 ## 1. What You Need Before Starting
 
 Do this once.
@@ -35,6 +91,10 @@ Expected result:
 - Every command prints a version.
 - Node major version is `22` or newer.
 
+PASS if both expected results are true.
+
+FAIL if either expected result is false. Stop and ask for help.
+
 ## 2. Dev Machine Setup (Full System)
 
 Use this when you want backend + admin + mobile dev flow on one machine.
@@ -53,6 +113,10 @@ What this does:
 - creates missing env files
 - generates Prisma client
 - runs DB migrations and seed (unless skipped)
+
+PASS if command finishes and returns to your terminal prompt with no error.
+
+FAIL if command stops with an error. Check Section 7 and retry once.
 
 ### 2.2 Start each app
 
@@ -76,6 +140,10 @@ Terminal 3:
 npm run dev:mobile
 ```
 
+PASS if all 3 terminals keep running without immediate error messages.
+
+FAIL if any terminal exits or shows red error text. Stop and ask for help.
+
 ### 2.3 Confirm it works
 
 1. Open `http://localhost:3000`.
@@ -83,6 +151,10 @@ npm run dev:mobile
    - Admin: `admin@proactive.local`
    - Password: `Password123!`
 3. Backend should be available on `http://localhost:3001`.
+
+PASS if you can sign in and see the dashboard.
+
+FAIL if sign-in fails or the page does not load.
 
 If mobile cannot connect:
 
@@ -109,6 +181,10 @@ Expected result:
 
 - Build completes without errors.
 - Tests pass.
+
+PASS if both commands complete with no failures.
+
+FAIL if either command fails. Stop and ask for help before deploying.
 
 ## 4. Server Deployment With Containers (Recommended)
 
@@ -158,6 +234,10 @@ Expected result:
 
 - `postgres`, `backend`, and `admin-dashboard` are running.
 
+PASS if all three services show as running in `docker compose ps`.
+
+FAIL if any service is not running.
+
 ### 4.3 Smoke test the deployment
 
 1. Open dashboard URL (`http://<server-ip>:3000` or your mapped domain).
@@ -165,6 +245,11 @@ Expected result:
 3. Confirm backend health by loading `http://<server-ip>:3001` (or API endpoint you expose).
 
 ### 4.4 Important migration note
+
+Stop-and-ask checkpoint:
+
+- If you are unsure what a database migration is, stop and ask for help before running this step.
+- Running migrations on the wrong database can cause data loss.
 
 Run Prisma migrations as a controlled deploy step before sending real traffic.
 
@@ -174,6 +259,10 @@ Typical command from a CI/build environment with repo dependencies installed:
 cd backend
 npx prisma migrate deploy
 ```
+
+PASS if Prisma reports migration success.
+
+FAIL if Prisma reports errors. Do not continue to production traffic.
 
 ## 5. Mobile Binary Builds (Preview and Production)
 
@@ -222,10 +311,19 @@ npm run eas:build:android:production
 
 ### 5.5 Submit production builds to stores
 
+Stop-and-ask checkpoint:
+
+- Do not continue unless you have Apple/Google store credentials and approval to submit production apps.
+- If unsure, stop and ask your release owner.
+
 ```bash
 npm run eas:submit:ios
 npm run eas:submit:android
 ```
+
+PASS if submission commands complete and return submission IDs.
+
+FAIL if credentials, signing, or permission errors appear.
 
 ## 6. Repeatable Release Checklist
 

@@ -52,6 +52,10 @@ Expected artifacts:
 - `SHA256SUMS.txt`
 - `BUILD-MANIFEST.txt`
 
+PASS if all expected artifacts are present.
+
+FAIL if any required artifact is missing.
+
 ## 3) Verify Release Assets
 
 On your operator machine:
@@ -65,6 +69,10 @@ sha256sum -c SHA256SUMS.txt
 Expected:
 
 - Every artifact returns `OK`.
+
+PASS if checksum verification returns `OK` for all artifacts.
+
+FAIL if any artifact fails checksum. Stop deployment immediately.
 
 Open `BUILD-MANIFEST.txt` and confirm:
 
@@ -86,6 +94,10 @@ Edit `.env` and set at least:
 - `JWT_SECRET=<long random value>`
 - `NEXT_PUBLIC_API_URL=https://api.your-domain.com`
 
+PASS if all three values are set and saved.
+
+FAIL if any value is missing.
+
 ## 5) Deploy Server Services
 
 From repo root on server:
@@ -100,7 +112,16 @@ Expected:
 
 - `postgres`, `backend`, `admin-dashboard` are running.
 
+PASS if all services are running.
+
+FAIL if any service is stopped or restarting.
+
 ## 6) Apply Database Migration (Required)
+
+Stop-and-ask checkpoint:
+
+- If you are not 100% sure this is the correct environment/database, stop and ask before migration.
+- Wrong-environment migrations can cause irreversible data impact.
 
 From repo root on server:
 
@@ -113,6 +134,10 @@ cd ..
 Expected:
 
 - Migration completes without errors.
+
+PASS if Prisma reports success.
+
+FAIL if Prisma reports errors. Do not continue release.
 
 ## 7) Smoke Test (Go/No-Go)
 
@@ -127,6 +152,10 @@ Perform in this order:
 Release gate:
 
 - If any smoke test fails, execute rollback section.
+
+PASS if all smoke tests succeed.
+
+FAIL if any smoke test fails.
 
 ## 8) Rollback Procedure
 
@@ -144,6 +173,10 @@ docker compose ps
 
 Then re-run smoke tests.
 
+PASS if rollback deployment and smoke tests both succeed.
+
+FAIL if rollback cannot restore service health. Escalate immediately.
+
 Notes:
 
 - Do not rotate backward over destructive schema changes without a tested DB rollback strategy.
@@ -160,6 +193,10 @@ Hand-off steps to mobile release owner:
 1. Confirm release-prep artifact exists.
 2. Provide release version + commit + artifact links.
 3. Mobile owner runs EAS build and submit flow with platform credentials.
+
+PASS if hand-off is acknowledged by mobile release owner.
+
+FAIL if ownership or credentials are unclear. Stop and escalate.
 
 ## 10) Release Record Template
 

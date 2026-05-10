@@ -14,6 +14,10 @@ Expected:
 - Env files exist.
 - Database migration and seed complete.
 
+PASS if all three expected items are true.
+
+FAIL if setup exits with errors. Stop and ask for help.
+
 ```bash
 npm run dev:backend
 ```
@@ -21,6 +25,10 @@ npm run dev:backend
 Expected:
 
 - Backend running at `http://localhost:3001`.
+
+PASS if terminal stays running and no immediate error appears.
+
+FAIL if process exits or shows red error text.
 
 ```bash
 npm run dev:admin
@@ -30,6 +38,10 @@ Expected:
 
 - Dashboard running at `http://localhost:3000`.
 
+PASS if page opens and loads in browser.
+
+FAIL if page does not load.
+
 ```bash
 npm run dev:mobile
 ```
@@ -37,6 +49,10 @@ npm run dev:mobile
 Expected:
 
 - Expo dev server starts and shows QR/simulator options.
+
+PASS if QR/simulator options appear.
+
+FAIL if Expo exits or cannot start.
 
 Login check:
 
@@ -54,6 +70,10 @@ Expected:
 
 - Build succeeds.
 - Tests pass.
+
+PASS if both commands complete with no failures.
+
+FAIL if either command fails. Stop before deployment.
 
 ## C) Server Deployment (Docker Compose)
 
@@ -83,7 +103,16 @@ Expected:
 
 - `postgres`, `backend`, `admin-dashboard` show as running.
 
+PASS if all three services are running.
+
+FAIL if any service is not running.
+
 Apply database migrations before live traffic:
+
+Stop-and-ask checkpoint:
+
+- If you are unsure this is the correct production database, stop and ask before running migration.
+- Running migration against the wrong DB can cause data loss.
 
 ```bash
 cd backend
@@ -94,6 +123,10 @@ cd ..
 Expected:
 
 - Migration command reports success.
+
+PASS if Prisma reports migration success.
+
+FAIL if Prisma reports an error. Do not continue.
 
 ## D) Mobile Binary Builds (EAS)
 
@@ -133,10 +166,19 @@ npm run eas:build:android:production
 
 Store submission:
 
+Stop-and-ask checkpoint:
+
+- Do not run store submission unless release approval is granted.
+- If store credentials are missing, stop and ask release owner.
+
 ```bash
 npm run eas:submit:ios
 npm run eas:submit:android
 ```
+
+PASS if submission commands complete and return submission IDs.
+
+FAIL if credentials/signing errors appear.
 
 ## E) Post-Deploy Smoke Test
 
@@ -145,6 +187,10 @@ npm run eas:submit:android
 3. Confirm mobile login works.
 4. Confirm one visit can be submitted.
 5. Confirm visit appears in dashboard/report/export.
+
+PASS if all five checks succeed.
+
+FAIL if any check fails. Roll back or stop and escalate.
 
 ## F) Fast Fixes
 
