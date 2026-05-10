@@ -2,6 +2,9 @@
 
 ## Installation And Setup
 
+- [Really quick start (non-technical, step-by-step)](installation/really-quick-start.md)
+- [One-page runbook (printable)](installation/one-page-runbook.md)
+- [CI operator runbook (release and deploy only)](installation/ci-operator-runbook.md)
 - [Local installation](installation/local-install.md)
 - [Mobile build workstation setup](installation/mobile-install.md)
 - [Configuration reference](installation/configuration.md)

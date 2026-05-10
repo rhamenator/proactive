@@ -16,6 +16,7 @@ This repository contains the full system:
 
 ## Start Here
 
+- [Really quick start (non-technical, step-by-step)](docs/installation/really-quick-start.md): fastest hand-holding path for local setup, container server deployment, and mobile binary builds.
 - [Local installation](docs/installation/local-install.md): install and run the full stack on a development machine.
 - [Mobile build workstation setup](docs/installation/mobile-install.md): prepare the Expo mobile workspace on a developer/build machine. This does not create signed mobile binaries by itself.
 - [Configuration](docs/installation/configuration.md): environment variables, ports, and database settings.
