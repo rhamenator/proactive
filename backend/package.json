@@ -16,7 +16,7 @@
     "@nestjs/common": "11.1.19",
     "@nestjs/core": "11.1.19",
     "@nestjs/jwt": "11.0.2",
-    "@nestjs/platform-express": "11.1.19",
+    "@nestjs/platform-express": "11.1.21",
     "@prisma/client": "6.19.3",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
