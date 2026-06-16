@@ -16,11 +16,23 @@ import { ListImportReviewQueueDto } from './dto/list-import-review-queue.dto';
 import { ResolveImportReviewDto } from './dto/resolve-import-review.dto';
 import { ImportsService } from './imports.service';
 
-const csvUploadLimitBytes = Number(process.env.IMPORT_MAX_FILE_BYTES ?? 10 * 1024 * 1024);
+const defaultCsvUploadLimitBytes = 10 * 1024 * 1024;
+const maximumCsvUploadLimitBytes = 25 * 1024 * 1024;
+
+function resolveCsvUploadLimitBytes() {
+  const parsed = Number(process.env.IMPORT_MAX_FILE_BYTES ?? defaultCsvUploadLimitBytes);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return defaultCsvUploadLimitBytes;
+  }
+
+  return Math.min(parsed, maximumCsvUploadLimitBytes);
+}
+
+const csvUploadLimitBytes = resolveCsvUploadLimitBytes();
 const csvUploadOptions = {
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: Number.isFinite(csvUploadLimitBytes) && csvUploadLimitBytes > 0 ? csvUploadLimitBytes : 10 * 1024 * 1024
+    fileSize: csvUploadLimitBytes
   },
   fileFilter: (
     _request: unknown,
