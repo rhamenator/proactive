@@ -6,6 +6,7 @@ import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
 import { buildNormalizedAddressKey, composeDisplayAddressLine1 } from '../common/utils/address-normalization.util';
 import { CsvMapping, inferMappingFromHeaders, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
+import { buildTimestampedCsvFilename } from '../common/utils/filename.util';
 import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
 import { PoliciesService } from '../policies/policies.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -37,11 +38,6 @@ export class ImportsService {
     private readonly policiesService: PoliciesService,
     private readonly csvProfilesService: CsvProfilesService
   ) {}
-
-  private buildTimestampedFilename(prefix: string) {
-    const timestamp = new Date().toISOString().replace(/[:]/g, '-').replace(/\.\d{3}Z$/, 'Z');
-    return `${prefix}-${timestamp}.csv`;
-  }
 
   private checksum(csv: string) {
     return createHash('sha256').update(csv).digest('hex');
@@ -609,11 +605,7 @@ export class ImportsService {
       }
     }
 
-    const filenamePrefix =
-      typeof profileSettings.filenamePrefix === 'string' && profileSettings.filenamePrefix.trim()
-        ? profileSettings.filenamePrefix.trim()
-        : 'import-batch';
-    const filename = this.buildTimestampedFilename(filenamePrefix);
+    const filename = buildTimestampedCsvFilename(profileSettings.filenamePrefix, 'import-batch');
     const importBatch = await this.prisma.importBatch.create({
       data: {
         profileCode: profile.code,

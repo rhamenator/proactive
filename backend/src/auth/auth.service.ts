@@ -24,7 +24,8 @@ export class AuthService {
   ) {}
 
   private readonly mfaIssuer = process.env.MFA_ISSUER ?? 'PROACTIVE FCS';
-  private readonly exposeResetTokens = process.env.EXPOSE_RESET_TOKENS === 'true';
+  private readonly exposeResetTokens =
+    process.env.EXPOSE_RESET_TOKENS === 'true' && (process.env.NODE_ENV ?? 'development').toLowerCase() === 'test';
 
   private getImpersonationSessionStore() {
     return (this.prisma as PrismaService & {

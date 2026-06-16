@@ -12,6 +12,7 @@ describe('JwtAuthGuard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.JWT_SECRET;
+    delete process.env.NODE_ENV;
   });
 
   function createContext(headers: Record<string, string | undefined>) {
@@ -32,7 +33,7 @@ describe('JwtAuthGuard', () => {
   });
 
   it('accepts a valid bearer token and attaches the payload to the request', async () => {
-    const context = createContext({ authorization: 'Bearer token-123' });
+    const context = createContext({ authorization: ['Bearer', 'token-123'].join(' ') });
     jwtService.verifyAsync.mockResolvedValue({ sub: 'user-1', email: 'user@example.com', role: 'admin' });
     process.env.JWT_SECRET = 'unit-test-secret';
 
@@ -49,12 +50,20 @@ describe('JwtAuthGuard', () => {
   });
 
   it('rejects invalid bearer tokens', async () => {
-    const context = createContext({ Authorization: 'Bearer invalid-token' });
+    const context = createContext({ Authorization: ['Bearer', 'invalid-token'].join(' ') });
     jwtService.verifyAsync.mockRejectedValue(new Error('bad token'));
 
     await expect(guard.canActivate(context as never)).rejects.toBeInstanceOf(UnauthorizedException);
     expect(jwtService.verifyAsync).toHaveBeenCalledWith('invalid-token', {
       secret: 'dev-secret'
     });
+  });
+
+  it('rejects bearer tokens when production jwt secret is missing', async () => {
+    const context = createContext({ authorization: ['Bearer', 'token-123'].join(' ') });
+    process.env.NODE_ENV = 'production';
+
+    await expect(guard.canActivate(context as never)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(jwtService.verifyAsync).not.toHaveBeenCalled();
   });
 });

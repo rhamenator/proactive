@@ -3,21 +3,34 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+function resolveCorsOrigins() {
   const configuredOrigins = (process.env.CORS_ORIGINS ?? '')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
-  const defaultOrigins = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:8081',
-    'http://127.0.0.1:8081'
-  ];
+
+  if (configuredOrigins.length > 0) {
+    return configuredOrigins;
+  }
+
+  const environment = (process.env.NODE_ENV ?? 'development').toLowerCase();
+  if (environment === 'development' || environment === 'test') {
+    return [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost:8081',
+      'http://127.0.0.1:8081'
+    ];
+  }
+
+  return false;
+}
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: configuredOrigins.length > 0 ? configuredOrigins : defaultOrigins,
+    origin: resolveCorsOrigins(),
     credentials: true
   });
 
@@ -25,7 +38,7 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      forbidUnknownValues: false
+      forbidUnknownValues: true
     })
   );
 

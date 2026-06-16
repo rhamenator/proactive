@@ -16,6 +16,34 @@ import { ListImportReviewQueueDto } from './dto/list-import-review-queue.dto';
 import { ResolveImportReviewDto } from './dto/resolve-import-review.dto';
 import { ImportsService } from './imports.service';
 
+const csvUploadLimitBytes = Number(process.env.IMPORT_MAX_FILE_BYTES ?? 10 * 1024 * 1024);
+const csvUploadOptions = {
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: Number.isFinite(csvUploadLimitBytes) && csvUploadLimitBytes > 0 ? csvUploadLimitBytes : 10 * 1024 * 1024
+  },
+  fileFilter: (
+    _request: unknown,
+    file: Express.Multer.File,
+    callback: (error: Error | null, acceptFile: boolean) => void
+  ) => {
+    const normalizedName = file.originalname.toLowerCase();
+    const normalizedType = file.mimetype.toLowerCase();
+    const looksLikeCsv =
+      normalizedName.endsWith('.csv') ||
+      normalizedType === 'text/csv' ||
+      normalizedType === 'application/csv' ||
+      normalizedType === 'application/vnd.ms-excel';
+
+    if (!looksLikeCsv) {
+      callback(new BadRequestException('Only CSV uploads are supported'), false);
+      return;
+    }
+
+    callback(null, true);
+  }
+} as const;
+
 @Controller('imports')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ImportsController {
@@ -61,7 +89,7 @@ export class ImportsController {
 
   @Post('preview')
   @Roles(UserRole.admin)
-  @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))
+  @UseInterceptors(FileInterceptor('file', csvUploadOptions))
   async previewCsv(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: ImportCsvDto,
@@ -95,7 +123,7 @@ export class ImportsController {
 
   @Post('csv')
   @Roles(UserRole.admin)
-  @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))
+  @UseInterceptors(FileInterceptor('file', csvUploadOptions))
   async importCsv(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: ImportCsvDto,

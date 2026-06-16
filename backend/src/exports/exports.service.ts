@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify/sync';
 import { AuditService } from '../audit/audit.service';
 import { AccessScope } from '../common/interfaces/access-scope.interface';
+import { buildTimestampedCsvFilename } from '../common/utils/filename.util';
 import { formatExportTimestamp, getExportTimeZoneLabel } from '../common/utils/timezone-policy.util';
 import { attachVisitAttemptMetrics } from '../common/utils/visit-analytics.util';
 import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
@@ -29,11 +30,6 @@ export class ExportsService {
     private readonly policiesService: PoliciesService,
     private readonly csvProfilesService: CsvProfilesService
   ) {}
-
-  private buildTimestampedFilename(prefix: string) {
-    const timestamp = new Date().toISOString().replace(/[:]/g, '-').replace(/\.\d{3}Z$/, 'Z');
-    return `${prefix}-${timestamp}.csv`;
-  }
 
   private buildScope(scope: AccessScope | ExportOptions) {
     return {
@@ -316,11 +312,7 @@ export class ExportsService {
       canvasser_name: ''
     }));
     const rows = this.renderRows(baseRows, columns);
-    const filenamePrefix =
-      typeof profileSettings.filenamePrefix === 'string' && profileSettings.filenamePrefix.trim()
-        ? profileSettings.filenamePrefix.trim()
-        : 'van-results';
-    const filename = this.buildTimestampedFilename(filenamePrefix);
+    const filename = buildTimestampedCsvFilename(profileSettings.filenamePrefix, 'van-results');
 
     const csv = stringify(rows, {
       header: true,
@@ -462,11 +454,7 @@ export class ExportsService {
       visit_time: ''
     }));
     const rows = this.renderRows(baseRows, columns);
-    const filenamePrefix =
-      typeof profileSettings.filenamePrefix === 'string' && profileSettings.filenamePrefix.trim()
-        ? profileSettings.filenamePrefix.trim()
-        : 'internal-master';
-    const filename = this.buildTimestampedFilename(filenamePrefix);
+    const filename = buildTimestampedCsvFilename(profileSettings.filenamePrefix, 'internal-master');
 
     const csv = stringify(rows, {
       header: true,
