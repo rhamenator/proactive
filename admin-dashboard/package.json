@@ -16,13 +16,13 @@
   },
   "dependencies": {
     "next": "^16.2.4",
-    "react": "19.2.5",
+    "react": "19.2.7",
     "react-dom": "19.2.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/node": "^25.6.0",
-    "@types/react": "~19.2.2",
+    "@types/react": "~19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^10.2.1",
