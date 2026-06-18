@@ -335,7 +335,7 @@ describe('admin api client', () => {
 
   it('downloads CSV profile templates', async () => {
     fetchMock.mockResolvedValue(
-      new Response(new Blob(['address_line1,city,state\n']), {
+      new Response('address_line1,city,state\n', {
         status: 200,
         headers: {
           'Content-Type': 'text/csv',
@@ -380,7 +380,7 @@ describe('admin api client', () => {
         )
       )
       .mockResolvedValueOnce(
-        new Response(new Blob(['address,city,state\n100 Main,Detroit,MI\n']), {
+        new Response('address,city,state\n100 Main,Detroit,MI\n', {
           status: 200,
           headers: {
             'Content-Type': 'text/csv',
