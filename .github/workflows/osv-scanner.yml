@@ -1,0 +1,40 @@
+name: OSV-Scanner
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    - cron: "12 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan-scheduled:
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@3adb4b14a2b0623876d18d863a498b785fb3752d" # v2.3.8
+    with:
+      scan-args: |-
+        --include-git-root
+        -r
+        ./
+
+  scan-pr:
+    if: ${{ github.event_name == 'pull_request' }}
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@3adb4b14a2b0623876d18d863a498b785fb3752d" # v2.3.8
+    with:
+      scan-args: |-
+        --include-git-root
+        -r
+        ./
