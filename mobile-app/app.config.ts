@@ -18,11 +18,6 @@ const config: ExpoConfig = {
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
   scheme: 'proactivefcs',
-  splash: {
-    image: './assets/splash-icon.png',
-    resizeMode: 'contain',
-    backgroundColor: '#F6F1E6'
-  },
   runtimeVersion: {
     policy: 'appVersion'
   },
@@ -45,6 +40,14 @@ const config: ExpoConfig = {
     predictiveBackGestureEnabled: false
   },
   plugins: [
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/splash-icon.png',
+        resizeMode: 'contain',
+        backgroundColor: '#F6F1E6'
+      }
+    ],
     [
       'expo-location',
       {
