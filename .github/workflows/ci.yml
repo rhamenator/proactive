@@ -37,4 +37,4 @@ jobs:
           CI: true
 
       - name: Audit production dependencies
-        run: npm audit --omit=dev
+        run: npm audit --omit=dev --audit-level=high --workspace @proactive/backend --workspace @proactive/admin-dashboard --workspace mobile-app
