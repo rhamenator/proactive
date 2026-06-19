@@ -44,14 +44,14 @@
     "@expo/xcpretty": {
       "js-yaml": "4.2.0"
     },
-    "effect": "3.21.2",
+    "effect": "3.21.4",
     "xcode": {
       "uuid": "14.0.0"
     }
   },
   "dependencies": {
     "@nestjs/common": "11.1.19",
-    "effect": "3.21.2",
+    "effect": "3.21.4",
     "path-to-regexp": "8.4.2"
   },
   "devDependencies": {
