@@ -68,6 +68,7 @@ The application suite has been built and brought to a review-ready state across 
   - Retention metadata on core operational records plus a reviewable/manual cleanup path for safe purge targets
   - Documentation, wiki, help docs, and updated gap analysis
   - Trusted GitHub-based build/release workflow scaffolding
+  - Security hardening pass (2026-07-03): CSV import now handles non-UTF-8 encodings and BOMs safely instead of silently corrupting accented names/addresses, and caps upload size; JWT signing/verification now fails at startup instead of silently falling back to a default secret if misconfigured; MFA verification, disable, and step-up now rate-limit repeated wrong codes the same way login already did; CSV/VAN exports neutralize formula-injection-shaped values; refresh-token reuse (a stolen/replayed token) now revokes the affected user's other sessions instead of just rejecting the one request; CSV/VAN exports are capped at 25,000 rows with a clear error instead of running unbounded
 
 ## Verification Completed
 

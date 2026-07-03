@@ -2,6 +2,8 @@
 
 Date: 2026-03-30
 
+**Update (2026-07-03):** a security hardening pass fixed several real bugs found during a CSV-import investigation, none of which change the feature-completeness picture below: CSV import encoding/BOM handling and an upload size cap, a hardcoded JWT secret fallback, missing MFA rate limiting, CSV/formula injection in exports, refresh-token reuse detection, and an unbounded export row count. See [client-review-summary.md](client-review-summary.md) for the full list.
+
 Reference sources:
 
 - [v1-final-spec.md](v1-final-spec.md)
