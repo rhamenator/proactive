@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { getRequiredEnv } from '../common/utils/env.util';
 import { PoliciesModule } from '../policies/policies.module';
 
 @Global()
@@ -10,7 +11,7 @@ import { PoliciesModule } from '../policies/policies.module';
   imports: [
     PoliciesModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'dev-secret',
+      secret: getRequiredEnv('JWT_SECRET'),
       signOptions: {
         expiresIn: (process.env.JWT_EXPIRES_IN ?? '30m') as any
       }
