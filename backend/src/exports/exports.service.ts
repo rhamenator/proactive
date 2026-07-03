@@ -123,11 +123,32 @@ export class ExportsService {
     return columns.length > 0 ? columns : fallback;
   }
 
+  private static readonly CSV_FORMULA_TRIGGER_CHARS = new Set(['=', '+', '-', '@']);
+
+  /**
+   * Neutralizes CSV/formula injection: a cell whose text starts with =, +, -,
+   * or @ can execute as a formula when the export is opened in Excel/Sheets.
+   * Values that are just plain numbers (e.g. a negative latitude/longitude or
+   * zip) are left untouched since they can't be interpreted as a formula.
+   */
+  private sanitizeCsvCell(value: unknown): unknown {
+    if (typeof value !== 'string' || value.length === 0) {
+      return value;
+    }
+    if (!ExportsService.CSV_FORMULA_TRIGGER_CHARS.has(value[0])) {
+      return value;
+    }
+    if (Number.isFinite(Number(value))) {
+      return value;
+    }
+    return `'${value}`;
+  }
+
   private renderRows(rows: Array<Record<string, unknown>>, columns: string[]) {
     return rows.map((row) => {
       const rendered: Record<string, unknown> = {};
       for (const column of columns) {
-        rendered[column] = row[column] ?? '';
+        rendered[column] = this.sanitizeCsvCell(row[column] ?? '');
       }
       return rendered;
     });

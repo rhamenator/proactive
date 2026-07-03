@@ -172,6 +172,57 @@ describe('ExportsService', () => {
     );
   });
 
+  it('neutralizes formula-injection-shaped notes while leaving legitimate negative numbers untouched', async () => {
+    prisma.visitLog.findMany.mockResolvedValue([
+      {
+        id: 'visit-1',
+        visitTime: new Date('2026-03-28T10:00:00.000Z'),
+        result: VisitResult.knocked,
+        contactMade: true,
+        notes: '=cmd|\' /c calc\'!A1',
+        gpsStatus: GpsStatus.verified,
+        latitude: 42.9634,
+        longitude: -85.6681,
+        accuracyMeters: 5,
+        syncStatus: SyncStatus.synced,
+        address: {
+          household: null,
+          vanId: 'VAN-123',
+          addressLine1: '100 Main St',
+          addressLine2: null,
+          unit: null,
+          city: 'Grand Rapids',
+          state: 'MI',
+          zip: '49503'
+        },
+        canvasser: {
+          firstName: '=SUM(A1)',
+          lastName: 'Field'
+        },
+        outcomeDefinition: {
+          id: 'outcome-1',
+          isFinalDisposition: true
+        },
+        turf: {
+          id: 'turf-1',
+          name: 'North'
+        },
+        geofenceResult: {
+          distanceFromTargetFeet: 12.3
+        }
+      }
+    ]);
+
+    const result = await service.vanResultsCsv({
+      organizationId: 'org-1'
+    });
+
+    expect(result.csv).toContain("'=cmd|' /c calc'!A1");
+    expect(result.csv).toContain("'=SUM(A1) Field");
+    expect(result.csv).toContain('-85.6681');
+    expect(result.csv).not.toContain("'-85.6681");
+  });
+
   it('skips export marking when markExported is false', async () => {
     prisma.visitLog.findMany.mockResolvedValue([]);
 
