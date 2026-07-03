@@ -30,7 +30,7 @@
     "expo": "~56.0.12",
     "expo-font": "^56.0.7",
     "expo-location": "~56.0.18",
-    "expo-splash-screen": "~56.0.10",
+    "expo-splash-screen": "~57.0.1",
     "expo-sqlite": "~56.0.5",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.7",
