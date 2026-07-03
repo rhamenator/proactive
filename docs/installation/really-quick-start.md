@@ -60,9 +60,9 @@ PASS if all of these are true:
 
 - every command prints a version
 - Node starts with `v22` or higher
-- `pwd` ends with `/proactive`
+- the folder shown by `pwd` ends with `proactive` — on macOS/Linux that's a plain path like `.../proactive`; on Windows PowerShell, `pwd` prints a small table and the `Path` value ends with `\proactive`
 
-FAIL if any command says `not found`, errors, or `pwd` does not end with `/proactive`.
+FAIL if any command says `not found`, errors, or the folder shown does not end with `proactive`.
 
 If FAIL, stop here and ask for help before continuing.
 
@@ -351,6 +351,17 @@ Fix:
 ```bash
 npm run setup:local
 ```
+
+### Problem: `npm run setup:local` fails with `'sh' is not recognized` (Windows)
+
+The seed step shells out to `sh` internally, which Git for Windows provides but does not always put on your PATH.
+
+Fix:
+
+1. Reinstall Git for Windows and choose **"Use Git and optional Unix tools from Command Prompt"** during setup.
+2. Re-run `npm run setup:local`.
+
+You do not need to change which terminal app you use (PowerShell is fine) — this is only about `sh` being resolvable on PATH.
 
 ### Problem: Android emulator cannot reach backend
 
