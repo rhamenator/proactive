@@ -17,6 +17,11 @@
 - [Canvasser mobile guide](help/canvasser-mobile-guide.md)
 - [Troubleshooting](help/troubleshooting.md)
 
+## Manual Testing
+
+- [Manual testing quickstart](manual-test-quickstart.md)
+- [Manual test plan (full checklist)](manual-test-plan.md)
+
 ## Engineering And Operations
 
 - [Wiki index](wiki/README.md)

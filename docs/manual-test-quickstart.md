@@ -1,317 +1,160 @@
 # Manual Testing Quickstart
 
-This guide is for testers who are verifying PROACTIVE manually — walking the system end-to-end with real browsers, a real backend, and a real or simulated device.
+This guide gets a tester from an empty machine to a working local PROACTIVE system and one verified end-to-end flow. It assumes no prior setup and no prior familiarity with the stack.
 
-## Prerequisites
-
-- Node.js 22 or newer
-- npm
-- PostgreSQL running locally
-- A physical or virtual mobile device (or an iOS/Android simulator)
-- An authenticator app (e.g. Google Authenticator, Authy) for admin MFA
+For the full feature-by-feature checklist, offline tests, automated suites, and known limitations, see [Manual Test Plan](manual-test-plan.md) — do this quickstart first.
 
 ---
 
-## 1. Set Up The Local Environment
+## Prerequisites
 
-Run the installer from the repo root. It creates env files, installs dependencies, runs migrations, and seeds test data.
+Install each of these before starting. If one is already installed, skip it.
+
+| Tool | Get it from | Needed for |
+| --- | --- | --- |
+| Node.js 22 or newer | [nodejs.org](https://nodejs.org/) | Running the backend, admin dashboard, and mobile dev server |
+| Git | [git-scm.com/downloads](https://git-scm.com/downloads) | Cloning the repo. **On Windows, this also installs Git Bash**, which some setup scripts in this project require. |
+| PostgreSQL | [postgresql.org/download](https://www.postgresql.org/download/) | The application database. The Windows installer includes `psql` (command line) and pgAdmin (GUI). |
+| An authenticator app | App Store / Google Play (e.g. Google Authenticator, Authy) | Admin and supervisor accounts require MFA |
+| A mobile device or simulator | iOS Simulator (macOS + Xcode) or Android Emulator (Android Studio), or a physical phone with the Expo Go app | Testing the canvasser mobile app |
+
+### Verify your tools
+
+Open a terminal and run:
 
 ```bash
-npm run setup:local
+node --version
+npm --version
+git --version
+psql --version
 ```
 
-If PostgreSQL is not yet running or the database does not exist, create it first:
+**PASS** if all four commands print a version, and Node's version starts with `v22` or higher.
 
-```sql
-CREATE DATABASE proactive;
+**FAIL** if any command says "not found" or similar — reinstall that tool and confirm it was added to your PATH, then try again.
+
+---
+
+## Step 1 — Open a terminal in the project folder
+
+- **Windows:** open **Git Bash** (search "Git Bash" in the Start menu). Commands in this guide are written for Git Bash. Do not use Command Prompt or plain PowerShell — some setup scripts require a POSIX shell.
+- **macOS:** open **Terminal**.
+- **Linux:** open your normal terminal.
+
+If you don't already have the code:
+
+```bash
+git clone https://github.com/rhamenator/proactive.git
+cd proactive
 ```
 
-The default connection string is:
+If you already have the code, `cd` into that folder instead.
+
+All commands below assume you are in the repo root unless a step says otherwise.
+
+---
+
+## Step 2 — Create the database
+
+Run:
+
+```bash
+psql -U postgres -c "CREATE DATABASE proactive;"
+```
+
+You'll be prompted for the `postgres` user's password (the one you set when installing PostgreSQL).
+
+**PASS** if the command prints `CREATE DATABASE`.
+
+**FAIL** if it says the database already exists — that's fine, continue. Any other error means PostgreSQL isn't running or the `postgres` password is wrong.
+
+The installer in the next step expects this connection string by default:
 
 ```text
 postgresql://postgres:postgres@localhost:5432/proactive?schema=public
 ```
 
-Edit `backend/.env` to change it before running the installer.
+If your PostgreSQL user, password, or port is different, edit `backend/.env` after Step 3 creates it, then re-run Step 3 with `--skip-install`.
 
 ---
 
-## 2. Start The System
+## Step 3 — Install and set up the project
 
-Open three separate terminals and run one command in each:
+From the repo root:
 
 ```bash
-npm run dev:backend    # API on http://localhost:3001
-npm run dev:admin      # Admin dashboard on http://localhost:3000
-npm run dev:mobile     # Expo dev server (shows QR code / simulator options)
+npm run setup:local
 ```
 
-Wait for all three to finish their startup output before beginning tests.
+This installs dependencies, creates `.env` files, generates the Prisma client, runs database migrations, and seeds test data.
+
+**PASS** if the command finishes and returns you to the prompt with no error.
+
+**FAIL** if it stops with an error — re-check Step 2 (is PostgreSQL running? does the database exist?), then re-run `npm run setup:local`.
 
 ---
 
-## 3. Seed Accounts
+## Step 4 — Start the system
 
-The local seed creates these accounts. All share the same password.
+Open **three separate terminals** (Git Bash on Windows), all in the repo root, and run one command in each:
 
-| Role        | Email                         | Password       |
-|-------------|-------------------------------|----------------|
-| Admin       | `admin@proactive.local`       | `Password123!` |
-| Canvasser   | `canvasser@proactive.local`   | `Password123!` |
-
-> **MFA note:** Admin and supervisor accounts require MFA. On first login you will be prompted to enroll an authenticator app. Use the displayed secret or scan the QR code. Save the backup codes shown after enrollment.
-
-If you need a richer pre-populated dataset (export batches, GPS flags, sync conflicts, address requests, and more), run the E2E seed instead:
+Terminal 1:
 
 ```bash
-E2E_ALLOW_DATABASE_SEED=true npm run seed:e2e
+npm run dev:backend
 ```
 
-That seeds additional accounts:
-
-| Role        | Email                          | Password       | MFA secret (TOTP)       |
-|-------------|--------------------------------|----------------|-------------------------|
-| Admin       | `admin.e2e@example.test`       | `Password123!` | `JBSWY3DPEHPK3PXP`      |
-| Supervisor  | `supervisor.e2e@example.test`  | `Password123!` | `JBSWY3DPEHPK3PXP`      |
-| Canvasser   | `canvasser.e2e@example.test`   | `Password123!` | *(no MFA)*              |
-
----
-
-## 4. Core End-To-End Flow
-
-This is the minimum walkthrough to confirm the system is working.
-
-### Step 1 — Sign in as admin
-
-1. Open `http://localhost:3000`.
-2. Sign in as `admin@proactive.local` / `Password123!`.
-3. Complete MFA enrollment when prompted (first login only). Save the backup codes.
-
-### Step 2 — Confirm the dashboard loads
-
-- The `Dashboard` page should show summary cards and no error banners.
-- Navigate to `Turfs`, `Canvassers`, `Outcomes`, and `Policies` to confirm each page loads.
-
-### Step 3 — Assign a turf to the canvasser
-
-1. Open `Turfs`.
-2. Select **Sample Turf 1** (created by the seed).
-3. Assign it to `canvasser@proactive.local`.
-4. Confirm the assignment saves.
-
-### Step 4 — Sign in as canvasser on the mobile app
-
-1. Open the Expo QR code on a device, or choose a simulator option.
-2. Sign in as `canvasser@proactive.local` / `Password123!`.
-3. Confirm the assigned turf appears.
-
-### Step 5 — Start the turf and log a visit
-
-1. Open **Sample Turf 1** on the mobile app.
-2. Select **Start** and allow location access if prompted.
-3. Open a household record.
-4. Choose a visit outcome (e.g. `Knocked`, `Not Home`).
-5. Add a note if desired.
-6. Submit the visit.
-
-### Step 6 — Verify the visit in the dashboard
-
-1. Return to `http://localhost:3000` as admin.
-2. Open `Dashboard` — the visit count should have incremented.
-3. Open `Exports`, run an export, and confirm the visit row appears in the downloaded CSV.
-
----
-
-## 5. Area-By-Area Checklist
-
-Use this for a broader test pass across individual features.
-
-### Authentication
-
-- [ ] Admin can log in with password + MFA code
-- [ ] Admin can log in with a backup code instead of MFA
-- [ ] Repeated wrong passwords trigger the lockout (5 attempts by default, configurable in `Policies`)
-- [ ] Canvasser can log in on the mobile app
-- [ ] Admin cannot log in to the mobile app (canvasser-only by design)
-
-### Turfs
-
-- [ ] Manual turf creation with name, description, team, and region
-- [ ] CSV import using a valid file and the default import profile
-- [ ] Import preview shows correct header mappings before committing
-- [ ] Import with a bad file shows a validation error, not a crash
-- [ ] Turf appears in the canvasser's mobile app after assignment
-- [ ] Removing an assignment removes it from the mobile app
-
-### Import Reviews
-
-- [ ] Duplicate rows detected during import appear in `Import Reviews`
-- [ ] Reviewer can approve or reject individual items
-- [ ] Resolved items do not reappear after page reload
-
-### CSV Profiles
-
-- [ ] Import and export profiles are listed under `CSV Profiles`
-- [ ] A profile can be edited and saved
-- [ ] Template download produces a file with the expected headers
-
-### Field Preview
-
-- [ ] `Field Preview` shows the canvasser view for the selected turf
-- [ ] Outcome list matches what is configured in `Outcomes`
-
-### GPS Review
-
-- [ ] Low-accuracy or out-of-geofence visits appear in `GPS Review`
-- [ ] Reviewer can apply an override with a reason
-- [ ] Override is reflected in subsequent exports
-
-### Sync Conflicts
-
-- [ ] Conflicting submissions appear in `Sync Conflicts`
-- [ ] Conflict reason is shown before resolution
-- [ ] Resolving a conflict requires a reason entry
-- [ ] Resolved items do not reappear
-
-### Address Requests
-
-- [ ] A request submitted from the mobile app appears in `Address Requests`
-- [ ] Admin can approve or reject the request
-- [ ] Approved addresses are added to the turf
-
-### Visit Corrections
-
-- [ ] A correction request appears in `Visit Corrections`
-- [ ] Reviewer sees the original visit alongside the requested change
-- [ ] Approving or rejecting the correction requires a reason
-
-### Exports
-
-- [ ] Export runs without error for `Internal Master` and `VAN Results` profiles
-- [ ] Applying a turf filter narrows the exported rows
-- [ ] Exported CSV contains the visits logged during the test session
-- [ ] Recent export batch is listed after the download
-
-### Reports
-
-- [ ] Overview, productivity, GPS exceptions, audit, and trends tabs load
-- [ ] Filters narrow the displayed data
-
-### Outcomes
-
-- [ ] Outcome list reflects what the mobile app shows during a visit
-- [ ] Adding a new outcome makes it available on the mobile app (re-check after adding)
-- [ ] Marking an outcome inactive removes it from new visits without deleting history
-
-### Policies
-
-- [ ] Organization and campaign policy overrides can be saved
-- [ ] Saving a sensitive change (MFA timing, lockout) requires a fresh MFA confirmation
-- [ ] Resetting a policy reverts to the broader scope default
-
-### Retention
-
-- [ ] Retention settings page loads
-- [ ] Archive or deletion actions require confirmation before executing
-
-### User Management (Canvassers)
-
-- [ ] New canvasser account can be created and activated
-- [ ] Account scope (campaign, team, region) can be set
-- [ ] Inactive accounts cannot log in
-
-### Teams
-
-- [ ] Teams can be created with campaign and region metadata
-- [ ] Inactive teams are not available for new assignments
-
-### Account
-
-- [ ] MFA can be reset: disable with current credentials, re-enroll
-- [ ] Backup code count is shown correctly after enrollment
-
----
-
-## 6. Offline / Low-Connectivity Tests
-
-These require a physical device or an emulator with network throttling:
-
-1. Disable network on the device (airplane mode or block the API port).
-2. Log a visit on the mobile app.
-3. Confirm the visit enters the local queue (visible as pending in the app).
-4. Re-enable network.
-5. Confirm the queue drains and the visit appears in the dashboard.
-
----
-
-## 7. Resetting Between Test Runs
-
-To start fresh without reinstalling:
+Terminal 2:
 
 ```bash
-# Drop and recreate the database, rerun migrations and seed
-cd backend
-npx prisma migrate reset --force
-cd ..
+npm run dev:admin
 ```
 
-To reload only the E2E seed without resetting everything:
+Terminal 3:
 
 ```bash
-E2E_ALLOW_DATABASE_SEED=true npm run seed:e2e
+npm run dev:mobile
 ```
 
----
+**PASS** if all three keep running with no immediate error, and terminal 3 shows a QR code or simulator options.
 
-## 8. Automated Test Suites
-
-These are available if you want to run a structured regression pass alongside manual checks.
-
-```bash
-# Full unit and integration suite
-npm test
-
-# Browser E2E — mocked backend (fast, no local services needed)
-npm run test:ui:mocked
-
-# Browser E2E — seeded real backend (requires all three services running)
-npm run test:ui:seeded
-```
+Wait for all three to finish their startup output before continuing.
 
 ---
 
-## 9. Known Limitations
+## Step 5 — Seed accounts
 
-Keep these in mind during testing to avoid false failures:
+`npm run setup:local` already created these accounts. All share the same password.
 
-- **Dashboard only** for admin and supervisor accounts. Attempting to sign in on the mobile app with those accounts is expected to fail.
-- **No resolved-conflicts history screen** — resolved items disappear from the queue; that is current behavior, not a bug.
-- **GPS accuracy varies by device** — low-accuracy submissions are flagged and routed to GPS Review, not rejected outright.
-- **Signed mobile builds** require Expo/Apple/Google credentials and are not part of local testing. Use the Expo dev server (`npm run dev:mobile`) for local manual tests.
-- **Android emulator API URL** — if the mobile app cannot reach the backend from an Android emulator, set `EXPO_PUBLIC_API_URL=http://10.0.2.2:3001` in `mobile-app/.env`.
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `admin@proactive.local` | `Password123!` |
+| Canvasser | `canvasser@proactive.local` | `Password123!` |
+
+> **MFA note:** admin and supervisor accounts require MFA. On first login you'll be prompted to enroll an authenticator app — scan the QR code or enter the displayed secret, then save the backup codes shown after enrollment.
 
 ---
 
-## 10. Quick Reference
+## Step 6 — Run the core end-to-end flow
 
-| What                       | Where                                              |
-|----------------------------|----------------------------------------------------|
-| Admin dashboard            | `http://localhost:3000`                            |
-| Backend API                | `http://localhost:3001`                            |
-| Seed admin account         | `admin@proactive.local` / `Password123!`           |
-| Seed canvasser account     | `canvasser@proactive.local` / `Password123!`       |
-| Reinstall from scratch     | `npm run setup:local`                              |
-| Reset database             | `cd backend && npx prisma migrate reset --force`   |
-| E2E seed                   | `E2E_ALLOW_DATABASE_SEED=true npm run seed:e2e`    |
-| Full test suite            | `npm test`                                         |
-| Browser E2E (mocked)       | `npm run test:ui:mocked`                           |
-| Browser E2E (real backend) | `npm run test:ui:seeded`                           |
+This is the minimum walkthrough to confirm the system works.
 
-For more detail, see:
+1. **Sign in as admin.** Open `http://localhost:3000` and sign in as `admin@proactive.local` / `Password123!`. Complete MFA enrollment if prompted, and save the backup codes.
+2. **Confirm the dashboard loads.** The `Dashboard` page shows summary cards with no error banners. Navigate to `Turfs`, `Canvassers`, `Outcomes`, and `Policies` to confirm each page loads.
+3. **Assign a turf.** Open `Turfs`, select **Sample Turf 1** (created by the seed), and assign it to `canvasser@proactive.local`. Confirm the assignment saves.
+4. **Sign in as canvasser on mobile.** Open the Expo QR code on a device, or choose a simulator option from terminal 3. Sign in as `canvasser@proactive.local` / `Password123!` and confirm the assigned turf appears.
+5. **Log a visit.** Open **Sample Turf 1**, select **Start** (allow location access if prompted), open a household record, choose a visit outcome (e.g. `Knocked`, `Not Home`), optionally add a note, and submit.
+6. **Verify the visit in the dashboard.** Back on `http://localhost:3000` as admin, open `Dashboard` and confirm the visit count incremented. Open `Exports`, run an export, and confirm the visit row appears in the downloaded CSV.
 
-- [Local Installation](installation/local-install.md)
+**PASS** if all six steps complete without error. Your local environment is confirmed working.
+
+---
+
+## What's next
+
+- For the full area-by-area feature checklist, offline/low-connectivity tests, resetting between test runs, automated test suites, and known limitations, go to [Manual Test Plan](manual-test-plan.md).
+- [Local Installation](installation/local-install.md) — more detail on the installer and manual install steps.
 - [User Manual](user-manual.md)
 - [Admin Quick Start](help/admin-quick-start.md)
 - [Canvasser Mobile Guide](help/canvasser-mobile-guide.md)
 - [Troubleshooting](help/troubleshooting.md)
-- [Operations Runbook](wiki/operations-runbook.md)
