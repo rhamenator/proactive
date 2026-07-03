@@ -1,3 +1,5 @@
+import iconv from 'iconv-lite';
+
 export type CsvMapping = Partial<Record<CsvField, string>>;
 
 export type CsvField =
@@ -28,6 +30,19 @@ export const canonicalAliases: Record<CsvField, string[]> = {
   longitude: ['longitude', 'lng', 'lon'],
   turfName: ['turf_name', 'turf', 'district']
 };
+
+/**
+ * Decodes an uploaded CSV file to a string, falling back to Windows-1252 when
+ * the bytes aren't valid UTF-8 (common for "CSV (Comma delimited)" exports
+ * from Excel on Windows, which use the system codepage rather than UTF-8 and
+ * would otherwise corrupt accented names/addresses into replacement chars).
+ * Also strips a leading UTF-8 BOM (common in "CSV UTF-8" exports).
+ */
+export function decodeCsvBuffer(buffer: Buffer): string {
+  const utf8 = buffer.toString('utf8');
+  const decoded = utf8.includes('�') ? iconv.decode(buffer, 'windows-1252') : utf8;
+  return decoded.charCodeAt(0) === 0xfeff ? decoded.slice(1) : decoded;
+}
 
 export function normalizeHeader(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
