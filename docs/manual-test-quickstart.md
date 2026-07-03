@@ -13,7 +13,7 @@ Install each of these before starting. If one is already installed, skip it.
 | Tool | Get it from | Needed for |
 | --- | --- | --- |
 | Node.js 22 or newer | [nodejs.org](https://nodejs.org/) | Running the backend, admin dashboard, and mobile dev server |
-| Git | [git-scm.com/downloads](https://git-scm.com/downloads) | Cloning the repo. **On Windows, this also installs Git Bash**, which some setup scripts in this project require. |
+| Git | [git-scm.com/downloads](https://git-scm.com/downloads) | Cloning the repo. The database seed scripts also shell out to `sh`, which Git for Windows provides — see the note in Step 3. |
 | PostgreSQL | [postgresql.org/download](https://www.postgresql.org/download/) | The application database. The Windows installer includes `psql` (command line) and pgAdmin (GUI). |
 | An authenticator app | App Store / Google Play (e.g. Google Authenticator, Authy) | Admin and supervisor accounts require MFA |
 | A mobile device or simulator | iOS Simulator (macOS + Xcode) or Android Emulator (Android Studio), or a physical phone with the Expo Go app | Testing the canvasser mobile app |
@@ -37,7 +37,7 @@ psql --version
 
 ## Step 1 — Open a terminal in the project folder
 
-- **Windows:** open **Git Bash** (search "Git Bash" in the Start menu). Commands in this guide are written for Git Bash. Do not use Command Prompt or plain PowerShell — some setup scripts require a POSIX shell.
+- **Windows:** open **PowerShell**.
 - **macOS:** open **Terminal**.
 - **Linux:** open your normal terminal.
 
@@ -76,6 +76,8 @@ postgresql://postgres:postgres@localhost:5432/proactive?schema=public
 
 If your PostgreSQL user, password, or port is different, edit `backend/.env` after Step 3 creates it, then re-run Step 3 with `--skip-install`.
 
+> **Don't want to install PostgreSQL natively?** [deployment.md](installation/deployment.md)'s Docker Compose path runs Postgres (plus the backend and admin dashboard) in containers instead — see its "Backend, admin dashboard, and PostgreSQL with Docker Compose" section. That path doesn't cover the mobile Expo dev server, so you'll still need Steps 4–6 below for mobile testing.
+
 ---
 
 ## Step 3 — Install and set up the project
@@ -92,11 +94,13 @@ This installs dependencies, creates `.env` files, generates the Prisma client, r
 
 **FAIL** if it stops with an error — re-check Step 2 (is PostgreSQL running? does the database exist?), then re-run `npm run setup:local`.
 
+> **Windows note:** this step's seed data is loaded through a script that shells out to `sh` internally. Git for Windows provides this, but only if its install location is on your PATH. If this step fails with something like `'sh' is not recognized`, reinstall Git for Windows and choose **"Use Git and optional Unix tools from Command Prompt"** during setup, then re-run `npm run setup:local`. You can still run every command in this guide from PowerShell — this is the one internal dependency that needs `sh` available, not a reason to switch terminals.
+
 ---
 
 ## Step 4 — Start the system
 
-Open **three separate terminals** (Git Bash on Windows), all in the repo root, and run one command in each:
+Open **three separate terminals**, all in the repo root, and run one command in each:
 
 Terminal 1:
 
