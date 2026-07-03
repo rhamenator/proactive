@@ -114,6 +114,7 @@ describe('ExportsService', () => {
         vanExported: false
       },
       orderBy: { visitTime: 'asc' },
+      take: 25_001,
       include: {
         address: {
           include: {
@@ -223,6 +224,16 @@ describe('ExportsService', () => {
     expect(result.csv).not.toContain("'-85.6681");
   });
 
+  it('rejects an export that would exceed the row cap instead of silently truncating it', async () => {
+    prisma.visitLog.findMany.mockResolvedValue(
+      Array.from({ length: 25_001 }, (_, index) => ({ id: `visit-${index}` }))
+    );
+
+    await expect(service.vanResultsCsv({ organizationId: 'org-1' })).rejects.toThrow(
+      /more than 25000 rows/
+    );
+  });
+
   it('skips export marking when markExported is false', async () => {
     prisma.visitLog.findMany.mockResolvedValue([]);
 
@@ -239,6 +250,7 @@ describe('ExportsService', () => {
         syncConflictFlag: false
       },
       orderBy: { visitTime: 'asc' },
+      take: 25_001,
       include: {
         address: {
           include: {

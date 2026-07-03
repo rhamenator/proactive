@@ -1,4 +1,4 @@
-import { GoneException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, GoneException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify/sync';
@@ -44,8 +44,14 @@ export class ExportsService {
     } as const;
   }
 
+  // Bounds a single export's memory/query footprint. The whole result set,
+  // the visit-attempt-history lookup (one OR clause per unique turf/address
+  // pair in the result), and the final CSV string are all fully materialized
+  // in memory, so this needs a ceiling rather than running fully unbounded.
+  private static readonly MAX_EXPORT_ROWS = 25_000;
+
   private async fetchVisits(options?: ExportOptions) {
-    return this.prisma.visitLog.findMany({
+    const visits = await this.prisma.visitLog.findMany({
       where: {
         ...this.buildScope(options ?? { organizationId: null }),
         deletedAt: null,
@@ -55,6 +61,7 @@ export class ExportsService {
         ...(options?.markExported === false ? {} : { vanExported: false })
       },
       orderBy: { visitTime: 'asc' },
+      take: ExportsService.MAX_EXPORT_ROWS + 1,
       include: {
         address: {
           include: {
@@ -67,6 +74,14 @@ export class ExportsService {
         turf: true
       }
     });
+
+    if (visits.length > ExportsService.MAX_EXPORT_ROWS) {
+      throw new BadRequestException(
+        `This export would include more than ${ExportsService.MAX_EXPORT_ROWS} rows. Narrow it by turf or date range and try again.`
+      );
+    }
+
+    return visits;
   }
 
   private async loadVisitAttemptHistory(
