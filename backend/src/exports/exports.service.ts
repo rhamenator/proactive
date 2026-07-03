@@ -335,9 +335,17 @@ export class ExportsService {
       sync_status: visit.syncStatus,
       canvasser_name: `${visit.canvasser.firstName} ${visit.canvasser.lastName}`.trim()
     }));
+    // Only used when there are zero matching visits (so baseRows[0] doesn't
+    // exist) and the profile has no explicit columns setting - must be kept
+    // in sync with the field list built by the .map() above.
     const columns = this.normalizeColumns(profileSettings.columns, Object.keys(baseRows[0] ?? {
       van_id: '',
       address_line1: '',
+      address_line2: '',
+      unit: '',
+      city: '',
+      state: '',
+      zip: '',
       visit_time: '',
       result: '',
       contact_made: '',
@@ -360,7 +368,8 @@ export class ExportsService {
 
     const csv = stringify(rows, {
       header: true,
-      bom: true
+      bom: true,
+      columns
     });
 
     const markExported =
@@ -485,17 +494,63 @@ export class ExportsService {
       time_zone: getExportTimeZoneLabel(),
       van_exported: visit.vanExported ? 'true' : 'false'
     }));
+    // Only used when there are zero matching visits (so baseRows[0] doesn't
+    // exist) and the profile has no explicit columns setting - must be kept
+    // in sync with the field list built by the .map() above.
     const columns = this.normalizeColumns(profileSettings.columns, Object.keys(baseRows[0] ?? {
       visit_id: '',
+      organization_id: '',
+      campaign_id: '',
+      team_id: '',
+      region_code: '',
       turf_id: '',
       turf_name: '',
       address_id: '',
+      household_id: '',
+      household_van_household_id: '',
+      household_van_person_id: '',
       van_id: '',
       address_line1: '',
+      address_line2: '',
+      unit: '',
       city: '',
       state: '',
       zip: '',
-      visit_time: ''
+      session_id: '',
+      visit_time: '',
+      client_created_at: '',
+      server_received_at: '',
+      outcome_definition_id: '',
+      outcome_code: '',
+      outcome_label: '',
+      is_final_disposition: '',
+      legacy_result: '',
+      attempt_number: '',
+      is_revisit: '',
+      contact_made: '',
+      notes: '',
+      sync_status: '',
+      sync_conflict_flag: '',
+      sync_conflict_reason: '',
+      gps_status: '',
+      geofence_validated: '',
+      geofence_distance_meters: '',
+      distance_from_target_feet: '',
+      geofence_failure_reason: '',
+      override_flag: '',
+      override_reason: '',
+      override_by_user_id: '',
+      override_at: '',
+      latitude: '',
+      longitude: '',
+      accuracy_meters: '',
+      local_record_uuid: '',
+      idempotency_key: '',
+      source: '',
+      canvasser_id: '',
+      canvasser_name: '',
+      time_zone: '',
+      van_exported: ''
     }));
     const rows = this.renderRows(baseRows, columns);
     const filenamePrefix =
@@ -506,7 +561,8 @@ export class ExportsService {
 
     const csv = stringify(rows, {
       header: true,
-      bom: true
+      bom: true,
+      columns
     });
     await this.recordExportBatch({
       profileCode: profile.code,

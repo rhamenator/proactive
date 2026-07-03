@@ -155,8 +155,9 @@ export function formatExportTimestamp(value: Date) {
 
   const values = formatParts(value, exportTimeZone);
   const offset = formatOffset(getOffsetMinutes(value, exportTimeZone));
+  const milliseconds = value.getUTCMilliseconds().toString().padStart(3, '0');
 
-  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}${offset}`;
+  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}.${milliseconds}${offset}`;
 }
 
 export function getBucketHour(value: Date) {
