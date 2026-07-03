@@ -479,6 +479,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired MFA verification challenge');
     }
 
+    await this.assertWithinRateLimit('mfa-verify', challenge.userId);
+
     const normalizedCode = code.trim();
     const validTotp = verifyTotp(challenge.user.mfaSecret, normalizedCode);
     const usedBackupCode = validTotp ? false : await this.consumeBackupCode(challenge.userId, normalizedCode);
@@ -486,6 +488,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid MFA or backup code');
     }
 
+    this.clearRateLimit('mfa-verify', challenge.userId);
     await this.consumeMfaChallenge(challenge.id);
     const mfaVerifiedAt = new Date();
     const session = await this.issueSession(challenge.user, { mfaVerifiedAt });
@@ -525,6 +528,8 @@ export class AuthService {
       throw new BadRequestException('MFA is not enabled for this account');
     }
 
+    await this.assertWithinRateLimit('mfa-disable', userId);
+
     const passwordMatches = await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
@@ -536,6 +541,8 @@ export class AuthService {
     if (!validTotp && !usedBackupCode) {
       throw new UnauthorizedException('Invalid MFA or backup code');
     }
+
+    this.clearRateLimit('mfa-disable', userId);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
@@ -584,12 +591,16 @@ export class AuthService {
       throw new ForbiddenException('MFA step-up is unavailable for this account');
     }
 
+    await this.assertWithinRateLimit('mfa-step-up', user.id);
+
     const normalizedCode = code.trim();
     const validTotp = verifyTotp(user.mfaSecret, normalizedCode);
     const usedBackupCode = validTotp ? false : await this.consumeBackupCode(user.id, normalizedCode);
     if (!validTotp && !usedBackupCode) {
       throw new UnauthorizedException('Invalid MFA or backup code');
     }
+
+    this.clearRateLimit('mfa-step-up', user.id);
 
     const mfaVerifiedAt = new Date();
     const accessToken = await this.issueAccessToken(this.buildJwtPayload(user, { mfaVerifiedAt }));

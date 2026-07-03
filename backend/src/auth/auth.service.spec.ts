@@ -612,6 +612,34 @@ describe('AuthService', () => {
     verifySpy.mockRestore();
   });
 
+  it('rate-limits repeated wrong codes against a valid MFA verification challenge', async () => {
+    const user = buildUser({
+      id: 'mfa-rate-limit-user',
+      role: UserRole.admin,
+      mfaEnabled: true,
+      mfaSecret: 'JBSWY3DPEHPK3PXP'
+    });
+    prisma.mfaChallengeToken.findFirst.mockResolvedValue({
+      id: 'challenge-rate-limit',
+      userId: user.id,
+      user
+    });
+    prisma.mfaBackupCode.findFirst.mockResolvedValue(null);
+    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(false);
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await expect(service.verifyMfaChallenge('challenge-token', '000000')).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+    }
+
+    await expect(service.verifyMfaChallenge('challenge-token', '000000')).rejects.toMatchObject({
+      status: 429
+    });
+
+    verifySpy.mockRestore();
+  });
+
   it('issues a fresh access token after a valid MFA step-up verification', async () => {
     const user = buildUser({
       role: UserRole.admin,
