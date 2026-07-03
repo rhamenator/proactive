@@ -780,17 +780,40 @@ export class AuthService {
   async refresh(refreshToken: string) {
     const tokenHash = this.hashOpaqueToken(refreshToken);
     const storedToken = await this.prisma.authRefreshToken.findFirst({
-      where: {
-        tokenHash,
-        revokedAt: null,
-        expiresAt: { gt: new Date() }
-      },
+      where: { tokenHash },
       include: {
         user: true
       }
     });
 
-    if (!storedToken || !storedToken.user.isActive || storedToken.user.status !== 'active') {
+    if (!storedToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (storedToken.revokedAt) {
+      // This token was already rotated away once. Presenting it again means
+      // it was either replayed or stolen, so treat it as a breach signal:
+      // revoke every other active refresh token for this user rather than
+      // just rejecting the one request.
+      await this.prisma.authRefreshToken.updateMany({
+        where: {
+          userId: storedToken.userId,
+          revokedAt: null
+        },
+        data: { revokedAt: new Date() }
+      });
+
+      await this.auditService.log({
+        actorUserId: storedToken.userId,
+        actionType: 'refresh_token_reuse_detected',
+        entityType: 'user_auth',
+        entityId: storedToken.userId
+      });
+
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (storedToken.expiresAt <= new Date() || !storedToken.user.isActive || storedToken.user.status !== 'active') {
       throw new UnauthorizedException('Invalid refresh token');
     }
 

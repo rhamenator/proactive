@@ -324,6 +324,46 @@ describe('AuthService', () => {
     });
   });
 
+  it('detects reuse of an already-revoked refresh token and revokes the rest of that user\'s sessions', async () => {
+    const user = buildUser();
+    prisma.authRefreshToken.findFirst.mockResolvedValue({
+      id: 'refresh-1',
+      userId: user.id,
+      revokedAt: new Date('2026-03-28T00:00:00.000Z'),
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      user
+    });
+
+    await expect(service.refresh('stolen-refresh-token')).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(prisma.authRefreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: expect.any(Date) }
+    });
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: user.id,
+        actionType: 'refresh_token_reuse_detected'
+      })
+    );
+    expect(prisma.authRefreshToken.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects a refresh token that has expired but was never revoked', async () => {
+    const user = buildUser();
+    prisma.authRefreshToken.findFirst.mockResolvedValue({
+      id: 'refresh-1',
+      userId: user.id,
+      revokedAt: null,
+      expiresAt: new Date('2020-01-01T00:00:00.000Z'),
+      user
+    });
+
+    await expect(service.refresh('expired-refresh-token')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.authRefreshToken.updateMany).not.toHaveBeenCalled();
+    expect(prisma.authRefreshToken.update).not.toHaveBeenCalled();
+  });
+
   it('returns success on logout when the refresh token was already gone', async () => {
     prisma.authRefreshToken.findFirst.mockResolvedValue(null);
 
