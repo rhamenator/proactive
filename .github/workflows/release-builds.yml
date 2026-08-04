@@ -52,7 +52,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Run allowed install scripts
-        run: npm rebuild
+        run: npm rebuild bcrypt@6.0.0 esbuild@0.28.1 msw@2.14.4 sharp@0.35.3 unrs-resolver@1.11.1 detox@20.51.0 prisma@6.19.3 @prisma/client@6.19.3 @prisma/engines@6.19.3
 
       - name: Generate Prisma client
         run: npm run prisma:generate

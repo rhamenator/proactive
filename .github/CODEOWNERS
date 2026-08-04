@@ -2,8 +2,6 @@
 # security-critical files so that no dependency or workflow update
 # can slip through without explicit sign-off.
 
-# Catch-all: owner reviews everything by default
-*                               @rhamenator
 
 # Supply-chain and dependency management
 package.json                    @rhamenator
