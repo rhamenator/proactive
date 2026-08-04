@@ -5,21 +5,60 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    # Freeze packages in the keyv/cacheable supply-chain attack blast radius
+    # (2026-08-04 "Mini Shai-Hulud" worm). Remove these ignores only after
+    # the affected package families have been confirmed clean by the maintainer.
+    ignore:
+      - dependency-name: "keyv"
+      - dependency-name: "cacheable"
+      - dependency-name: "@cacheable/*"
+      - dependency-name: "flat-cache"
+      - dependency-name: "file-entry-cache"
+      - dependency-name: "cache-manager"
+      - dependency-name: "keyv-*"
+      - dependency-name: "@keyv/*"
   - package-ecosystem: npm
     directory: /backend
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "keyv"
+      - dependency-name: "cacheable"
+      - dependency-name: "@cacheable/*"
+      - dependency-name: "flat-cache"
+      - dependency-name: "file-entry-cache"
+      - dependency-name: "cache-manager"
+      - dependency-name: "keyv-*"
+      - dependency-name: "@keyv/*"
   - package-ecosystem: npm
     directory: /admin-dashboard
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "keyv"
+      - dependency-name: "cacheable"
+      - dependency-name: "@cacheable/*"
+      - dependency-name: "flat-cache"
+      - dependency-name: "file-entry-cache"
+      - dependency-name: "cache-manager"
+      - dependency-name: "keyv-*"
+      - dependency-name: "@keyv/*"
   - package-ecosystem: npm
     directory: /mobile-app
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "keyv"
+      - dependency-name: "cacheable"
+      - dependency-name: "@cacheable/*"
+      - dependency-name: "flat-cache"
+      - dependency-name: "file-entry-cache"
+      - dependency-name: "cache-manager"
+      - dependency-name: "keyv-*"
+      - dependency-name: "@keyv/*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
