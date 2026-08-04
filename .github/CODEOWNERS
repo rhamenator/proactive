@@ -1,0 +1,15 @@
+# CODEOWNERS — require the repository owner to review changes to
+# security-critical files so that no dependency or workflow update
+# can slip through without explicit sign-off.
+
+# Catch-all: owner reviews everything by default
+*                               @rhamenator
+
+# Supply-chain and dependency management
+package.json                    @rhamenator
+package-lock.json               @rhamenator
+**/package.json                 @rhamenator
+.github/dependabot.yml          @rhamenator
+
+# CI/CD workflows — a compromised workflow can exfiltrate secrets
+.github/workflows/              @rhamenator
