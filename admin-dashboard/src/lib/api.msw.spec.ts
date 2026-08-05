@@ -19,10 +19,10 @@ describe('admin api client with MSW handlers', () => {
     ]);
 
     expect(overview.kpis.totalVisits).toBe(2);
-    expect(overview.generatedAtTimezone).toBe('UTC');
+    expect(overview.dataFreshness.reflectsSyncedDataOnly).toBe(true);
     expect(productivity.rows).toHaveLength(1);
     expect(syncConflicts[0]?.syncStatus).toBe('conflict');
-    expect(addressRequests[0]?.requestedAddress.addressLine2).toBe('Apt 9');
+    expect(addressRequests[0]?.requestedAddress.unit).toBe('Apt 9');
   });
 
   it('serves export and import review APIs with realistic queue data', async () => {
