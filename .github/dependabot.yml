@@ -11,6 +11,9 @@ updates:
     # (2026-08-04 "Mini Shai-Hulud" worm). Remove these ignores only after
     # the affected package families have been confirmed clean by the maintainer.
     ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
       - dependency-name: "keyv"
       - dependency-name: "cacheable"
       - dependency-name: "@cacheable/*"
@@ -27,6 +30,9 @@ updates:
       default-days: 7
     open-pull-requests-limit: 10
     ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
       - dependency-name: "keyv"
       - dependency-name: "cacheable"
       - dependency-name: "@cacheable/*"
@@ -43,6 +49,9 @@ updates:
       default-days: 7
     open-pull-requests-limit: 10
     ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
       - dependency-name: "keyv"
       - dependency-name: "cacheable"
       - dependency-name: "@cacheable/*"
@@ -59,6 +68,9 @@ updates:
       default-days: 7
     open-pull-requests-limit: 10
     ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
       - dependency-name: "keyv"
       - dependency-name: "cacheable"
       - dependency-name: "@cacheable/*"
