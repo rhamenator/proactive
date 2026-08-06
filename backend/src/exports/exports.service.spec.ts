@@ -114,6 +114,7 @@ describe('ExportsService', () => {
         vanExported: false
       },
       orderBy: { visitTime: 'asc' },
+      take: 25_001,
       include: {
         address: {
           include: {
@@ -172,6 +173,67 @@ describe('ExportsService', () => {
     );
   });
 
+  it('neutralizes formula-injection prefixes while leaving legitimate negative numbers untouched', async () => {
+    prisma.visitLog.findMany.mockResolvedValue([
+      {
+        id: 'visit-1',
+        visitTime: new Date('2026-03-28T10:00:00.000Z'),
+        result: VisitResult.knocked,
+        contactMade: true,
+        notes: '\t=cmd|\' /c calc\'!A1',
+        gpsStatus: GpsStatus.verified,
+        latitude: 42.9634,
+        longitude: -85.6681,
+        accuracyMeters: 5,
+        syncStatus: SyncStatus.synced,
+        address: {
+          household: null,
+          vanId: 'VAN-123',
+          addressLine1: '100 Main St',
+          addressLine2: null,
+          unit: null,
+          city: 'Grand Rapids',
+          state: 'MI',
+          zip: '49503'
+        },
+        canvasser: {
+          firstName: '+1',
+          lastName: 'Field'
+        },
+        outcomeDefinition: {
+          id: 'outcome-1',
+          isFinalDisposition: true
+        },
+        turf: {
+          id: 'turf-1',
+          name: 'North'
+        },
+        geofenceResult: {
+          distanceFromTargetFeet: 12.3
+        }
+      }
+    ]);
+
+    const result = await service.vanResultsCsv({
+      organizationId: 'org-1'
+    });
+
+    expect(result.csv).toContain("'\t=cmd|' /c calc'!A1");
+    expect(result.csv).toContain("'+1 Field");
+    expect(result.csv).toContain('-85.6681');
+    expect(result.csv).not.toContain("'-85.6681");
+  });
+
+  it('rejects an export that would exceed the row cap instead of silently truncating it', async () => {
+    prisma.visitLog.findMany.mockResolvedValue(
+      Array.from({ length: 25_001 }, (_, index) => ({ id: `visit-${index}` }))
+    );
+
+    await expect(service.vanResultsCsv({ organizationId: 'org-1' })).rejects.toThrow(
+      'This export would include more than 25000 rows. Narrow it by turf and try again.'
+    );
+  });
+
   it('skips export marking when markExported is false', async () => {
     prisma.visitLog.findMany.mockResolvedValue([]);
 
@@ -188,6 +250,7 @@ describe('ExportsService', () => {
         syncConflictFlag: false
       },
       orderBy: { visitTime: 'asc' },
+      take: 25_001,
       include: {
         address: {
           include: {
@@ -203,7 +266,9 @@ describe('ExportsService', () => {
     expect(prisma.visitLog.updateMany).not.toHaveBeenCalled();
     expect(result.count).toBe(0);
     expect(result.filename).toEqual(expect.stringContaining('van-results-'));
-    expect(result.csv).toBe('\uFEFF');
+    expect(result.csv).toBe(
+      '\uFEFFvan_id,address_line1,address_line2,unit,city,state,zip,visit_time,result,contact_made,notes,time_zone,gps_status,latitude,longitude,accuracy_meters,distance_from_target_feet,sync_status,canvasser_name\n'
+    );
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         actionType: 'csv_export_generated',
@@ -345,6 +410,20 @@ describe('ExportsService', () => {
     expect(history).toEqual([{ id: 'batch-1', profileCode: 'internal_master' }]);
   });
 
+  it('still emits the full internal-master header row when zero visits match', async () => {
+    prisma.visitLog.findMany.mockResolvedValue([]);
+
+    const result = await service.internalMasterCsv({
+      organizationId: 'org-1'
+    });
+
+    expect(result.count).toBe(0);
+    expect(result.csv).toContain('organization_id');
+    expect(result.csv).toContain('household_van_household_id');
+    expect(result.csv).toContain('geofence_failure_reason');
+    expect(result.csv).toContain('van_exported');
+  });
+
   it('keeps localized timestamps unambiguous even when the configured profile omits the time_zone column', async () => {
     process.env.EXPORT_TIME_ZONE = 'America/Detroit';
     csvProfilesService.resolveProfile.mockResolvedValueOnce({
@@ -401,7 +480,7 @@ describe('ExportsService', () => {
 
     expect(result.csv).toContain('visit_time');
     expect(result.csv).not.toContain('time_zone');
-    expect(result.csv).toContain('2026-03-28T06:00:00-04:00');
+    expect(result.csv).toContain('2026-03-28T06:00:00.000-04:00');
   });
 
   it('fails historical download when the stored artifact has been purged', async () => {

@@ -4,6 +4,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     # Freeze packages in the keyv/cacheable supply-chain attack blast radius
     # (2026-08-04 "Mini Shai-Hulud" worm). Remove these ignores only after
@@ -21,6 +23,8 @@ updates:
     directory: /backend
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     ignore:
       - dependency-name: "keyv"
@@ -35,6 +39,8 @@ updates:
     directory: /admin-dashboard
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     ignore:
       - dependency-name: "keyv"
@@ -49,6 +55,8 @@ updates:
     directory: /mobile-app
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     ignore:
       - dependency-name: "keyv"
@@ -63,4 +71,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10

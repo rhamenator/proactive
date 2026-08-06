@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
-    "start:dev": "tsx watch src/main.ts",
+    "start:dev": "tsx --env-file=.env watch src/main.ts",
     "test": "jest",
     "prisma:generate": "prisma generate",
     "prisma:seed": "sh -c 'set -a && . ./.env && set +a && tsx prisma/seed.ts'",

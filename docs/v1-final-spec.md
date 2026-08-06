@@ -2,7 +2,7 @@
 
 ## Document Status
 
-- Status: v1 Final Spec
+- Status: v1 Final Spec (historical baseline - see note below)
 - Date: 2026-03-28
 - Source basis:
   - Original developer handoff
@@ -13,6 +13,8 @@
   - Offline addendum
   - GPS Enforcement & Location Rules
   - PROACTIVE Rules for Turf Management
+
+**Note (2026-07-03):** this document is the original planning baseline and is kept as a historical record of early decisions; it is not a live description of current scope. In particular, campaign management UI and multi-organization/campaign/team/region scope - explicitly deferred below - have since been built (Teams and Policies pages with campaign/region binding, policy-driven supervisor scope). See [gap-analysis.md](gap-analysis.md) for the current, up-to-date feature picture.
 
 ## Summary
 
@@ -66,7 +68,7 @@ Where the client documents provided ranges or optional patterns, use these defau
 - Campaign support: include nullable `campaign_id` in schema where relevant, but do not require campaign management UI in v1
 - Roles in v1 UI: `admin`, `supervisor`, and `canvasser`
 - `supervisor` role: enabled in v1 for operational review, turf reassignment/reopen, GPS review, and read-only outcome visibility
-- Password minimum length: 10 characters
+- Password minimum length: 12 characters
 - Password rule: at least 1 letter and 1 number
 - Activation flow: admin-created accounts only in v1; invited users activate via email link
 - Activation link expiry: 48 hours

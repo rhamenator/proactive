@@ -8,5 +8,15 @@
 		"jest.rootPath": "backend",
 		"jest.jestCommandLine": "npx jest --config ./jest.config.cjs --runInBand",
 		"explorerExclude.backup": {}
+	},
+	"extensions": {
+		"recommendations": [
+			"dbaeumer.vscode-eslint",
+			"esbenp.prettier-vscode",
+			"bradlc.vscode-tailwindcss",
+			"orta.vscode-jest",
+			"msjsdiag.vscode-react-native",
+			"ms-vscode.live-server"
+		]
 	}
 }

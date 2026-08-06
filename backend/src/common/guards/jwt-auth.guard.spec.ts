@@ -51,10 +51,20 @@ describe('JwtAuthGuard', () => {
   it('rejects invalid bearer tokens', async () => {
     const context = createContext({ Authorization: 'Bearer invalid-token' });
     jwtService.verifyAsync.mockRejectedValue(new Error('bad token'));
+    process.env.JWT_SECRET = 'unit-test-secret';
 
     await expect(guard.canActivate(context as never)).rejects.toBeInstanceOf(UnauthorizedException);
     expect(jwtService.verifyAsync).toHaveBeenCalledWith('invalid-token', {
-      secret: 'dev-secret'
+      secret: 'unit-test-secret'
     });
+  });
+
+  it('throws if JWT_SECRET is not configured, instead of falling back to a default secret', async () => {
+    const context = createContext({ authorization: 'Bearer token-123' });
+
+    await expect(guard.canActivate(context as never)).rejects.toThrow(
+      'Missing required environment variable: JWT_SECRET'
+    );
+    expect(jwtService.verifyAsync).not.toHaveBeenCalled();
   });
 });
