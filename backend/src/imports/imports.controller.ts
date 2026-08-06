@@ -9,12 +9,15 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
 import { resolveAccessScope } from '../common/utils/access-scope.util';
+import { decodeCsvBuffer } from '../common/utils/csv.util';
 import { PoliciesService } from '../policies/policies.service';
 import { ImportCsvDto } from '../turfs/dto/import-csv.dto';
 import { UsersService } from '../users/users.service';
 import { ListImportReviewQueueDto } from './dto/list-import-review-queue.dto';
 import { ResolveImportReviewDto } from './dto/resolve-import-review.dto';
 import { ImportsService } from './imports.service';
+
+const MAX_CSV_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB
 
 @Controller('imports')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -61,7 +64,12 @@ export class ImportsController {
 
   @Post('preview')
   @Roles(UserRole.admin)
-  @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: multer.memoryStorage(),
+      limits: { fileSize: MAX_CSV_UPLOAD_BYTES }
+    })
+  )
   async previewCsv(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: ImportCsvDto,
@@ -81,7 +89,7 @@ export class ImportsController {
     }
 
     return this.importsService.previewCsv({
-      csv: file.buffer.toString('utf8'),
+      csv: decodeCsvBuffer(file.buffer),
       createdById: user.sub,
       turfName: body.turfName,
       mapping,
@@ -95,7 +103,12 @@ export class ImportsController {
 
   @Post('csv')
   @Roles(UserRole.admin)
-  @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: multer.memoryStorage(),
+      limits: { fileSize: MAX_CSV_UPLOAD_BYTES }
+    })
+  )
   async importCsv(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: ImportCsvDto,
@@ -115,7 +128,7 @@ export class ImportsController {
     }
 
     return this.importsService.importCsv({
-      csv: file.buffer.toString('utf8'),
+      csv: decodeCsvBuffer(file.buffer),
       createdById: user.sub,
       turfName: body.turfName,
       mapping,

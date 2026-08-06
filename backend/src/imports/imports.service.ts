@@ -369,7 +369,8 @@ export class ImportsService {
     const records = parse(input.csv, {
       columns: true,
       skip_empty_lines: true,
-      trim: true
+      trim: true,
+      bom: true
     }) as ImportRow[];
 
     if (records.length === 0) {
@@ -697,7 +698,8 @@ export class ImportsService {
     const records = parse(input.csv, {
       columns: true,
       skip_empty_lines: true,
-      trim: true
+      trim: true,
+      bom: true
     }) as ImportRow[];
 
     if (records.length === 0) {
