@@ -10,10 +10,14 @@ function createMemoryStorage(): Storage {
       return values.size;
     },
     clear: () => values.clear(),
-    getItem: (key) => values.get(key) ?? null,
+    getItem: (key) => values.get(String(key)) ?? null,
     key: (index) => Array.from(values.keys())[index] ?? null,
-    removeItem: (key) => values.delete(key),
-    setItem: (key, value) => values.set(key, String(value))
+    removeItem: (key) => {
+      values.delete(String(key));
+    },
+    setItem: (key, value) => {
+      values.set(String(key), String(value));
+    }
   };
 }
 
@@ -27,6 +31,7 @@ beforeAll(() => {
 });
 
 afterEach(() => {
+  window.localStorage.clear();
   mswServer.resetHandlers();
 });
 
