@@ -1,4 +1,5 @@
-import { SystemSettingsService } from './system-settings.service';
+import { jest } from '@jest/globals';
+import { SystemSettingsService } from './system-settings.service.js';
 
 describe('SystemSettingsService', () => {
   const prisma = {

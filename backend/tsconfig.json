@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "CommonJS",
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "outDir": "./dist",
     "rootDir": ".",
     "declaration": false,
@@ -12,8 +13,10 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "strict": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
     "types": ["node", "jest"]
   },
-  "include": ["src/**/*", "prisma/**/*.ts", "test/**/*", "jest.config.cjs"],
+  "include": ["src/**/*", "prisma/**/*.ts", "prisma.config.ts", "test/**/*", "jest.config.cjs"],
   "exclude": ["node_modules", "dist"]
 }

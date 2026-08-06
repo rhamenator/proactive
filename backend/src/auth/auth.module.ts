@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { AuditModule } from '../audit/audit.module';
-import { PoliciesModule } from '../policies/policies.module';
-import { PrismaModule } from '../prisma/prisma.module';
-import { SecurityModule } from '../security/security.module';
-import { SystemSettingsModule } from '../system-settings/system-settings.module';
-import { UsersModule } from '../users/users.module';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
+import { AuditModule } from '../audit/audit.module.js';
+import { PoliciesModule } from '../policies/policies.module.js';
+import { PrismaModule } from '../prisma/prisma.module.js';
+import { SecurityModule } from '../security/security.module.js';
+import { SystemSettingsModule } from '../system-settings/system-settings.module.js';
+import { UsersModule } from '../users/users.module.js';
+import { AuthController } from './auth.controller.js';
+import { AuthService } from './auth.service.js';
 
 @Module({
   imports: [PrismaModule, SecurityModule, UsersModule, PoliciesModule, SystemSettingsModule, AuditModule],

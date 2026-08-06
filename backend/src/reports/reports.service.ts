@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, SyncStatus, GpsStatus } from '@prisma/client';
-import { getDayOfWeekBucket, getTimeOfDayBucket, attachVisitAttemptMetrics } from '../common/utils/visit-analytics.util';
-import { getReportBucketDate, getReportBucketTimeZone, getReportDateBoundary } from '../common/utils/timezone-policy.util';
-import { PoliciesService } from '../policies/policies.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma, SyncStatus, GpsStatus } from '../../generated/prisma/client.js';
+import { getDayOfWeekBucket, getTimeOfDayBucket, attachVisitAttemptMetrics } from '../common/utils/visit-analytics.util.js';
+import { getReportBucketDate, getReportBucketTimeZone, getReportDateBoundary } from '../common/utils/timezone-policy.util.js';
+import { PoliciesService } from '../policies/policies.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 export type ReportFilters = {
   organizationId: string | null;

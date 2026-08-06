@@ -5,10 +5,10 @@ import {
   Prisma,
   SessionStatus,
   UserRole
-} from '@prisma/client';
-import { AuditService } from '../audit/audit.service';
-import { buildNormalizedAddressKey } from '../common/utils/address-normalization.util';
-import { PrismaService } from '../prisma/prisma.service';
+} from '../../generated/prisma/client.js';
+import { AuditService } from '../audit/audit.service.js';
+import { buildNormalizedAddressKey } from '../common/utils/address-normalization.util.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 type RequestViewer = {
   id: string;

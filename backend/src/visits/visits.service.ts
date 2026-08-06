@@ -1,10 +1,10 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AssignmentStatus, GpsStatus, Prisma, SyncStatus, UserRole, VisitResult, VisitSource } from '@prisma/client';
-import { AuditService } from '../audit/audit.service';
-import { AccessScope } from '../common/interfaces/access-scope.interface';
-import { PrismaService } from '../prisma/prisma.service';
-import { getDistanceInMeters } from '../common/utils/distance.util';
-import { PoliciesService } from '../policies/policies.service';
+import { AssignmentStatus, GpsStatus, Prisma, SyncStatus, UserRole, VisitResult, VisitSource } from '../../generated/prisma/client.js';
+import { AuditService } from '../audit/audit.service.js';
+import type { AccessScope } from '../common/interfaces/access-scope.interface.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { getDistanceInMeters } from '../common/utils/distance.util.js';
+import { PoliciesService } from '../policies/policies.service.js';
 
 @Injectable()
 export class VisitsService {

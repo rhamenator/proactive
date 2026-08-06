@@ -1,9 +1,9 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { type CanActivate, type ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '@prisma/client';
-import { PoliciesService } from '../../policies/policies.service';
-import { REQUIRE_FRESH_MFA_KEY } from '../decorators/require-fresh-mfa.decorator';
-import { JwtUserPayload } from '../interfaces/jwt-user-payload.interface';
+import { UserRole } from '../../../generated/prisma/client.js';
+import { PoliciesService } from '../../policies/policies.service.js';
+import { REQUIRE_FRESH_MFA_KEY } from '../decorators/require-fresh-mfa.decorator.js';
+import type { JwtUserPayload } from '../interfaces/jwt-user-payload.interface.js';
 
 @Injectable()
 export class FreshMfaGuard implements CanActivate {

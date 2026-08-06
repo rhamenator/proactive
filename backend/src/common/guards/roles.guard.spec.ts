@@ -1,7 +1,8 @@
-import { ExecutionContext } from '@nestjs/common';
+import { jest } from '@jest/globals';
+import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '@prisma/client';
-import { RolesGuard } from './roles.guard';
+import { UserRole } from '../../../generated/prisma/client.js';
+import { RolesGuard } from './roles.guard.js';
 
 function createHttpContext(role?: UserRole) {
   return {

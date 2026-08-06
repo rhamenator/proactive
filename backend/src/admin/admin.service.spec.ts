@@ -1,6 +1,7 @@
-import { SyncStatus, UserRole } from '@prisma/client';
+import { jest } from '@jest/globals';
+import { SyncStatus, UserRole } from '../../generated/prisma/client.js';
 import { BadRequestException } from '@nestjs/common';
-import { AdminService } from './admin.service';
+import { AdminService } from './admin.service.js';
 
 describe('AdminService', () => {
   const scope = { organizationId: 'org-1', campaignId: null };

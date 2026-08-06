@@ -1,4 +1,5 @@
-import { AppController } from './app.controller';
+import { jest } from '@jest/globals';
+import { AppController } from './app.controller.js';
 
 describe('AppController', () => {
   const appService = {

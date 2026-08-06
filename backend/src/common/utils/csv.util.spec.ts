@@ -1,5 +1,5 @@
 import iconv from 'iconv-lite';
-import { decodeCsvBuffer, normalizeHeader, resolveMappedValue, toOptionalNumber } from './csv.util';
+import { decodeCsvBuffer, normalizeHeader, resolveMappedValue, toOptionalNumber } from './csv.util.js';
 
 describe('csv.util', () => {
   it('normalizes headers to lowercase alphanumeric tokens', () => {

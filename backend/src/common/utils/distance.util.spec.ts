@@ -1,4 +1,4 @@
-import { getDistanceInMeters } from './distance.util';
+import { getDistanceInMeters } from './distance.util.js';
 
 describe('getDistanceInMeters', () => {
   it('returns near-zero distance for identical coordinates', () => {

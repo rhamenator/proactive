@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 
 # ── Stage 1: build ──────────────────────────────────────────────────────────
-# node:22-alpine may carry a high-severity CVE in the Node.js binary itself
+# node:24-alpine may carry a high-severity CVE in the Node.js binary itself
 # for which no Alpine-level patch is yet available.  Mitigation: `apk upgrade
 # --no-cache` (see below) applies all available OS-level fixes automatically;
 # the image will self-heal on the next build once an upstream patch ships.
 # trivy.yaml suppresses this unfixed CVE in CI scanning.
-FROM node:22-alpine@sha256:8ea2348b068a9544dae7317b4f3aafcdc032df1647bb7d768a05a5cad1a7683f AS builder
+FROM node:24-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43 AS builder
 
 # Upgrade all system packages to pick up any security patches published since
 # the base image was built (no-op today if image is already fully patched).
@@ -27,7 +27,7 @@ RUN npm ci --ignore-scripts
 # Copy backend source + Prisma schema
 COPY backend/ ./backend/
 
-# Generate Prisma client (writes into node_modules/.prisma/)
+# Generate the Prisma 7 client at backend/generated/prisma.
 RUN npm run prisma:generate --workspace @proactive/backend -- --schema=./prisma/schema.prisma
 
 # Compile TypeScript
@@ -35,7 +35,7 @@ RUN npm run build -w backend
 
 # ── Stage 2: production image ────────────────────────────────────────────────
 # Same base-image note as Stage 1 above — apk upgrade handles OS patches.
-FROM node:22-alpine@sha256:8ea2348b068a9544dae7317b4f3aafcdc032df1647bb7d768a05a5cad1a7683f AS runner
+FROM node:24-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43 AS runner
 
 WORKDIR /app
 
@@ -50,9 +50,6 @@ COPY backend/package.json        ./backend/
 COPY admin-dashboard/package.json ./admin-dashboard/
 COPY mobile-app/package.json     ./mobile-app/
 RUN npm ci --omit=dev --ignore-scripts
-
-# Copy the Prisma query engine (generated binary - not in npm registry)
-COPY --from=builder --chown=node:node /repo/backend/node_modules/.prisma ./backend/node_modules/.prisma
 
 # Copy compiled application
 COPY --from=builder --chown=node:node /repo/backend/dist ./backend/dist

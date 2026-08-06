@@ -1,4 +1,5 @@
-import { AuthController } from './auth.controller';
+import { jest } from '@jest/globals';
+import { AuthController } from './auth.controller.js';
 
 describe('AuthController', () => {
   const authService = {

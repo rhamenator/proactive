@@ -1,14 +1,14 @@
 import { BadRequestException, GoneException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client.js';
 import { stringify } from 'csv-stringify/sync';
-import { AuditService } from '../audit/audit.service';
-import { AccessScope } from '../common/interfaces/access-scope.interface';
-import { formatExportTimestamp, getExportTimeZoneLabel } from '../common/utils/timezone-policy.util';
-import { attachVisitAttemptMetrics } from '../common/utils/visit-analytics.util';
-import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
-import { PoliciesService } from '../policies/policies.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service.js';
+import type { AccessScope } from '../common/interfaces/access-scope.interface.js';
+import { formatExportTimestamp, getExportTimeZoneLabel } from '../common/utils/timezone-policy.util.js';
+import { attachVisitAttemptMetrics } from '../common/utils/visit-analytics.util.js';
+import { CsvProfilesService } from '../csv-profiles/csv-profiles.service.js';
+import { PoliciesService } from '../policies/policies.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 type ExportOptions = {
   turfId?: string;

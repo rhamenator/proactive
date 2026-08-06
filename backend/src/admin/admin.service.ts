@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AssignmentStatus, CsvProfileDirection, Prisma, SyncStatus, UserRole } from '@prisma/client';
-import { AuditService } from '../audit/audit.service';
-import { AccessScope } from '../common/interfaces/access-scope.interface';
-import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
-import { PoliciesService } from '../policies/policies.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { RetentionService } from '../retention/retention.service';
-import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { AssignmentStatus, CsvProfileDirection, Prisma, SyncStatus, UserRole } from '../../generated/prisma/client.js';
+import { AuditService } from '../audit/audit.service.js';
+import type { AccessScope } from '../common/interfaces/access-scope.interface.js';
+import { CsvProfilesService } from '../csv-profiles/csv-profiles.service.js';
+import { PoliciesService } from '../policies/policies.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { RetentionService } from '../retention/retention.service.js';
+import { SystemSettingsService } from '../system-settings/system-settings.service.js';
 
 const safeUserSelect = {
   id: true,

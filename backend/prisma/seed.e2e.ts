@@ -3,7 +3,6 @@ import {
   AddressRequestStatus,
   AssignmentStatus,
   GpsStatus,
-  PrismaClient,
   SessionStatus,
   SupervisorScopeMode,
   SyncStatus,
@@ -11,10 +10,11 @@ import {
   UserRole,
   VisitResult,
   VisitSource
-} from '@prisma/client';
-import { buildNormalizedAddressKey } from '../src/common/utils/address-normalization.util';
+} from '../generated/prisma/client.js';
+import { buildNormalizedAddressKey } from '../src/common/utils/address-normalization.util.js';
+import { createPrismaClient } from '../src/prisma/prisma-client.factory.js';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 function requireSafeSeedEnvironment() {
   if (process.env.E2E_ALLOW_DATABASE_SEED !== 'true') {

@@ -1,4 +1,5 @@
-import { RetentionService } from './retention.service';
+import { jest } from '@jest/globals';
+import { RetentionService } from './retention.service.js';
 
 describe('RetentionService', () => {
   const prisma = {

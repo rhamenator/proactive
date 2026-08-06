@@ -1,9 +1,9 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { AppService } from './app.service';
-import { CurrentUser } from './common/decorators/current-user.decorator';
-import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
-import { JwtUserPayload } from './common/interfaces/jwt-user-payload.interface';
-import { UsersService } from './users/users.service';
+import { AppService } from './app.service.js';
+import { CurrentUser } from './common/decorators/current-user.decorator.js';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
+import type { JwtUserPayload } from './common/interfaces/jwt-user-payload.interface.js';
+import { UsersService } from './users/users.service.js';
 
 @Controller()
 export class AppController {

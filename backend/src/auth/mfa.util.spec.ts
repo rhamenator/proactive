@@ -1,4 +1,4 @@
-import { buildOtpAuthUri, decodeBase32, generateBase32Secret, generateTotp, verifyTotp } from './mfa.util';
+import { buildOtpAuthUri, decodeBase32, generateBase32Secret, generateTotp, verifyTotp } from './mfa.util.js';
 
 describe('mfa util', () => {
   it('generates a valid base32 secret', () => {

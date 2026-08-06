@@ -1,5 +1,6 @@
-import { UserRole } from '@prisma/client';
-import { AdminController } from './admin.controller';
+import { jest } from '@jest/globals';
+import { UserRole } from '../../generated/prisma/client.js';
+import { AdminController } from './admin.controller.js';
 
 describe('AdminController', () => {
   const scope = {

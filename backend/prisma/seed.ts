@@ -1,8 +1,9 @@
-import { PrismaClient, Prisma, UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '../generated/prisma/client.js';
 import bcrypt from 'bcrypt';
-import { buildNormalizedAddressKey } from '../src/common/utils/address-normalization.util';
+import { buildNormalizedAddressKey } from '../src/common/utils/address-normalization.util.js';
+import { createPrismaClient } from '../src/prisma/prisma-client.factory.js';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 async function main() {
   const passwordHash = await bcrypt.hash('Password123!', 10);

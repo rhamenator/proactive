@@ -1,4 +1,4 @@
-import { getBucketHour, getBucketWeekday } from './timezone-policy.util';
+import { getBucketHour, getBucketWeekday } from './timezone-policy.util.js';
 
 type VisitAttemptSeed = {
   id: string;

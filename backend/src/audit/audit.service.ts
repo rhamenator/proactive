@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma, PrismaClient } from '../../generated/prisma/client.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 type AuditWriter = PrismaService | Prisma.TransactionClient | PrismaClient;
 

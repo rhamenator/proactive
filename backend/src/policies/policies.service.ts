@@ -1,8 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
-import { SupervisorScopeMode, type OperationalPolicy } from '@prisma/client';
-import { getSensitiveMfaWindowMinutes } from '../auth/sensitive-mfa.util';
-import { AccessScope } from '../common/interfaces/access-scope.interface';
-import { PrismaService } from '../prisma/prisma.service';
+import { SupervisorScopeMode, type OperationalPolicy } from '../../generated/prisma/client.js';
+import { getSensitiveMfaWindowMinutes } from '../auth/sensitive-mfa.util.js';
+import type { AccessScope } from '../common/interfaces/access-scope.interface.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 export type ImportMode = 'create_only' | 'upsert' | 'replace_turf_membership';
 export type DuplicateStrategy = 'skip' | 'error' | 'merge' | 'review';

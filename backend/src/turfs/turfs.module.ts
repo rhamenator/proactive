@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { AuditModule } from '../audit/audit.module';
-import { ImportsModule } from '../imports/imports.module';
-import { PoliciesModule } from '../policies/policies.module';
-import { PrismaModule } from '../prisma/prisma.module';
-import { UsersModule } from '../users/users.module';
-import { TurfsController } from './turfs.controller';
-import { TurfsService } from './turfs.service';
+import { AuditModule } from '../audit/audit.module.js';
+import { ImportsModule } from '../imports/imports.module.js';
+import { PoliciesModule } from '../policies/policies.module.js';
+import { PrismaModule } from '../prisma/prisma.module.js';
+import { UsersModule } from '../users/users.module.js';
+import { TurfsController } from './turfs.controller.js';
+import { TurfsService } from './turfs.service.js';
 
 @Module({
   imports: [PrismaModule, UsersModule, AuditModule, ImportsModule, PoliciesModule],

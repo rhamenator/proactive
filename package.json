@@ -14,7 +14,8 @@
     "test": "npm test --workspace @proactive/backend -- --runInBand && npm test --workspace @proactive/admin-dashboard && npm test --workspace mobile-app",
     "test:coverage": "npm test --workspace @proactive/backend -- --runInBand --coverage --coverageReporters=text-summary && npm run test:coverage --workspace @proactive/admin-dashboard && npm run test:coverage --workspace mobile-app",
     "typecheck": "npm run typecheck --workspace @proactive/admin-dashboard && npm run typecheck --workspace mobile-app",
-    "verify": "npm run prisma:generate && npm run build && npm test",
+    "verify": "npm run prisma:generate && npm run build && npm test && npm run lint",
+    "lint": "npm run lint --workspaces --if-present",
     "setup:local": "node scripts/run-install-local.mjs",
     "setup:mobile": "node scripts/run-install-mobile.mjs",
     "prisma:generate": "npm run prisma:generate --workspace @proactive/backend",
@@ -29,9 +30,12 @@
     "build:mobile:e2e:ios": "npm run build:e2e:mobile:ios --workspace mobile-app"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.15.0 <25"
   },
   "overrides": {
+    "brace-expansion@<=1.1.17": "1.1.18",
+    "brace-expansion@>=2.0.0 <=2.1.3": "2.1.4",
+    "brace-expansion@>=4.0.0 <=5.0.8": "5.0.9",
     "path-to-regexp": "8.4.2",
     "postcss": "8.5.15",
     "sharp": "0.35.3",
@@ -50,7 +54,9 @@
   "dependencies": {
     "@nestjs/common": "11.1.28",
     "effect": "3.22.0",
-    "path-to-regexp": "8.4.2"
+    "path-to-regexp": "8.4.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   },
   "devDependencies": {
     "typescript": "^6.0.3"
@@ -59,12 +65,12 @@
     "bcrypt@6.0.0": true,
     "dtrace-provider@0.8.8": true,
     "esbuild@0.28.1": true,
-    "msw@2.14.4": true,
+    "msw@2.15.0": true,
     "sharp@0.35.3": true,
     "unrs-resolver@1.11.1": true,
-    "detox@20.51.0": true,
-    "prisma@6.19.3": true,
-    "@prisma/client@6.19.3": true,
-    "@prisma/engines@6.19.3": true
+    "detox@20.51.4": true,
+    "prisma@7.9.1": true,
+    "@prisma/client@7.9.1": true,
+    "@prisma/engines@7.9.1": true
   }
 }

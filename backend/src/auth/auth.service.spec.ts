@@ -1,18 +1,12 @@
+import { jest } from '@jest/globals';
 import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { MfaChallengePurpose, UserRole } from '@prisma/client';
-import bcrypt from 'bcrypt';
-import * as mfaUtil from './mfa.util';
-import { AuthService } from './auth.service';
+import { MfaChallengePurpose, UserRole } from '../../generated/prisma/client.js';
+import { passwordHasher } from '../common/utils/password-hasher.util.js';
+import { totpVerifier } from './mfa.util.js';
+import { AuthService } from './auth.service.js';
 
-jest.mock('bcrypt', () => ({
-  __esModule: true,
-  default: {
-    hash: jest.fn(async () => 'placeholder-password-hash'),
-    compare: jest.fn()
-  }
-}));
-
-const mockedBcrypt = jest.mocked(bcrypt);
+const hashSpy = jest.spyOn(passwordHasher, 'hash');
+const compareSpy = jest.spyOn(passwordHasher, 'compare');
 
 function buildUser(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -127,6 +121,7 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    hashSpy.mockResolvedValue('placeholder-password-hash');
     prisma.activationToken.updateMany.mockResolvedValue({ count: 0 });
     prisma.activationToken.create.mockResolvedValue({ id: 'activation-1' });
     prisma.passwordResetToken.updateMany.mockResolvedValue({ count: 0 });
@@ -182,7 +177,7 @@ describe('AuthService', () => {
 
   it('locks the account after the configured number of failed password attempts', async () => {
     usersService.findByEmail.mockResolvedValue(buildUser({ failedLoginAttempts: 4 }));
-    mockedBcrypt.compare.mockResolvedValue(false as never);
+    compareSpy.mockResolvedValue(false as never);
 
     await expect(service.validateUser('morgan@example.com', 'bad-password')).rejects.toBeInstanceOf(
       UnauthorizedException
@@ -202,7 +197,7 @@ describe('AuthService', () => {
     const user = buildUser();
     usersService.findByEmail.mockResolvedValue(user);
     usersService.findById.mockResolvedValue(user);
-    mockedBcrypt.compare.mockResolvedValue(true as never);
+    compareSpy.mockResolvedValue(true as never);
 
     const result = await service.login('morgan@example.com', 'Password123!');
 
@@ -234,7 +229,7 @@ describe('AuthService', () => {
     const user = buildUser({ role: UserRole.admin });
     usersService.findByEmail.mockResolvedValue(user);
     usersService.findById.mockResolvedValue(user);
-    mockedBcrypt.compare.mockResolvedValue(true as never);
+    compareSpy.mockResolvedValue(true as never);
 
     const result = await service.login(user.email, 'Password123!');
 
@@ -269,7 +264,7 @@ describe('AuthService', () => {
     const user = buildUser({ role: UserRole.supervisor });
     usersService.findByEmail.mockResolvedValue(user);
     usersService.findById.mockResolvedValue(user);
-    mockedBcrypt.compare.mockResolvedValue(true as never);
+    compareSpy.mockResolvedValue(true as never);
 
     const result = await service.login(user.email, 'Password123!');
 
@@ -288,7 +283,7 @@ describe('AuthService', () => {
     const user = buildUser({ role: UserRole.admin, mfaEnabled: true, mfaSecret: 'JBSWY3DPEHPK3PXP' });
     usersService.findByEmail.mockResolvedValue(user);
     usersService.findById.mockResolvedValue(user);
-    mockedBcrypt.compare.mockResolvedValue(true as never);
+    compareSpy.mockResolvedValue(true as never);
 
     const result = await service.login(user.email, 'Password123!');
 
@@ -581,7 +576,7 @@ describe('AuthService', () => {
       mfaSecret: 'JBSWY3DPEHPK3PXP',
       mfaTempSecret: null
     });
-    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(true);
+    const verifySpy = jest.spyOn(totpVerifier, 'verify').mockReturnValue(true);
 
     const result = await service.completeMfaSetup('challenge-token', '123456');
 
@@ -641,7 +636,7 @@ describe('AuthService', () => {
         mfaChallengeTtlMinutes: 10,
         mfaBackupCodeCount: 12
       });
-    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(true);
+    const verifySpy = jest.spyOn(totpVerifier, 'verify').mockReturnValue(true);
 
     const result = await service.completeMfaSetup('challenge-token', '123456');
 
@@ -667,7 +662,7 @@ describe('AuthService', () => {
       usedAt: null,
       createdAt: new Date('2026-03-28T00:00:00.000Z')
     });
-    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(false);
+    const verifySpy = jest.spyOn(totpVerifier, 'verify').mockReturnValue(false);
 
     const result = await service.verifyMfaChallenge('challenge-token', 'ABCD-EF12');
 
@@ -696,7 +691,7 @@ describe('AuthService', () => {
       userId: user.id,
       user
     });
-    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(true);
+    const verifySpy = jest.spyOn(totpVerifier, 'verify').mockReturnValue(true);
 
     const result = await service.verifyMfaChallenge('challenge-token', '123456');
 
@@ -727,7 +722,7 @@ describe('AuthService', () => {
       user
     });
     prisma.mfaBackupCode.findFirst.mockResolvedValue(null);
-    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(false);
+    const verifySpy = jest.spyOn(totpVerifier, 'verify').mockReturnValue(false);
 
     for (let attempt = 0; attempt < 10; attempt += 1) {
       await expect(service.verifyMfaChallenge('challenge-token', '000000')).rejects.toBeInstanceOf(
@@ -749,7 +744,7 @@ describe('AuthService', () => {
       mfaSecret: 'JBSWY3DPEHPK3PXP'
     });
     usersService.findById.mockResolvedValue(user);
-    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(true);
+    const verifySpy = jest.spyOn(totpVerifier, 'verify').mockReturnValue(true);
 
     const result = await service.stepUpMfa({ sub: user.id }, '123456');
 
@@ -782,8 +777,8 @@ describe('AuthService', () => {
       mfaSecret: 'JBSWY3DPEHPK3PXP'
     });
     usersService.findById.mockResolvedValue(user);
-    mockedBcrypt.compare.mockResolvedValue(true as never);
-    const verifySpy = jest.spyOn(mfaUtil, 'verifyTotp').mockReturnValue(true);
+    compareSpy.mockResolvedValue(true as never);
+    const verifySpy = jest.spyOn(totpVerifier, 'verify').mockReturnValue(true);
 
     const result = await service.disableMfa(user.id, 'Password123!', '123456');
 

@@ -77,6 +77,10 @@ export function verifyTotp(secret: string, token: string, options?: { now?: numb
   return false;
 }
 
+export const totpVerifier = {
+  verify: verifyTotp
+};
+
 export function buildOtpAuthUri(options: {
   issuer: string;
   accountName: string;

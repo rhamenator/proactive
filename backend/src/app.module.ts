@@ -1,21 +1,21 @@
 import { Module } from '@nestjs/common';
-import { AddressRequestsModule } from './address-requests/address-requests.module';
-import { AdminModule } from './admin/admin.module';
-import { AuditModule } from './audit/audit.module';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module';
-import { ExportsModule } from './exports/exports.module';
-import { ImportsModule } from './imports/imports.module';
-import { PoliciesModule } from './policies/policies.module';
-import { PrismaModule } from './prisma/prisma.module';
-import { ReportsModule } from './reports/reports.module';
-import { RetentionModule } from './retention/retention.module';
-import { SecurityModule } from './security/security.module';
-import { SystemSettingsModule } from './system-settings/system-settings.module';
-import { TurfsModule } from './turfs/turfs.module';
-import { UsersModule } from './users/users.module';
-import { VisitsModule } from './visits/visits.module';
+import { AddressRequestsModule } from './address-requests/address-requests.module.js';
+import { AdminModule } from './admin/admin.module.js';
+import { AuditModule } from './audit/audit.module.js';
+import { AppController } from './app.controller.js';
+import { AppService } from './app.service.js';
+import { AuthModule } from './auth/auth.module.js';
+import { ExportsModule } from './exports/exports.module.js';
+import { ImportsModule } from './imports/imports.module.js';
+import { PoliciesModule } from './policies/policies.module.js';
+import { PrismaModule } from './prisma/prisma.module.js';
+import { ReportsModule } from './reports/reports.module.js';
+import { RetentionModule } from './retention/retention.module.js';
+import { SecurityModule } from './security/security.module.js';
+import { SystemSettingsModule } from './system-settings/system-settings.module.js';
+import { TurfsModule } from './turfs/turfs.module.js';
+import { UsersModule } from './users/users.module.js';
+import { VisitsModule } from './visits/visits.module.js';
 
 @Module({
   imports: [

@@ -1,5 +1,6 @@
+import { jest } from '@jest/globals';
 import { BadRequestException, GoneException } from '@nestjs/common';
-import { ImportsService } from './imports.service';
+import { ImportsService } from './imports.service.js';
 
 describe('ImportsService', () => {
   const prisma = {

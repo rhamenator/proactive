@@ -1,4 +1,4 @@
-import { SupervisorScopeMode, UserRole } from '@prisma/client';
+import { SupervisorScopeMode, UserRole } from '../../../generated/prisma/client.js';
 
 export interface AccessScope {
   organizationId: string | null;

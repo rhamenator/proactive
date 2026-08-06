@@ -1,4 +1,5 @@
-import { TurfsController } from './turfs.controller';
+import { jest } from '@jest/globals';
+import { TurfsController } from './turfs.controller.js';
 
 describe('TurfsController', () => {
   const scope = { organizationId: 'org-1', campaignId: null };

@@ -1,5 +1,5 @@
-import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
-import { SupervisorScopeMode } from '@prisma/client';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
+import { SupervisorScopeMode } from '../../../generated/prisma/client.js';
 
 export class UpsertOperationalPolicyDto {
   @IsOptional()

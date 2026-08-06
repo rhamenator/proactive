@@ -1,4 +1,34 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
+
+const repositoryRoot = path.resolve(__dirname, '..');
+const mockedOnly = process.argv.some((argument) => argument === '--project=mocked');
+
+const backendWebServer = {
+  command:
+    'npm run build --workspace @proactive/backend && node --env-file=backend/.env backend/dist/src/main.js',
+  cwd: repositoryRoot,
+  env: {
+    ...process.env,
+    DISABLE_RETENTION_AUTOMATION: 'true'
+  },
+  url: 'http://127.0.0.1:3001/',
+  reuseExistingServer: true,
+  timeout: 180_000
+};
+
+const dashboardWebServer = {
+  command:
+    'npm run dev --workspace @proactive/admin-dashboard -- --hostname 127.0.0.1 --port 3100',
+  cwd: repositoryRoot,
+  env: {
+    ...process.env,
+    NEXT_PUBLIC_API_URL: 'http://127.0.0.1:3001'
+  },
+  url: 'http://127.0.0.1:3100/login',
+  reuseExistingServer: true,
+  timeout: 120_000
+};
 
 export default defineConfig({
   testDir: './e2e',
@@ -29,20 +59,5 @@ export default defineConfig({
       grep: /@seeded/
     }
   ],
-  webServer: [
-    {
-      command:
-        "sh -c 'cd .. && npm run build --workspace @proactive/backend && DISABLE_RETENTION_AUTOMATION=true node backend/dist/src/main.js'",
-      url: 'http://127.0.0.1:3001/',
-      reuseExistingServer: true,
-      timeout: 180_000
-    },
-    {
-      command:
-        "sh -c 'cd .. && NEXT_PUBLIC_API_URL=http://127.0.0.1:3001 npm run dev --workspace @proactive/admin-dashboard -- --hostname 127.0.0.1 --port 3100'",
-      url: 'http://127.0.0.1:3100/login',
-      reuseExistingServer: true,
-      timeout: 120_000
-    }
-  ]
+  webServer: mockedOnly ? [dashboardWebServer] : [backendWebServer, dashboardWebServer]
 });

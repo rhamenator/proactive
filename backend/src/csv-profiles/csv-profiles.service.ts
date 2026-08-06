@@ -1,11 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { CsvProfileDirection, type CsvProfile } from '@prisma/client';
+import { CsvProfileDirection, type CsvProfile } from '../../generated/prisma/client.js';
 import { stringify } from 'csv-stringify/sync';
-import { CsvMapping } from '../common/utils/csv.util';
-import { PrismaService } from '../prisma/prisma.service';
-
-type ImportMode = 'create_only' | 'upsert' | 'replace_turf_membership';
-type DuplicateStrategy = 'skip' | 'error' | 'merge' | 'review';
+import type { CsvMapping } from '../common/utils/csv.util.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 export type CsvProfileRecord = {
   id: string | null;

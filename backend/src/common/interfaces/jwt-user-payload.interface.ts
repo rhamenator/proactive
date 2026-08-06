@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../../../generated/prisma/client.js';
 
 export interface JwtUserPayload {
   sub: string;

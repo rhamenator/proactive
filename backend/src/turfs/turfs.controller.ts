@@ -7,21 +7,21 @@ import {
   Post,
   UseGuards
 } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { RequireFreshMfa } from '../common/decorators/require-fresh-mfa.decorator';
-import { Roles } from '../common/decorators/roles.decorator';
-import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
-import { resolveAccessScope } from '../common/utils/access-scope.util';
-import { PoliciesService } from '../policies/policies.service';
-import { UsersService } from '../users/users.service';
-import { AssignTurfDto } from './dto/assign-turf.dto';
-import { CreateTurfDto } from './dto/create-turf.dto';
-import { TurfSessionActionDto } from './dto/turf-session-action.dto';
-import { TurfsService } from './turfs.service';
+import { UserRole } from '../../generated/prisma/client.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { RequireFreshMfa } from '../common/decorators/require-fresh-mfa.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
+import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard.js';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../common/guards/roles.guard.js';
+import type { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface.js';
+import { resolveAccessScope } from '../common/utils/access-scope.util.js';
+import { PoliciesService } from '../policies/policies.service.js';
+import { UsersService } from '../users/users.service.js';
+import { AssignTurfDto } from './dto/assign-turf.dto.js';
+import { CreateTurfDto } from './dto/create-turf.dto.js';
+import { TurfSessionActionDto } from './dto/turf-session-action.dto.js';
+import { TurfsService } from './turfs.service.js';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
