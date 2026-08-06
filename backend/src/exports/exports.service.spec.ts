@@ -173,14 +173,14 @@ describe('ExportsService', () => {
     );
   });
 
-  it('neutralizes formula-injection-shaped notes while leaving legitimate negative numbers untouched', async () => {
+  it('neutralizes formula-injection prefixes while leaving legitimate negative numbers untouched', async () => {
     prisma.visitLog.findMany.mockResolvedValue([
       {
         id: 'visit-1',
         visitTime: new Date('2026-03-28T10:00:00.000Z'),
         result: VisitResult.knocked,
         contactMade: true,
-        notes: '=cmd|\' /c calc\'!A1',
+        notes: '\t=cmd|\' /c calc\'!A1',
         gpsStatus: GpsStatus.verified,
         latitude: 42.9634,
         longitude: -85.6681,
@@ -197,7 +197,7 @@ describe('ExportsService', () => {
           zip: '49503'
         },
         canvasser: {
-          firstName: '=SUM(A1)',
+          firstName: '+1',
           lastName: 'Field'
         },
         outcomeDefinition: {
@@ -218,8 +218,8 @@ describe('ExportsService', () => {
       organizationId: 'org-1'
     });
 
-    expect(result.csv).toContain("'=cmd|' /c calc'!A1");
-    expect(result.csv).toContain("'=SUM(A1) Field");
+    expect(result.csv).toContain("'\t=cmd|' /c calc'!A1");
+    expect(result.csv).toContain("'+1 Field");
     expect(result.csv).toContain('-85.6681');
     expect(result.csv).not.toContain("'-85.6681");
   });
@@ -230,7 +230,7 @@ describe('ExportsService', () => {
     );
 
     await expect(service.vanResultsCsv({ organizationId: 'org-1' })).rejects.toThrow(
-      /more than 25000 rows/
+      'This export would include more than 25000 rows. Narrow it by turf and try again.'
     );
   });
 

@@ -77,7 +77,7 @@ export class ExportsService {
 
     if (visits.length > ExportsService.MAX_EXPORT_ROWS) {
       throw new BadRequestException(
-        `This export would include more than ${ExportsService.MAX_EXPORT_ROWS} rows. Narrow it by turf or date range and try again.`
+        `This export would include more than ${ExportsService.MAX_EXPORT_ROWS} rows. Narrow it by turf and try again.`
       );
     }
 
@@ -141,19 +141,19 @@ export class ExportsService {
   private static readonly CSV_FORMULA_TRIGGER_CHARS = new Set(['=', '+', '-', '@']);
 
   /**
-   * Neutralizes CSV/formula injection: a cell whose text starts with =, +, -,
-   * or @ can execute as a formula when the export is opened in Excel/Sheets.
-   * Values that are just plain numbers (e.g. a negative latitude/longitude or
-   * zip) are left untouched since they can't be interpreted as a formula.
+   * Neutralizes CSV/formula injection, including values that hide a formula
+   * marker behind leading whitespace or control characters. Exact negative
+   * numbers remain untouched so latitude/longitude values keep their shape.
    */
   private sanitizeCsvCell(value: unknown): unknown {
     if (typeof value !== 'string' || value.length === 0) {
       return value;
     }
-    if (!ExportsService.CSV_FORMULA_TRIGGER_CHARS.has(value[0])) {
+    const firstNonWhitespaceCharacter = value.trimStart()[0];
+    if (!ExportsService.CSV_FORMULA_TRIGGER_CHARS.has(firstNonWhitespaceCharacter)) {
       return value;
     }
-    if (Number.isFinite(Number(value))) {
+    if (value[0] === '-' && /^-(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value) && Number.isFinite(Number(value))) {
       return value;
     }
     return `'${value}`;

@@ -10,6 +10,14 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 import { UsersService } from '../users/users.service';
 import { buildOtpAuthUri, generateBase32Secret, verifyTotp } from './mfa.util';
 
+const REFRESH_TOKEN_ROTATION_GRACE_MS = 10_000;
+const REFRESH_TOKEN_REVOCATION_REASON = {
+  logout: 'logout',
+  passwordReset: 'password_reset',
+  reuseDetected: 'reuse_detected',
+  rotated: 'rotated'
+} as const;
+
 @Injectable()
 export class AuthService {
   private readonly authRateLimitState = new Map<string, { count: number; resetAt: number }>();
@@ -790,17 +798,20 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    if (storedToken.revokedAt) {
-      // This token was already rotated away once. Presenting it again means
-      // it was either replayed or stolen, so treat it as a breach signal:
-      // revoke every other active refresh token for this user rather than
-      // just rejecting the one request.
+    const revokedOutsideRotationGrace = storedToken.revokedAt
+      && storedToken.revocationReason === REFRESH_TOKEN_REVOCATION_REASON.rotated
+      && Date.now() - storedToken.revokedAt.getTime() > REFRESH_TOKEN_ROTATION_GRACE_MS;
+
+    if (revokedOutsideRotationGrace) {
       await this.prisma.authRefreshToken.updateMany({
         where: {
           userId: storedToken.userId,
           revokedAt: null
         },
-        data: { revokedAt: new Date() }
+        data: {
+          revokedAt: new Date(),
+          revocationReason: REFRESH_TOKEN_REVOCATION_REASON.reuseDetected
+        }
       });
 
       await this.auditService.log({
@@ -813,13 +824,20 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    if (storedToken.revokedAt) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
     if (storedToken.expiresAt <= new Date() || !storedToken.user.isActive || storedToken.user.status !== 'active') {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
     await this.prisma.authRefreshToken.update({
       where: { id: storedToken.id },
-      data: { revokedAt: new Date() }
+      data: {
+        revokedAt: new Date(),
+        revocationReason: REFRESH_TOKEN_REVOCATION_REASON.rotated
+      }
     });
 
     await this.auditService.log({
@@ -847,7 +865,10 @@ export class AuthService {
 
     await this.prisma.authRefreshToken.update({
       where: { id: storedToken.id },
-      data: { revokedAt: new Date() }
+      data: {
+        revokedAt: new Date(),
+        revocationReason: REFRESH_TOKEN_REVOCATION_REASON.logout
+      }
     });
 
     await this.auditService.log({
@@ -946,7 +967,10 @@ export class AuthService {
           userId: storedToken.userId,
           revokedAt: null
         },
-        data: { revokedAt: new Date() }
+        data: {
+          revokedAt: new Date(),
+          revocationReason: REFRESH_TOKEN_REVOCATION_REASON.passwordReset
+        }
       });
     });
 
