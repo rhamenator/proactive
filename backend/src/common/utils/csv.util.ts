@@ -39,8 +39,12 @@ export const canonicalAliases: Record<CsvField, string[]> = {
  * Also strips a leading UTF-8 BOM (common in "CSV UTF-8" exports).
  */
 export function decodeCsvBuffer(buffer: Buffer): string {
-  const utf8 = buffer.toString('utf8');
-  const decoded = utf8.includes('�') ? iconv.decode(buffer, 'windows-1252') : utf8;
+  let decoded: string;
+  try {
+    decoded = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+  } catch {
+    decoded = iconv.decode(buffer, 'windows-1252');
+  }
   return decoded.charCodeAt(0) === 0xfeff ? decoded.slice(1) : decoded;
 }
 

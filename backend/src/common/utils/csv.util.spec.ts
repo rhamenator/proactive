@@ -22,6 +22,11 @@ describe('csv.util', () => {
     expect(decodeCsvBuffer(buffer)).toBe(original);
   });
 
+  it('preserves a literal replacement character in otherwise-valid UTF-8', () => {
+    const original = 'José � Muñoz,café Street';
+    expect(decodeCsvBuffer(Buffer.from(original, 'utf8'))).toBe(original);
+  });
+
   it('parses optional numbers and ignores blanks or non-numbers', () => {
     expect(toOptionalNumber('42.5')).toBe(42.5);
     expect(toOptionalNumber('')).toBeUndefined();
