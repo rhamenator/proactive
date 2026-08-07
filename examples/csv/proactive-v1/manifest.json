@@ -1,6 +1,18 @@
 {
   "synthetic": true,
   "contract": "proactive-csv/v1",
+  "scenario": "clean-lifecycle",
+  "description": "A clean multi-turf import followed by completed visit and export records.",
+  "features": [
+    "multi-turf",
+    "visits",
+    "exports"
+  ],
+  "expected": {
+    "duplicateRows": 0,
+    "syncConflicts": 0,
+    "failedSyncs": 0
+  },
   "seed": 20260807,
   "rows": 25,
   "generatedAt": "deterministic-fixture",

@@ -143,6 +143,59 @@ async function main() {
     },
     mfaSecret: 'JBSWY3DPEHPK3PXP'
   };
+
+  const scenarioName = process.env.E2E_SCENARIO ?? 'clean-lifecycle';
+  const scenarioNames = new Set([
+    'clean-lifecycle',
+    'duplicate-strategies',
+    'encoding-edge-cases',
+    'sync-recovery',
+    'bounded-high-volume'
+  ]);
+  if (!scenarioNames.has(scenarioName)) {
+    throw new Error(`Unsupported E2E_SCENARIO: ${scenarioName}`);
+  }
+
+  if (scenarioName === 'duplicate-strategies') {
+    scenario.importBatch = {
+      ...scenario.importBatch,
+      filename: 'mock-duplicate-strategies.csv',
+      rowCount: 4,
+      importedCount: 1,
+      pendingReviewCount: 1
+    };
+  } else if (scenarioName === 'encoding-edge-cases') {
+    scenario.addresses[0] = {
+      ...scenario.addresses[0],
+      addressLine1: '001 Café Fixture Way',
+      addressLine2: 'Quoted, Fixture Building',
+      unit: 'Mock Unit 01',
+      zip: '00123'
+    };
+    Object.assign(scenario.visits[0], {
+      addressLine1: scenario.addresses[0].addressLine1,
+      notes: 'Multiline synthetic fixture\nsecond line'
+    });
+  } else if (scenarioName === 'sync-recovery') {
+    Object.assign(scenario.visits[0], { syncStatus: 'pending' });
+    Object.assign(scenario.visits[1], {
+      syncStatus: 'conflict',
+      syncConflictFlag: true,
+      syncConflictReason: 'payload_mismatch'
+    });
+  } else if (scenarioName === 'bounded-high-volume') {
+    const requestedRows = Number(process.env.E2E_SCENARIO_ROWS ?? 2500);
+    if (!Number.isSafeInteger(requestedRows) || requestedRows < 1 || requestedRows > 25000) {
+      throw new Error('E2E_SCENARIO_ROWS must be an integer from 1 through 25000');
+    }
+    scenario.importBatch = {
+      ...scenario.importBatch,
+      filename: 'mock-bounded-high-volume.csv',
+      rowCount: requestedRows,
+      importedCount: requestedRows,
+      pendingReviewCount: 0
+    };
+  }
   const passwordHash = await bcrypt.hash('Password123!', 10);
 
   const organization = await prisma.organization.upsert({

@@ -41,6 +41,7 @@ describe('proactive-csv/v1 contract', () => {
   };
   const service = new CsvProfilesService(prisma as never);
   let outputDirectory: string;
+  let scenarioOutputDirectory: string;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -51,6 +52,9 @@ describe('proactive-csv/v1 contract', () => {
   afterAll(() => {
     if (outputDirectory) {
       rmSync(outputDirectory, { recursive: true, force: true });
+    }
+    if (scenarioOutputDirectory) {
+      rmSync(scenarioOutputDirectory, { recursive: true, force: true });
     }
   });
 
@@ -126,5 +130,62 @@ describe('proactive-csv/v1 contract', () => {
         readFileSync(join(repositoryRoot, 'examples/csv/proactive-v1', filename))
       );
     }
+  });
+
+  it('generates machine-verifiable operational scenario packs', async () => {
+    scenarioOutputDirectory = await mkdtemp(join(tmpdir(), 'proactive-scenarios-'));
+    execFileSync(
+      process.execPath,
+      [
+        join(repositoryRoot, 'scripts/generate-operational-scenarios.mjs'),
+        '--seed',
+        '20260807',
+        '--output',
+        scenarioOutputDirectory
+      ],
+      { cwd: repositoryRoot }
+    );
+
+    const aggregate = JSON.parse(readFileSync(join(scenarioOutputDirectory, 'manifest.json'), 'utf8'));
+    expect(aggregate).toEqual(expect.objectContaining({ synthetic: true, catalogVersion: 1, seed: 20260807 }));
+    expect(aggregate.generated.map((item: { scenario: string }) => item.scenario)).toEqual([
+      'clean-lifecycle',
+      'duplicate-strategies',
+      'encoding-edge-cases',
+      'sync-recovery',
+      'bounded-high-volume'
+    ]);
+
+    const duplicates = parse(
+      decodeCsvBuffer(
+        readFileSync(join(scenarioOutputDirectory, 'duplicate-strategies/proactive-turf-import-v1.utf8-bom.csv'))
+      ),
+      { columns: true, bom: true }
+    ) as Record<string, string>[];
+    expect(duplicates[1]).toEqual(expect.objectContaining({
+      address_line1: duplicates[0].address_line1,
+      city: duplicates[0].city,
+      state: duplicates[0].state,
+      zip: duplicates[0].zip
+    }));
+
+    const encoding = decodeCsvBuffer(
+      readFileSync(join(scenarioOutputDirectory, 'encoding-edge-cases/proactive-turf-import-v1.windows-1252.csv'))
+    );
+    expect(encoding).toContain('Café Fixture Way');
+    expect(encoding).toContain('00123');
+
+    const syncRows = parse(
+      decodeCsvBuffer(
+        readFileSync(join(scenarioOutputDirectory, 'sync-recovery/proactive-canvass-results-v1.utf8-bom.csv'))
+      ),
+      { columns: true, bom: true }
+    ) as Record<string, string>[];
+    expect(syncRows.map((row) => row.sync_status)).toEqual(expect.arrayContaining(['pending', 'failed', 'conflict']));
+
+    const highVolume = JSON.parse(
+      readFileSync(join(scenarioOutputDirectory, 'bounded-high-volume/manifest.json'), 'utf8')
+    );
+    expect(highVolume).toEqual(expect.objectContaining({ rows: 2500, synthetic: true }));
   });
 });

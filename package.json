@@ -29,7 +29,8 @@
     "test:mobile:e2e:ios": "npm run test:e2e:mobile:ios --workspace mobile-app",
     "build:mobile:e2e:ios": "npm run build:e2e:mobile:ios --workspace mobile-app",
     "audit:production": "audit-ci --config audit-ci.jsonc",
-    "mock:csv": "node scripts/generate-mock-csv.mjs"
+    "mock:csv": "node scripts/generate-mock-csv.mjs",
+    "mock:scenarios": "node scripts/generate-operational-scenarios.mjs"
   },
   "engines": {
     "node": ">=24.15.0 <25"
