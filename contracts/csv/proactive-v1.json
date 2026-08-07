@@ -1,0 +1,152 @@
+{
+  "contract": "proactive-csv",
+  "version": 1,
+  "status": "stable",
+  "vendorCertification": null,
+  "physicalFormat": {
+    "delimiter": ",",
+    "headerRequired": true,
+    "standardCsvQuoting": true,
+    "acceptedImportEncodings": ["utf-8", "utf-8-bom", "windows-1252"],
+    "exportEncoding": "utf-8-bom",
+    "maxImportBytes": 52428800,
+    "maxExportRows": 25000
+  },
+  "profiles": {
+    "proactive_turf_import_v1": {
+      "direction": "import",
+      "columns": [
+        "turf_name",
+        "address_line1",
+        "address_line2",
+        "unit",
+        "city",
+        "state",
+        "zip",
+        "van_household_id",
+        "van_person_id",
+        "van_id",
+        "latitude",
+        "longitude"
+      ],
+      "requiredFields": ["addressLine1", "city", "state"],
+      "mapping": {
+        "turfName": "turf_name",
+        "addressLine1": "address_line1",
+        "addressLine2": "address_line2",
+        "unit": "unit",
+        "city": "city",
+        "state": "state",
+        "zip": "zip",
+        "vanHouseholdId": "van_household_id",
+        "vanPersonId": "van_person_id",
+        "vanId": "van_id",
+        "latitude": "latitude",
+        "longitude": "longitude"
+      },
+      "settings": {
+        "filenamePrefix": "proactive-turf-import-v1",
+        "importMode": "replace_turf_membership",
+        "duplicateStrategy": "review",
+        "contractVersion": "proactive-csv/v1"
+      }
+    },
+    "proactive_canvass_results_v1": {
+      "direction": "export",
+      "columns": [
+        "van_id",
+        "address_line1",
+        "address_line2",
+        "unit",
+        "city",
+        "state",
+        "zip",
+        "visit_time",
+        "result",
+        "contact_made",
+        "notes",
+        "time_zone",
+        "gps_status",
+        "latitude",
+        "longitude",
+        "accuracy_meters",
+        "distance_from_target_feet",
+        "sync_status",
+        "canvasser_name"
+      ],
+      "settings": {
+        "filenamePrefix": "proactive-canvass-results-v1",
+        "markExportedDefault": false,
+        "contractVersion": "proactive-csv/v1"
+      }
+    },
+    "internal_master_v1": {
+      "direction": "export",
+      "columns": [
+        "visit_id",
+        "organization_id",
+        "campaign_id",
+        "team_id",
+        "region_code",
+        "turf_id",
+        "turf_name",
+        "address_id",
+        "household_id",
+        "household_van_household_id",
+        "household_van_person_id",
+        "van_id",
+        "address_line1",
+        "address_line2",
+        "unit",
+        "city",
+        "state",
+        "zip",
+        "session_id",
+        "visit_time",
+        "client_created_at",
+        "server_received_at",
+        "outcome_definition_id",
+        "outcome_code",
+        "outcome_label",
+        "is_final_disposition",
+        "legacy_result",
+        "attempt_number",
+        "is_revisit",
+        "contact_made",
+        "notes",
+        "sync_status",
+        "sync_conflict_flag",
+        "sync_conflict_reason",
+        "gps_status",
+        "geofence_validated",
+        "geofence_distance_meters",
+        "distance_from_target_feet",
+        "geofence_failure_reason",
+        "override_flag",
+        "override_reason",
+        "override_by_user_id",
+        "override_at",
+        "latitude",
+        "longitude",
+        "accuracy_meters",
+        "local_record_uuid",
+        "idempotency_key",
+        "source",
+        "canvasser_id",
+        "canvasser_name",
+        "time_zone",
+        "van_exported"
+      ],
+      "settings": {
+        "filenamePrefix": "internal-master-v1",
+        "markExportedDefault": false,
+        "contractVersion": "proactive-csv/v1"
+      }
+    }
+  },
+  "legacyAliases": {
+    "van_standard": "proactive_turf_import_v1",
+    "van_compatible": "proactive_canvass_results_v1",
+    "internal_master": "internal_master_v1"
+  }
+}

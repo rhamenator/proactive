@@ -52,6 +52,8 @@ CSV import:
 
 Minimum address fields are address line, city, and state.
 
+For new integrations, prefer `proactive_turf_import_v1`. The older `van_standard` code remains compatible. Download the selected profile's template instead of guessing its headers. See the [CSV contract](csv-contract.md) for encodings, fields, duplicate behavior, and mock datasets.
+
 ### Manage CSV Profiles
 
 1. Open `CSV Profiles`.
@@ -131,6 +133,8 @@ Use `Reports` for deeper review:
 3. Apply a turf filter if needed.
 4. Download the CSV.
 5. Confirm the export appears in recent export batches.
+
+`proactive_canvass_results_v1` is the versioned PROACTIVE interchange format; `internal_master_v1` is the full internal/audit format. A vendor upload should use a scoped profile validated for that exact workflow. The historical `van_compatible` name is a configurable starting point, not a guarantee for every VAN upload.
 
 ### Manage Outcomes
 

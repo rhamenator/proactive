@@ -1,0 +1,31 @@
+﻿van_id,address_line1,address_line2,unit,city,state,zip,visit_time,result,contact_made,notes,time_zone,gps_status,latitude,longitude,accuracy_meters,distance_from_target_feet,sync_status,canvasser_name
+MOCK-V-000001,101 Sample Street,Fixture Building 1,Mock Unit 1,Exampleville,MI,00000,2026-01-15T14:00:00.000-05:00,support,true,"Quoted fixture, with comma",America/Detroit,missing,,,,,synced,Mock Canvasser 01
+MOCK-V-000002,102 Fixture Avenue,,,Sampletown,MI,00001,2026-01-15T14:15:00.000-05:00,support,false,,America/Detroit,captured,,,,,synced,Mock Canvasser 02
+MOCK-V-000003,103 Synthetic Boulevard,,,Exampleville,MI,00002,2026-01-15T14:30:00.000-05:00,refused,false,Synthetic follow-up requested,America/Detroit,captured,,,,,synced,Mock Canvasser 03
+MOCK-V-000004,104 Fixture Avenue,,,Sampletown,MI,00003,2026-01-15T14:45:00.000-05:00,not_home,true,,America/Detroit,captured,,,,,synced,Mock Canvasser 04
+MOCK-V-000005,105 Fixture Avenue,,Mock Unit 5,Exampleville,MI,00004,2026-01-15T15:00:00.000-05:00,undecided,false,Mock record; contains no personal data,America/Detroit,captured,,,,,synced,Mock Canvasser 01
+MOCK-V-000006,106 Privacy Place,,,Sampletown,MI,00005,2026-01-15T15:15:00.000-05:00,refused,false,Synthetic follow-up requested,America/Detroit,missing,,,,,synced,Mock Canvasser 02
+MOCK-V-000007,107 Privacy Place,,,Exampleville,MI,00006,2026-01-15T15:30:00.000-05:00,undecided,true,Synthetic follow-up requested,America/Detroit,captured,,,,,synced,Mock Canvasser 03
+MOCK-V-000008,108 Privacy Place,,,Sampletown,MI,00007,2026-01-15T15:45:00.000-05:00,refused,false,Multiline fixture
+second synthetic line,America/Detroit,captured,,,,,synced,Mock Canvasser 04
+MOCK-V-000009,109 Synthetic Boulevard,,Mock Unit 9,Exampleville,MI,00008,2026-01-15T16:00:00.000-05:00,refused,false,Synthetic follow-up requested,America/Detroit,captured,,,,,synced,Mock Canvasser 01
+MOCK-V-000010,110 Café Fixture Way,Fixture Building 2,,Sampletown,MI,00009,2026-01-15T16:15:00.000-05:00,support,true,Mock record; contains no personal data,America/Detroit,captured,,,,,synced,Mock Canvasser 02
+MOCK-V-000011,111 Fixture Avenue,,,Exampleville,MI,00010,2026-01-15T16:30:00.000-05:00,undecided,false,,America/Detroit,missing,,,,,synced,Mock Canvasser 03
+MOCK-V-000012,112 Café Fixture Way,,,Sampletown,MI,00011,2026-01-15T16:45:00.000-05:00,refused,false,"Quoted fixture, with comma",America/Detroit,captured,,,,,synced,Mock Canvasser 04
+MOCK-V-000013,113 Synthetic Boulevard,,Mock Unit 13,Exampleville,MI,00012,2026-01-15T17:00:00.000-05:00,support,true,Multiline fixture
+second synthetic line,America/Detroit,captured,,,,,synced,Mock Canvasser 01
+MOCK-V-000014,114 Fixture Avenue,,,Sampletown,MI,00013,2026-01-15T17:15:00.000-05:00,support,false,Multiline fixture
+second synthetic line,America/Detroit,captured,,,,,synced,Mock Canvasser 02
+MOCK-V-000015,115 Fixture Avenue,,,Exampleville,MI,00014,2026-01-15T17:30:00.000-05:00,not_home,false,,America/Detroit,captured,,,,,synced,Mock Canvasser 03
+MOCK-V-000016,116 Fixture Avenue,,,Sampletown,MI,00015,2026-01-15T17:45:00.000-05:00,not_home,true,Mock record; contains no personal data,America/Detroit,missing,,,,,synced,Mock Canvasser 04
+MOCK-V-000017,117 Synthetic Boulevard,,Mock Unit 17,Exampleville,MI,00016,2026-01-15T18:00:00.000-05:00,moved,false,"Quoted fixture, with comma",America/Detroit,captured,,,,,synced,Mock Canvasser 01
+MOCK-V-000018,118 Sample Street,,,Sampletown,MI,00017,2026-01-15T18:15:00.000-05:00,moved,false,Mock record; contains no personal data,America/Detroit,captured,,,,,synced,Mock Canvasser 02
+MOCK-V-000019,119 Sample Street,Fixture Building 3,,Exampleville,MI,00018,2026-01-15T18:30:00.000-05:00,not_home,true,Multiline fixture
+second synthetic line,America/Detroit,captured,,,,,synced,Mock Canvasser 03
+MOCK-V-000020,120 Synthetic Boulevard,,,Sampletown,MI,00019,2026-01-15T18:45:00.000-05:00,not_home,false,Synthetic follow-up requested,America/Detroit,captured,,,,,synced,Mock Canvasser 04
+MOCK-V-000021,121 Café Fixture Way,,Mock Unit 1,Exampleville,MI,00020,2026-01-15T19:00:00.000-05:00,moved,false,,America/Detroit,missing,,,,,synced,Mock Canvasser 01
+MOCK-V-000022,122 Fixture Avenue,,,Sampletown,MI,00021,2026-01-15T19:15:00.000-05:00,not_home,true,"Quoted fixture, with comma",America/Detroit,captured,,,,,synced,Mock Canvasser 02
+MOCK-V-000023,123 Sample Street,,,Exampleville,MI,00022,2026-01-15T19:30:00.000-05:00,refused,false,Multiline fixture
+second synthetic line,America/Detroit,captured,,,,,synced,Mock Canvasser 03
+MOCK-V-000024,124 Synthetic Boulevard,,,Sampletown,MI,00023,2026-01-15T19:45:00.000-05:00,undecided,false,,America/Detroit,captured,,,,,synced,Mock Canvasser 04
+MOCK-V-000025,125 Privacy Place,,Mock Unit 5,Exampleville,MI,00024,2026-01-15T20:00:00.000-05:00,not_home,true,Mock record; contains no personal data,America/Detroit,captured,,,,,synced,Mock Canvasser 01

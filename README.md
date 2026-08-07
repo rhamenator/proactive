@@ -23,6 +23,7 @@ This repository contains the full system:
 - [Deployment](docs/installation/deployment.md): deploy the backend/admin services and understand how mobile release builds fit into production delivery.
 - [User manual](docs/user-manual.md): role-based instructions for admins, supervisors, and canvassers.
 - [Troubleshooting](docs/help/troubleshooting.md): common login, sync, GPS, CSV, and export issues.
+- [CSV contract and synthetic datasets](docs/csv-contract.md): versioned import/export formats, configurable VAN adaptation, and privacy-safe mock generation.
 
 ## Installer Commands
 

@@ -1,0 +1,8 @@
+{
+  "synthetic": true,
+  "contract": "proactive-csv/v1",
+  "seed": 20260807,
+  "rows": 25,
+  "generatedAt": "deterministic-fixture",
+  "privacyNotice": "All records are fictional and generated locally without external personal data."
+}

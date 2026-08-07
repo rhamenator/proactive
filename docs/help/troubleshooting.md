@@ -65,6 +65,11 @@ Check:
 - the file has address line, city, and state values
 - the selected mapping matches the CSV column names
 - the file is actually CSV and not spreadsheet-only format
+- the file is UTF-8, UTF-8 with BOM, or Windows-1252
+- `Preview Import` reports every sample row as ready
+- the selected profile template matches the file; generate known-good mock files with `npm run mock:csv`
+
+See the [versioned CSV contract](../csv-contract.md). If a file still fails, preserve the original bytes and the corrected file so encoding, delimiter, header, and mapping differences can be compared.
 
 ## I Cannot Find A Recent Export
 

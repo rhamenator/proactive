@@ -20,6 +20,7 @@ The application suite has been built and brought to a review-ready state across 
   - Pre-import CSV preview that validates the selected profile, effective header mapping, headers, fallback turf usage, and sample row readiness before data is committed
   - Structured address fidelity for `addressLine2` and `unit`, plus deterministic normalized-address duplicate detection for non-VAN imports
   - Downloadable CSV templates generated from the active import/export profiles so operators can get the current expected file shape directly from the system
+  - A machine-readable `proactive-csv/v1` contract, versioned built-in profiles, backward-compatible legacy aliases, and deterministic synthetic CSV generation for privacy-safe acceptance testing
   - Reporting endpoints for overview, productivity, GPS exceptions, audit activity, trends, resolved conflicts, and export-batch analytics, including supervisor filtering, final-disposition filtering, revisit/attempt semantics, and time-of-day/day-of-week trend slices where supported by the current schema
   - Centralized timezone policy for report bucket calculations and export timestamp/label behavior, with consistent semantics across export types
   - VAN export, internal master export, export batch history, historical CSV re-download, row-traceable export artifacts, and configurable export profiles with policy-driven default profile selection, with richer operational/audit export columns where the schema already supports them
@@ -110,7 +111,7 @@ Please review:
 
 Please confirm whether you want any of the following added before release:
 
-- Any additional CSV/VAN rules beyond the current review-ready baseline with configurable profiles, replace-membership imports, expanded VAN field mapping, deferred duplicate review, and duplicate handling
+- Any separately named VAN/EveryAction workflow adapters beyond the configurable `proactive-csv/v1` baseline; these require the exact downstream operation rather than private client records
 - Any geography model deeper than the current campaign/team/region scope design
 - Whether you want lifecycle automation expanded beyond the current safe cleanup targets of address requests, import/export artifact redaction, and expired credential records
 - Any changes to impersonation policy, correction windows, or review permissions
