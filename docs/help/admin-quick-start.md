@@ -64,6 +64,8 @@ If login fails, see [Troubleshooting](troubleshooting.md).
 5. Update the mapping JSON and settings JSON for the target profile.
 6. Save the override, or reset a scoped override to fall back to the inherited or built-in definition.
 
+Use `proactive_turf_import_v1`, `proactive_canvass_results_v1`, and `internal_master_v1` for new integrations. The historical profile codes remain available as compatibility aliases. See the [CSV contract and mock-data workflow](../csv-contract.md).
+
 Expected minimum address data:
 
 - address line

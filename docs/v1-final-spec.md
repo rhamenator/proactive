@@ -171,7 +171,7 @@ Canvassers cannot:
 
 - GPS data is for internal validation, quality control, and internal reporting only
 - Detailed GPS access is limited to admins
-- External VAN-compatible exports exclude GPS unless explicitly required by a defined workflow
+- The PROACTIVE results interchange includes GPS fields, but external-upload profile overrides must remove them unless an approved workflow explicitly requires them
 
 ## Core Functional Rules
 
@@ -434,6 +434,8 @@ v1 should prefer a derived reporting view or deterministic latest-valid-log logi
 
 ## CSV Import And Export
 
+The normative, machine-checked CSV contract is [`proactive-csv/v1`](csv-contract.md). This section records the product rules behind that contract.
+
 ### Core design
 
 The system uses:
@@ -441,6 +443,7 @@ The system uses:
 - one stable internal master schema
 - one import mapping layer for VAN CSVs
 - one or more export profiles
+- versioned built-in interchange profiles plus organization/campaign overrides
 
 The internal schema must not change based on VAN column names.
 
@@ -475,7 +478,7 @@ If duplicate matching is ambiguous, do not auto-merge. Flag for admin review.
 
 ### Export profiles
 
-v1 includes two export profiles:
+v1 includes two versioned export shapes, with legacy aliases retained:
 
 1. Internal Master Export
 2. VAN-Compatible Export
@@ -488,9 +491,10 @@ Internal Master Export:
 
 VAN-Compatible Export:
 
-- limited to columns required by the specific upload workflow
-- generated through a profile mapping
-- excludes GPS unless that upload profile explicitly needs it
+- the historical `van_compatible` alias points to the configurable PROACTIVE canvass-results baseline
+- it is not universal vendor certification
+- a real external upload must use a scoped mapping named for the exact workflow
+- GPS must be removed by that external profile unless the approved workflow explicitly needs it
 
 ### Export defaults
 
@@ -677,7 +681,6 @@ v1 is acceptable when all of the following are true:
 
 These do not block v1 implementation because safe defaults are chosen above, but they should be revisited with the client:
 
-- whether multi-campaign support should move from schema-only to user-facing v1 functionality
-- the first exact VAN upload profile to support
+- which client-specific VAN upload workflows should receive separately named, validated profile adapters beyond `proactive-csv/v1`
 - final legal/privacy wording for GPS notice and user consent
 - whether encrypted local storage is sufficient or a stronger device-bound secure storage model is required for all cached data

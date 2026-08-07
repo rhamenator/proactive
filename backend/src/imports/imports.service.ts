@@ -194,7 +194,7 @@ export class ImportsService {
     const addressLine2 = resolveMappedValue(input.row, 'addressLine2', input.mapping);
     const unit = resolveMappedValue(input.row, 'unit', input.mapping);
     const city = resolveMappedValue(input.row, 'city', input.mapping);
-    const state = resolveMappedValue(input.row, 'state', input.mapping);
+    const state = resolveMappedValue(input.row, 'state', input.mapping)?.toUpperCase();
     const zip = resolveMappedValue(input.row, 'zip', input.mapping);
     const vanPersonId =
       resolveMappedValue(input.row, 'vanPersonId', input.mapping) ??

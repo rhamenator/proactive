@@ -120,7 +120,7 @@ describe('ImportsService', () => {
       createdById: 'admin-1',
       csv: [
         'turf_name,address_line1,address_line2,unit,city,state,zip,van_household_id,latitude,longitude',
-        'North Turf,10 Main St,Floor 2,Suite A,Grand Rapids,MI,49503,HH-1,42.96,-85.67',
+        'North Turf,10 Main St,Floor 2,Suite A,Grand Rapids,mi,49503,HH-1,42.96,-85.67',
         'North Turf,,Floor 2,Suite A,Grand Rapids,MI,49503,HH-2,42.96,-85.67',
         'South Turf,22 Oak Ave,,,Grand Rapids,MI,49504,HH-3,42.97,-85.68'
       ].join('\n')
@@ -136,6 +136,7 @@ describe('ImportsService', () => {
           addressLine1: '10 Main St',
           addressLine2: 'Floor 2',
           unit: 'Suite A',
+          state: 'MI',
           normalizedAddressKey: '10 main st|floor 2|suite a|grand rapids|mi|49503',
           vanId: 'HH-1'
         })

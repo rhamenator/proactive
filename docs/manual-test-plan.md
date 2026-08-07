@@ -41,6 +41,7 @@ Use this for a broader test pass across individual features.
 ### Turfs
 
 - [ ] Manual turf creation with name, description, team, and region
+- [ ] Generate privacy-safe fixtures with `npm run mock:csv -- --rows 25 --output .local/mock-csv`
 - [ ] CSV import using a valid file and the default import profile
 - [ ] Import preview shows correct header mappings before committing
 - [ ] Import with a bad file shows a validation error, not a crash

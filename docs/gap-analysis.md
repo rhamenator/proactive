@@ -67,6 +67,7 @@ The remaining gaps are now mostly in the remaining edges of import-policy breadt
 - a dedicated `ImportsService` and `/imports/csv` path with import modes including replace-membership behavior, duplicate skip/error/merge/review handling, expanded source-field mapping support, a review queue tied directly to import-batch rows, and configurable import/export profiles with organization/campaign overrides
 - pre-import CSV preview that validates the chosen profile, effective header mapping, required field coverage, fallback turf usage, and sample row readiness before the admin commits the import
 - downloadable CSV templates derived from the active import/export profiles, so operators can pull the expected file shape directly from the system
+- a versioned `proactive-csv/v1` manifest, backward-compatible profile aliases, deterministic privacy-safe mock datasets, and contract tests that prevent runtime profiles from drifting away from the published format
 - normalized address-key matching for non-VAN household imports, backed by persisted address fidelity fields for `addressLine2` and `unit`
 - operational policy records with organization/campaign fallback for import defaults, field visit/GPS thresholds, auth/recovery timing, sensitive-action MFA freshness, retention defaults, and organization-level outcome fallback
 - configurable supervisor scope policy that can enforce campaign, team, or region-based access, backed by first-class teams and region codes across users, turfs, assignments, sessions, visits, address requests, imports, exports, and reports
@@ -212,7 +213,7 @@ Safe for:
 
 Still blocked for full source-packet alignment:
 
-- fuller CSV/VAN parity only if the client insists on more source-specific rules beyond the current configurable-profile baseline, duplicate review queue, and expanded field mapping
+- vendor-workflow-specific CSV/VAN adapters beyond the versioned, configurable `proactive-csv/v1` baseline; each adapter still needs the exact downstream operation and its current requirements
 - any optional expansion beyond the current team/region scope model into more specialized geography hierarchies
 - final signed mobile app distribution without real external signing credentials
 
@@ -223,7 +224,7 @@ Remaining non-blocking enhancements:
 
 ## Recommended Next Sequence
 
-1. Decide whether v1.x needs richer CSV/VAN parity beyond the current configurable-profile baseline, batch/row audit trail, replace-membership mode, duplicate review queue, and expanded field mapping support.
+1. Add separately named vendor-workflow adapters when an exact VAN/EveryAction operation can be validated; keep `proactive-csv/v1` as the stable internal interchange contract.
 2. Decide whether lifecycle automation should expand beyond the current safe cleanup targets of address requests, import/export artifact redaction, and expired credential records.
 3. Set the initial organization/campaign/team scope defaults in the new Policies and Teams screens before broader review.
 4. Provide production release secrets and final app identifiers for EAS/App Store/Play.

@@ -33,6 +33,7 @@
 
 ## Product References
 
+- [Versioned CSV import/export contract and mock data](csv-contract.md)
 - [V1 final specification](v1-final-spec.md)
 - [Gap analysis](gap-analysis.md)
 - [Client review summary](client-review-summary.md)

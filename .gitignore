@@ -15,6 +15,7 @@ mobile-app/.expo
 mobile-app/dist
 admin-dashboard/.next
 .history
+.local
 .vscode/*
 !.vscode/settings.json
 !.vscode/proactive.code-workspace
