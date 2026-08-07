@@ -1,6 +1,5 @@
 import type {
   AddressRequestRecord,
-  AuditActivityItem,
   AuditActivityReport,
   AuthLoginResponse,
   CampaignRecord,
@@ -19,7 +18,6 @@ import type {
   LoginResponse,
   RecentVisitRecord,
   ResolvedConflictReport,
-  ProductivityRow,
   ProductivityReport,
   ReportFilters,
   ReportOverview,

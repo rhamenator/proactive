@@ -1,4 +1,4 @@
-import { attachVisitAttemptMetrics, getDayOfWeekBucket, getTimeOfDayBucket } from './visit-analytics.util';
+import { attachVisitAttemptMetrics, getDayOfWeekBucket, getTimeOfDayBucket } from './visit-analytics.util.js';
 
 describe('visit analytics utilities', () => {
   const originalReportBucketTimeZone = process.env.REPORT_BUCKET_TIME_ZONE;

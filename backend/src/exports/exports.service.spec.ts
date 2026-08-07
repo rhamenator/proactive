@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { GoneException } from '@nestjs/common';
-import { GpsStatus, SyncStatus, VisitResult } from '@prisma/client';
-import { ExportsService } from './exports.service';
+import { GpsStatus, SyncStatus, VisitResult } from '../../generated/prisma/client.js';
+import { ExportsService } from './exports.service.js';
 
 describe('ExportsService', () => {
   const originalExportTimeZone = process.env.EXPORT_TIME_ZONE;

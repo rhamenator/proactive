@@ -1,23 +1,23 @@
 import { Body, Controller, Get, Post, UnauthorizedException, UseGuards } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { Roles } from '../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
-import { ActivateAccountDto } from './dto/activate-account.dto';
-import { CompletePasswordResetDto } from './dto/complete-password-reset.dto';
-import { DisableMfaDto } from './dto/disable-mfa.dto';
-import { LoginDto } from './dto/login.dto';
-import { MfaChallengeDto } from './dto/mfa-challenge.dto';
-import { MfaCodeDto } from './dto/mfa-code.dto';
-import { MfaStepUpDto } from './dto/mfa-step-up.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
-import { StartImpersonationDto } from './dto/start-impersonation.dto';
-import { StopImpersonationDto } from './dto/stop-impersonation.dto';
-import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service';
+import { UserRole } from '../../generated/prisma/client.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../common/guards/roles.guard.js';
+import type { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface.js';
+import { ActivateAccountDto } from './dto/activate-account.dto.js';
+import { CompletePasswordResetDto } from './dto/complete-password-reset.dto.js';
+import { DisableMfaDto } from './dto/disable-mfa.dto.js';
+import { LoginDto } from './dto/login.dto.js';
+import { MfaChallengeDto } from './dto/mfa-challenge.dto.js';
+import { MfaCodeDto } from './dto/mfa-code.dto.js';
+import { MfaStepUpDto } from './dto/mfa-step-up.dto.js';
+import { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto.js';
+import { StartImpersonationDto } from './dto/start-impersonation.dto.js';
+import { StopImpersonationDto } from './dto/stop-impersonation.dto.js';
+import { AuthService } from './auth.service.js';
+import { UsersService } from '../users/users.service.js';
 
 @Controller('auth')
 export class AuthController {

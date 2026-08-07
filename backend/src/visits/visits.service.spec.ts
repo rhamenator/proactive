@@ -1,5 +1,6 @@
-import { AssignmentStatus, GpsStatus, SyncStatus, VisitResult } from '@prisma/client';
-import { VisitsService } from './visits.service';
+import { jest } from '@jest/globals';
+import { AssignmentStatus, GpsStatus, SyncStatus, VisitResult } from '../../generated/prisma/client.js';
+import { VisitsService } from './visits.service.js';
 
 describe('VisitsService', () => {
   const scope = { organizationId: 'org-1', campaignId: null };

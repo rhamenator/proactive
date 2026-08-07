@@ -1,16 +1,10 @@
+import { jest } from '@jest/globals';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
-import bcrypt from 'bcrypt';
-import { UsersService } from './users.service';
+import { UserRole } from '../../generated/prisma/client.js';
+import { passwordHasher } from '../common/utils/password-hasher.util.js';
+import { UsersService } from './users.service.js';
 
-jest.mock('bcrypt', () => ({
-  __esModule: true,
-  default: {
-    hash: jest.fn(async () => 'hashed-password')
-  }
-}));
-
-const mockedBcrypt = jest.mocked(bcrypt);
+const hashSpy = jest.spyOn(passwordHasher, 'hash');
 
 function buildUser(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -51,6 +45,7 @@ describe('UsersService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    hashSpy.mockResolvedValue('hashed-password');
     prisma.campaign.findFirst.mockResolvedValue({ id: 'campaign-1', organizationId: 'org-1' });
   });
 
@@ -122,7 +117,7 @@ describe('UsersService', () => {
         }
       }
     });
-    expect(mockedBcrypt.hash).toHaveBeenCalledWith('Password123!', 10);
+    expect(hashSpy).toHaveBeenCalledWith('Password123!', 10);
     expect(result.role).toBe(UserRole.canvasser);
   });
 
@@ -237,7 +232,7 @@ describe('UsersService', () => {
       role: UserRole.supervisor
     });
 
-    expect(bcrypt.hash).toHaveBeenCalledWith('NewPassword123!', 10);
+    expect(hashSpy).toHaveBeenCalledWith('NewPassword123!', 10);
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-2' },
       data: expect.objectContaining({

@@ -1,4 +1,5 @@
-import { VisitsController } from './visits.controller';
+import { jest } from '@jest/globals';
+import { VisitsController } from './visits.controller.js';
 
 describe('VisitsController', () => {
   const scope = { organizationId: 'org-1', campaignId: null };

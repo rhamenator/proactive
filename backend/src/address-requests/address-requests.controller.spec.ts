@@ -1,5 +1,6 @@
-import { AddressRequestStatus, UserRole } from '@prisma/client';
-import { AddressRequestsController } from './address-requests.controller';
+import { jest } from '@jest/globals';
+import { AddressRequestStatus, UserRole } from '../../generated/prisma/client.js';
+import { AddressRequestsController } from './address-requests.controller.js';
 
 describe('AddressRequestsController', () => {
   const addressRequestsService = {

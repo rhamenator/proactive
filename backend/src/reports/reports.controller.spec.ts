@@ -1,4 +1,5 @@
-import { ReportsController } from './reports.controller';
+import { jest } from '@jest/globals';
+import { ReportsController } from './reports.controller.js';
 
 describe('ReportsController', () => {
   const reportsService = {

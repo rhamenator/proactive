@@ -1,7 +1,8 @@
+import { jest } from '@jest/globals';
 import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '@prisma/client';
-import { FreshMfaGuard } from './fresh-mfa.guard';
+import { UserRole } from '../../../generated/prisma/client.js';
+import { FreshMfaGuard } from './fresh-mfa.guard.js';
 
 describe('FreshMfaGuard', () => {
   const reflector = {

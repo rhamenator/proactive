@@ -1,5 +1,6 @@
+import { jest } from '@jest/globals';
 import type { Response } from 'express';
-import { ExportsController } from './exports.controller';
+import { ExportsController } from './exports.controller.js';
 
 describe('ExportsController', () => {
   const scope = { organizationId: 'org-1', campaignId: null };

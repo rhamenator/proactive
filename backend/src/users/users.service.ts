@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, UserRole } from '@prisma/client';
-import bcrypt from 'bcrypt';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma, UserRole } from '../../generated/prisma/client.js';
+import { passwordHasher } from '../common/utils/password-hasher.util.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 export type SafeUser = {
   id: string;
@@ -199,7 +199,7 @@ export class UsersService {
     await this.validateCampaignScope(input.organizationId, input.campaignId);
     const team = await this.validateTeamScope(input.organizationId, input.campaignId, input.teamId);
 
-    const passwordHash = await bcrypt.hash(input.password, 10);
+    const passwordHash = await passwordHasher.hash(input.password, 10);
     const user = await this.prisma.user.create({
       data: {
         firstName: input.firstName,
@@ -269,7 +269,7 @@ export class UsersService {
       data.role = this.normalizeFieldUserRole(input.role);
     }
     if (input.password !== undefined) {
-      data.passwordHash = await bcrypt.hash(input.password, 10);
+      data.passwordHash = await passwordHasher.hash(input.password, 10);
     }
 
     const user = await this.prisma.user.update({

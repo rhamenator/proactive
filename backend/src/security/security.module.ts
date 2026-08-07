@@ -1,10 +1,10 @@
 import { Global, Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { getRequiredEnv } from '../common/utils/env.util';
-import { PoliciesModule } from '../policies/policies.module';
+import { JwtModule, type JwtModuleOptions } from '@nestjs/jwt';
+import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard.js';
+import { RolesGuard } from '../common/guards/roles.guard.js';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
+import { getRequiredEnv } from '../common/utils/env.util.js';
+import { PoliciesModule } from '../policies/policies.module.js';
 
 @Global()
 @Module({
@@ -13,7 +13,9 @@ import { PoliciesModule } from '../policies/policies.module';
     JwtModule.register({
       secret: getRequiredEnv('JWT_SECRET'),
       signOptions: {
-        expiresIn: (process.env.JWT_EXPIRES_IN ?? '30m') as any
+        expiresIn: (process.env.JWT_EXPIRES_IN ?? '30m') as NonNullable<
+          JwtModuleOptions['signOptions']
+        >['expiresIn']
       }
     })
   ],

@@ -1,5 +1,6 @@
-import { CsvProfileDirection } from '@prisma/client';
-import { CsvProfilesService } from './csv-profiles.service';
+import { jest } from '@jest/globals';
+import { CsvProfileDirection } from '../../generated/prisma/client.js';
+import { CsvProfilesService } from './csv-profiles.service.js';
 
 describe('CsvProfilesService', () => {
   const prisma = {

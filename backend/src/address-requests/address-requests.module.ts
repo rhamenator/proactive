@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { AuditModule } from '../audit/audit.module';
-import { PrismaModule } from '../prisma/prisma.module';
-import { UsersModule } from '../users/users.module';
-import { AddressRequestsController } from './address-requests.controller';
-import { AddressRequestsService } from './address-requests.service';
+import { AuditModule } from '../audit/audit.module.js';
+import { PrismaModule } from '../prisma/prisma.module.js';
+import { UsersModule } from '../users/users.module.js';
+import { AddressRequestsController } from './address-requests.controller.js';
+import { AddressRequestsService } from './address-requests.service.js';
 
 @Module({
   imports: [PrismaModule, AuditModule, UsersModule],

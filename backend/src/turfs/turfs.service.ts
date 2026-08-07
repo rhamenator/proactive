@@ -6,13 +6,13 @@ import {
   UserRole,
   type Prisma,
   type TurfSession
-} from '@prisma/client';
-import { AuditService } from '../audit/audit.service';
-import { AccessScope } from '../common/interfaces/access-scope.interface';
-import { inferMappingFromHeaders } from '../common/utils/csv.util';
-import { PoliciesService } from '../policies/policies.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { UsersService } from '../users/users.service';
+} from '../../generated/prisma/client.js';
+import { AuditService } from '../audit/audit.service.js';
+import type { AccessScope } from '../common/interfaces/access-scope.interface.js';
+import { inferMappingFromHeaders } from '../common/utils/csv.util.js';
+import { PoliciesService } from '../policies/policies.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { UsersService } from '../users/users.service.js';
 
 type PrismaWriter = PrismaService | Prisma.TransactionClient;
 type LifecycleStatus = 'open' | 'paused' | 'completed' | 'closed';

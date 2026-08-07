@@ -1,15 +1,15 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { Roles } from '../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
-import { resolveAccessScope } from '../common/utils/access-scope.util';
-import { PoliciesService } from '../policies/policies.service';
-import { UsersService } from '../users/users.service';
-import { ReportFiltersDto } from './dto/report-filters.dto';
-import { ReportsService } from './reports.service';
+import { UserRole } from '../../generated/prisma/client.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../common/guards/roles.guard.js';
+import type { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface.js';
+import { resolveAccessScope } from '../common/utils/access-scope.util.js';
+import { PoliciesService } from '../policies/policies.service.js';
+import { UsersService } from '../users/users.service.js';
+import { ReportFiltersDto } from './dto/report-filters.dto.js';
+import { ReportsService } from './reports.service.js';
 
 @Controller('reports')
 @UseGuards(JwtAuthGuard, RolesGuard)

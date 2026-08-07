@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
-import { AssignmentStatus, SessionStatus, TurfStatus, UserRole, VisitResult } from '@prisma/client';
-import { TurfsService } from './turfs.service';
+import { AssignmentStatus, SessionStatus, TurfStatus, UserRole, VisitResult } from '../../generated/prisma/client.js';
+import { TurfsService } from './turfs.service.js';
 
 describe('TurfsService', () => {
   const scope = { organizationId: 'org-1', campaignId: null };

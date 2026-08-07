@@ -1,14 +1,14 @@
 import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'node:crypto';
-import { MfaChallengePurpose, UserRole } from '@prisma/client';
-import { AuditService } from '../audit/audit.service';
-import { PoliciesService } from '../policies/policies.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { SystemSettingsService } from '../system-settings/system-settings.service';
-import { UsersService } from '../users/users.service';
-import { buildOtpAuthUri, generateBase32Secret, verifyTotp } from './mfa.util';
+import { MfaChallengePurpose, UserRole } from '../../generated/prisma/client.js';
+import { AuditService } from '../audit/audit.service.js';
+import { PoliciesService } from '../policies/policies.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { SystemSettingsService } from '../system-settings/system-settings.service.js';
+import { UsersService } from '../users/users.service.js';
+import { passwordHasher } from '../common/utils/password-hasher.util.js';
+import { buildOtpAuthUri, generateBase32Secret, totpVerifier } from './mfa.util.js';
 
 const REFRESH_TOKEN_ROTATION_GRACE_MS = 10_000;
 const REFRESH_TOKEN_REVOCATION_REASON = {
@@ -35,14 +35,7 @@ export class AuthService {
   private readonly exposeResetTokens = process.env.EXPOSE_RESET_TOKENS === 'true';
 
   private getImpersonationSessionStore() {
-    return (this.prisma as PrismaService & {
-      impersonationSession: {
-        findFirst: (...args: any[]) => Promise<any>;
-        updateMany: (...args: any[]) => Promise<any>;
-        create: (...args: any[]) => Promise<any>;
-        update: (...args: any[]) => Promise<any>;
-      };
-    }).impersonationSession;
+    return this.prisma.impersonationSession;
   }
 
   private buildSafeUser(user: {
@@ -323,7 +316,7 @@ export class AuthService {
       throw new UnauthorizedException('Account is temporarily locked');
     }
 
-    const matches = await bcrypt.compare(password, user.passwordHash);
+    const matches = await passwordHasher.compare(password, user.passwordHash);
     if (!matches) {
       const policy = await this.getAuthPolicy(user);
       const failedLoginAttempts = user.failedLoginAttempts + 1;
@@ -444,7 +437,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired MFA setup challenge');
     }
 
-    if (!verifyTotp(challenge.user.mfaTempSecret, code)) {
+    if (!totpVerifier.verify(challenge.user.mfaTempSecret, code)) {
       throw new UnauthorizedException('Invalid MFA code');
     }
 
@@ -490,7 +483,7 @@ export class AuthService {
     await this.assertWithinRateLimit('mfa-verify', challenge.userId);
 
     const normalizedCode = code.trim();
-    const validTotp = verifyTotp(challenge.user.mfaSecret, normalizedCode);
+    const validTotp = totpVerifier.verify(challenge.user.mfaSecret, normalizedCode);
     const usedBackupCode = validTotp ? false : await this.consumeBackupCode(challenge.userId, normalizedCode);
     if (!validTotp && !usedBackupCode) {
       throw new UnauthorizedException('Invalid MFA or backup code');
@@ -538,13 +531,13 @@ export class AuthService {
 
     await this.assertWithinRateLimit('mfa-disable', userId);
 
-    const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+    const passwordMatches = await passwordHasher.compare(password, user.passwordHash);
     if (!passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const normalizedCode = code.trim();
-    const validTotp = verifyTotp(user.mfaSecret, normalizedCode);
+    const validTotp = totpVerifier.verify(user.mfaSecret, normalizedCode);
     const usedBackupCode = validTotp ? false : await this.consumeBackupCode(user.id, normalizedCode);
     if (!validTotp && !usedBackupCode) {
       throw new UnauthorizedException('Invalid MFA or backup code');
@@ -602,7 +595,7 @@ export class AuthService {
     await this.assertWithinRateLimit('mfa-step-up', user.id);
 
     const normalizedCode = code.trim();
-    const validTotp = verifyTotp(user.mfaSecret, normalizedCode);
+    const validTotp = totpVerifier.verify(user.mfaSecret, normalizedCode);
     const usedBackupCode = validTotp ? false : await this.consumeBackupCode(user.id, normalizedCode);
     if (!validTotp && !usedBackupCode) {
       throw new UnauthorizedException('Invalid MFA or backup code');
@@ -944,7 +937,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired reset token');
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await passwordHasher.hash(password, 10);
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: storedToken.userId },
@@ -1031,7 +1024,7 @@ export class AuthService {
     campaignId?: string | null;
     teamId?: string | null;
   }) {
-    const placeholderPasswordHash = await bcrypt.hash(this.createOpaqueToken(), 10);
+    const placeholderPasswordHash = await passwordHasher.hash(this.createOpaqueToken(), 10);
     const user = await this.usersService.createInvitedCanvasser({
       ...input,
       passwordHash: placeholderPasswordHash
@@ -1070,7 +1063,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired activation token');
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await passwordHasher.hash(password, 10);
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: storedToken.userId },

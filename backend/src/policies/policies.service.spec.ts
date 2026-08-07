@@ -1,5 +1,6 @@
+import { jest } from '@jest/globals';
 import { ForbiddenException } from '@nestjs/common';
-import { PoliciesService } from './policies.service';
+import { PoliciesService } from './policies.service.js';
 
 describe('PoliciesService', () => {
   const prisma = {

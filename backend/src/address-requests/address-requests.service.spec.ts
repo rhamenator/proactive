@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { AddressRequestStatus, SessionStatus, UserRole } from '@prisma/client';
-import { AddressRequestsService } from './address-requests.service';
+import { AddressRequestStatus, type Prisma, SessionStatus, UserRole } from '../../generated/prisma/client.js';
+import { AddressRequestsService } from './address-requests.service.js';
 
 describe('AddressRequestsService', () => {
   const prisma = {
@@ -110,7 +111,7 @@ describe('AddressRequestsService', () => {
         role: UserRole.admin
       }
     });
-    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
+    prisma.$transaction.mockImplementation(async (callback: (tx: Prisma.TransactionClient) => Promise<unknown>) => {
       const tx = {
         household: {
           findFirst: jest.fn().mockResolvedValue(null),
@@ -148,7 +149,7 @@ describe('AddressRequestsService', () => {
         }
       };
 
-      return callback(tx);
+      return callback(tx as unknown as Prisma.TransactionClient);
     });
     auditService.log.mockResolvedValue(undefined);
   });

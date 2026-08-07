@@ -1,9 +1,9 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { AuditService } from '../audit/audit.service';
-import { AccessScope } from '../common/interfaces/access-scope.interface';
-import { PrismaService } from '../prisma/prisma.service';
-import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client.js';
+import { AuditService } from '../audit/audit.service.js';
+import type { AccessScope } from '../common/interfaces/access-scope.interface.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { SystemSettingsService } from '../system-settings/system-settings.service.js';
 
 @Injectable()
 export class RetentionService implements OnModuleInit, OnModuleDestroy {

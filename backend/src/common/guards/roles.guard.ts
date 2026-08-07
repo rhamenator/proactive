@@ -1,8 +1,8 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '@prisma/client';
-import { ROLES_KEY } from '../decorators/roles.decorator';
-import { JwtUserPayload } from '../interfaces/jwt-user-payload.interface';
+import { UserRole } from '../../../generated/prisma/client.js';
+import { ROLES_KEY } from '../decorators/roles.decorator.js';
+import type { JwtUserPayload } from '../interfaces/jwt-user-payload.interface.js';
 
 @Injectable()
 export class RolesGuard implements CanActivate {

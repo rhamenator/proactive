@@ -1,4 +1,5 @@
-import { ImportsController } from './imports.controller';
+import { jest } from '@jest/globals';
+import { ImportsController } from './imports.controller.js';
 
 describe('ImportsController', () => {
   const importsService = {

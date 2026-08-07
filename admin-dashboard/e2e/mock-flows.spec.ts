@@ -8,7 +8,7 @@ test.describe('admin dashboard mocked UI flows @mocked', () => {
     await registerAdminMockRoutes(page);
   });
 
-  test('supports login flow and reports filter interactions', async ({ page, context }) => {
+  test('supports login flow and reports filter interactions', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill('admin.e2e@example.test');
     await page.getByLabel('Password').fill('Password123!');

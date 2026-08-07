@@ -1,15 +1,15 @@
 import { BadRequestException, GoneException, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { TurfStatus } from '@prisma/client';
+import { TurfStatus } from '../../generated/prisma/client.js';
 import { parse } from 'csv-parse/sync';
-import { AuditService } from '../audit/audit.service';
-import { AccessScope } from '../common/interfaces/access-scope.interface';
-import { buildNormalizedAddressKey, composeDisplayAddressLine1 } from '../common/utils/address-normalization.util';
-import { CsvMapping, inferMappingFromHeaders, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util';
-import { CsvProfilesService } from '../csv-profiles/csv-profiles.service';
-import { PoliciesService } from '../policies/policies.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { UsersService } from '../users/users.service';
+import { AuditService } from '../audit/audit.service.js';
+import type { AccessScope } from '../common/interfaces/access-scope.interface.js';
+import { buildNormalizedAddressKey, composeDisplayAddressLine1 } from '../common/utils/address-normalization.util.js';
+import { type CsvMapping, inferMappingFromHeaders, resolveMappedValue, toOptionalNumber } from '../common/utils/csv.util.js';
+import { CsvProfilesService } from '../csv-profiles/csv-profiles.service.js';
+import { PoliciesService } from '../policies/policies.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { UsersService } from '../users/users.service.js';
 
 type ImportRow = Record<string, unknown>;
 type ImportMode = 'create_only' | 'upsert' | 'replace_turf_membership';

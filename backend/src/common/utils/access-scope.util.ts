@@ -1,8 +1,8 @@
-import { SupervisorScopeMode, UserRole } from '@prisma/client';
-import { UsersService } from '../../users/users.service';
-import { AccessScope } from '../interfaces/access-scope.interface';
-import { JwtUserPayload } from '../interfaces/jwt-user-payload.interface';
-import { PoliciesService } from '../../policies/policies.service';
+import { SupervisorScopeMode, UserRole } from '../../../generated/prisma/client.js';
+import { UsersService } from '../../users/users.service.js';
+import type { AccessScope } from '../interfaces/access-scope.interface.js';
+import type { JwtUserPayload } from '../interfaces/jwt-user-payload.interface.js';
+import { PoliciesService } from '../../policies/policies.service.js';
 
 type ScopeUser = Awaited<ReturnType<UsersService['findById']>>;
 

@@ -229,7 +229,7 @@ export interface MfaStatusResponse {
   backupCodeCount: number;
 }
 
-export interface MfaStepUpResponse extends LoginResponse {}
+export type MfaStepUpResponse = LoginResponse;
 
 export interface ReportFilters {
   dateFrom?: string;

@@ -1,7 +1,7 @@
 # Trivy configuration for CI vulnerability scanning.
 #
 # ignore-unfixed: true instructs Trivy to suppress CVEs that have no available
-# fix in the package ecosystem.  The node:22-alpine base image currently carries
+# fix in the package ecosystem.  The pinned Node Alpine base image may carry
 # one high-severity CVE (CVE in the Node.js binary itself) for which no
 # Alpine-level package patch has been published.  The Dockerfiles already
 # contain `apk upgrade --no-cache` to pick up any OS-level fixes automatically;

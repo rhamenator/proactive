@@ -1,4 +1,5 @@
-import { ReportsService } from './reports.service';
+import { jest } from '@jest/globals';
+import { ReportsService } from './reports.service.js';
 
 describe('ReportsService', () => {
   const prisma = {

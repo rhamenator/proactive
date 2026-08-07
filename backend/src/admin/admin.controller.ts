@@ -1,23 +1,23 @@
 import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
-import { CsvProfileDirection, UserRole } from '@prisma/client';
-import { AuthService } from '../auth/auth.service';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { RequireFreshMfa } from '../common/decorators/require-fresh-mfa.decorator';
-import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface';
-import { resolveAccessScope } from '../common/utils/access-scope.util';
-import { PoliciesService } from '../policies/policies.service';
-import { TurfsService } from '../turfs/turfs.service';
-import { UsersService } from '../users/users.service';
-import { InviteCanvasserDto } from './dto/invite-canvasser.dto';
-import { ResolveSyncConflictDto } from './dto/resolve-sync-conflict.dto';
-import { UpsertOperationalPolicyDto } from './dto/upsert-operational-policy.dto';
-import { UpsertSystemSettingsDto } from './dto/upsert-system-settings.dto';
-import { AdminService } from './admin.service';
+import { CsvProfileDirection, UserRole } from '../../generated/prisma/client.js';
+import { AuthService } from '../auth/auth.service.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { RequireFreshMfa } from '../common/decorators/require-fresh-mfa.decorator.js';
+import { FreshMfaGuard } from '../common/guards/fresh-mfa.guard.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../common/guards/roles.guard.js';
+import type { JwtUserPayload } from '../common/interfaces/jwt-user-payload.interface.js';
+import { resolveAccessScope } from '../common/utils/access-scope.util.js';
+import { PoliciesService } from '../policies/policies.service.js';
+import { TurfsService } from '../turfs/turfs.service.js';
+import { UsersService } from '../users/users.service.js';
+import { InviteCanvasserDto } from './dto/invite-canvasser.dto.js';
+import { ResolveSyncConflictDto } from './dto/resolve-sync-conflict.dto.js';
+import { UpsertOperationalPolicyDto } from './dto/upsert-operational-policy.dto.js';
+import { UpsertSystemSettingsDto } from './dto/upsert-system-settings.dto.js';
+import { AdminService } from './admin.service.js';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard, FreshMfaGuard)

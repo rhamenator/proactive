@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { AddressRequestStatus } from '@prisma/client';
+import { AddressRequestStatus } from '../../../generated/prisma/client.js';
 import { IsEnum, IsOptional, Max, Min } from 'class-validator';
 
 export class ListAddressRequestsDto {
