@@ -1,0 +1,9 @@
+[[IgnoredVulns]]
+id = "CVE-2025-71329"
+ignoreUntil = 2026-11-07
+reason = "Transitive image-size dependency is used only by Metro while bundling trusted repository assets; no user-controlled production input reaches the JXL or HEIF parsers. No patched release is available as of 2026-08-07. Review on expiry or when image-size, Metro, or Expo publishes a fix."
+
+[[IgnoredVulns]]
+id = "CVE-2025-71330"
+ignoreUntil = 2026-11-07
+reason = "Transitive image-size dependency is used only by Metro while bundling trusted repository assets; no user-controlled production input reaches the ICNS parser. No patched release is available as of 2026-08-07. Review on expiry or when image-size, Metro, or Expo publishes a fix."
