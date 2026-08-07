@@ -27,7 +27,8 @@
     "test:ui:seeded": "npm run test:e2e:seeded --workspace @proactive/admin-dashboard",
     "seed:e2e": "npm run prisma:seed:e2e --workspace @proactive/backend",
     "test:mobile:e2e:ios": "npm run test:e2e:mobile:ios --workspace mobile-app",
-    "build:mobile:e2e:ios": "npm run build:e2e:mobile:ios --workspace mobile-app"
+    "build:mobile:e2e:ios": "npm run build:e2e:mobile:ios --workspace mobile-app",
+    "audit:production": "audit-ci --config audit-ci.jsonc"
   },
   "engines": {
     "node": ">=24.15.0 <25"
@@ -59,6 +60,7 @@
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "audit-ci": "^7.1.0",
     "typescript": "^6.0.3"
   },
   "allowScripts": {

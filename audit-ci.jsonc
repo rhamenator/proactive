@@ -1,0 +1,22 @@
+{
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  "high": true,
+  "skip-dev": true,
+  "report-type": "summary",
+  "allowlist": [
+    {
+      "GHSA-5p2g-fcmc-qvqq": {
+        "active": true,
+        "notes": "Build-time-only image-size dependency used by Metro on trusted repository assets; no patched release exists. Review with osv-scanner.toml.",
+        "expiry": "2026-11-07"
+      }
+    },
+    {
+      "GHSA-w3rx-r6r6-pgpr": {
+        "active": true,
+        "notes": "Build-time-only image-size dependency used by Metro on trusted repository assets; no patched release exists. Review with osv-scanner.toml.",
+        "expiry": "2026-11-07"
+      }
+    }
+  ]
+}
