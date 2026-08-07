@@ -1,1 +1,2 @@
 examples/csv/**/*.csv binary
+examples/csv/**/manifest.json text eol=lf

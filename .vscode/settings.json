@@ -1,6 +1,6 @@
 {
     "jest.rootPath": "backend",
-    "jest.jestCommandLine": "npx jest --config ./jest.config.cjs --runInBand",
+    "jest.jestCommandLine": "npm test -- --runInBand",
     "html-validate.validate": [
         "html",
         "markdown",
