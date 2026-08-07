@@ -2,7 +2,14 @@ import { defineConfig, devices } from '@playwright/test';
 import path from 'node:path';
 
 const repositoryRoot = path.resolve(__dirname, '..');
-const mockedOnly = process.argv.some((argument) => argument === '--project=mocked');
+const selectedProjects = process.argv.flatMap((argument, index, arguments_) => {
+  if (argument.startsWith('--project=')) {
+    return [argument.slice('--project='.length)];
+  }
+
+  return argument === '--project' && arguments_[index + 1] ? [arguments_[index + 1]] : [];
+});
+const mockedOnly = selectedProjects.length > 0 && selectedProjects.every((project) => project === 'mocked');
 
 const backendWebServer = {
   command:

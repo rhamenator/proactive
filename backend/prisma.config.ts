@@ -1,6 +1,12 @@
 import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
 
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required for Prisma CLI commands');
+}
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
@@ -8,8 +14,6 @@ export default defineConfig({
     seed: 'tsx prisma/seed.ts'
   },
   datasource: {
-    // Client generation does not connect, so CI can use a non-routable URL.
-    // Runtime connections still require DATABASE_URL in createPrismaAdapter().
-    url: process.env.DATABASE_URL ?? 'postgresql://prisma:prisma@127.0.0.1:5432/proactive'
+    url: databaseUrl
   }
 });

@@ -41,3 +41,23 @@ jobs:
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high --workspace @proactive/backend --workspace @proactive/admin-dashboard --workspace mobile-app
+
+  backend-container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build backend production image
+        run: docker build --file backend/Dockerfile --tag proactive-backend:ci .
+
+      - name: Verify packaged Prisma runtime
+        run: |
+          docker run --rm \
+            --entrypoint node \
+            --env DATABASE_URL=postgresql://smoke:smoke@127.0.0.1:1/smoke \
+            proactive-backend:ci \
+            --input-type=module \
+            --eval "const { createPrismaClient } = await import('./backend/dist/src/prisma/prisma-client.factory.js'); const client = createPrismaClient(); await client.\$disconnect();"
