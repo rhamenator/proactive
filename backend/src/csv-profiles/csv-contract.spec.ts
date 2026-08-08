@@ -97,7 +97,7 @@ describe('proactive-csv/v1 contract', () => {
         '--output',
         outputDirectory
       ],
-      { cwd: repositoryRoot }
+      { cwd: repositoryRoot, stdio: ['ignore', 'ignore', 'pipe'] }
     );
 
     const importBuffer = readFileSync(join(outputDirectory, 'proactive-turf-import-v1.utf8-bom.csv'));
@@ -143,7 +143,7 @@ describe('proactive-csv/v1 contract', () => {
         '--output',
         scenarioOutputDirectory
       ],
-      { cwd: repositoryRoot }
+      { cwd: repositoryRoot, stdio: ['ignore', 'ignore', 'pipe'] }
     );
 
     const aggregate = JSON.parse(readFileSync(join(scenarioOutputDirectory, 'manifest.json'), 'utf8'));
