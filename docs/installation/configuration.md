@@ -31,9 +31,13 @@ GEOFENCE_RADIUS_FEET=75
 GPS_LOW_ACCURACY_METERS=30
 MAX_ATTEMPTS_PER_HOUSEHOLD=3
 MIN_MINUTES_BETWEEN_ATTEMPTS=5
+RETENTION_BATCH_SIZE=500
+RETENTION_EXCLUDED_ENTITY_TYPES=
 ```
 
 Production deployments must replace `JWT_SECRET` and point `DATABASE_URL` at a real managed database.
+
+`RETENTION_BATCH_SIZE` limits each entity class processed in one cleanup run and is clamped to 1–1000. `RETENTION_EXCLUDED_ENTITY_TYPES` is a comma-separated whole-entity hold list; see the [retention and lifecycle policy](../retention-lifecycle-policy.md) before enabling automation.
 
 ## Admin Dashboard
 

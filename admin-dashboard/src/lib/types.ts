@@ -472,7 +472,14 @@ export interface RetentionSummary {
     enabled: boolean;
     intervalMinutes: number;
   };
+  policy: {
+    batchSize: number;
+    excludedEntityTypes: string[];
+    stages: string[];
+  };
   dueNow: {
+    usersToArchive: number;
+    visitLogsToRedact: number;
     addressRequests: number;
     importBatches: number;
     importBatchRows: number;

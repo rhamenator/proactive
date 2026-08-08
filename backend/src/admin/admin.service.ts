@@ -451,10 +451,11 @@ export class AdminService {
     return this.systemSettingsService.getEffectiveSettings();
   }
 
-  async runRetentionCleanup(scope: AccessScope, actorUserId: string) {
+  async runRetentionCleanup(scope: AccessScope, actorUserId: string, reason: string) {
     return this.retentionService.runCleanup({
       scope,
-      actorUserId
+      actorUserId,
+      reason
     });
   }
 

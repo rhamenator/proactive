@@ -162,12 +162,13 @@ describe('AdminService', () => {
     retentionService.runCleanup.mockResolvedValue({ skipped: false, summary: { importBatches: 2 } });
 
     const summary = await service.retentionSummary(scope);
-    const cleanup = await service.runRetentionCleanup(scope, 'admin-1');
+    const cleanup = await service.runRetentionCleanup(scope, 'admin-1', 'Quarterly policy execution');
 
     expect(retentionService.getSummary).toHaveBeenCalledWith(scope);
     expect(retentionService.runCleanup).toHaveBeenCalledWith({
       scope,
-      actorUserId: 'admin-1'
+      actorUserId: 'admin-1',
+      reason: 'Quarterly policy execution'
     });
     expect(summary.dueNow.importBatches).toBe(2);
     expect(cleanup.skipped).toBe(false);

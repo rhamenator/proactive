@@ -15,6 +15,7 @@ import { TurfsService } from '../turfs/turfs.service.js';
 import { UsersService } from '../users/users.service.js';
 import { InviteCanvasserDto } from './dto/invite-canvasser.dto.js';
 import { ResolveSyncConflictDto } from './dto/resolve-sync-conflict.dto.js';
+import { RunRetentionCleanupDto } from './dto/run-retention-cleanup.dto.js';
 import { UpsertOperationalPolicyDto } from './dto/upsert-operational-policy.dto.js';
 import { UpsertSystemSettingsDto } from './dto/upsert-system-settings.dto.js';
 import { AdminService } from './admin.service.js';
@@ -178,8 +179,8 @@ export class AdminController {
 
   @Post('retention-run')
   @RequireFreshMfa()
-  async runRetentionCleanup(@CurrentUser() user: JwtUserPayload) {
-    return this.adminService.runRetentionCleanup(await this.resolveScope(user), user.sub);
+  async runRetentionCleanup(@Body() body: RunRetentionCleanupDto, @CurrentUser() user: JwtUserPayload) {
+    return this.adminService.runRetentionCleanup(await this.resolveScope(user), user.sub, body.reason);
   }
 
   @Put('policies')

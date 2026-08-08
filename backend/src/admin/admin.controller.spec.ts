@@ -126,9 +126,13 @@ describe('AdminController', () => {
       campaignId: null
     };
 
-    await controller.runRetentionCleanup(user);
+    await controller.runRetentionCleanup({ reason: 'Quarterly policy execution' }, user);
 
-    expect(adminService.runRetentionCleanup).toHaveBeenCalledWith(expect.objectContaining(scope), 'admin-1');
+    expect(adminService.runRetentionCleanup).toHaveBeenCalledWith(
+      expect.objectContaining(scope),
+      'admin-1',
+      'Quarterly policy execution'
+    );
   });
 
   it('downloads CSV profile templates through the admin service', async () => {

@@ -755,7 +755,7 @@ describe('admin api client', () => {
 
     const client = createApiClient('token-123');
     const summary = await client.retentionSummary();
-    const cleanup = await client.runRetentionCleanup();
+    const cleanup = await client.runRetentionCleanup('Quarterly policy execution');
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:3001/admin/retention-summary', {
       headers: {
@@ -765,6 +765,7 @@ describe('admin api client', () => {
     });
     expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3001/admin/retention-run', {
       method: 'POST',
+      body: JSON.stringify({ reason: 'Quarterly policy execution' }),
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer token-123'

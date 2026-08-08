@@ -401,10 +401,10 @@ export function createApiClient(token?: string | null) {
     retentionSummary() {
       return requestJson<RetentionSummary>('/admin/retention-summary', {}, token);
     },
-    runRetentionCleanup() {
+    runRetentionCleanup(reason: string) {
       return requestJson<{ skipped: boolean; scheduled?: boolean; summary?: RetentionSummary['dueNow']; reason?: string }>(
         '/admin/retention-run',
-        { method: 'POST' },
+        { method: 'POST', body: JSON.stringify({ reason }) },
         token
       );
     },
