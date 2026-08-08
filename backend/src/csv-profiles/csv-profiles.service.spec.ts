@@ -84,6 +84,25 @@ describe('CsvProfilesService', () => {
     }));
   });
 
+  it('exposes the versioned NGP VAN CRM bulk-canvass adapter with exact vendor headers', async () => {
+    const profile = await service.resolveProfile({
+      direction: CsvProfileDirection.export,
+      code: 'ngpvan_vancrm_bulk_canvass_results_v1'
+    });
+
+    expect(profile).toEqual(expect.objectContaining({
+      code: 'ngpvan_vancrm_bulk_canvass_results_v1',
+      sourceScope: 'built_in',
+      settingsJson: expect.objectContaining({
+        adapterContract: 'ngpvan-vancrm-bulk-canvass-results/v1',
+        validatedOn: '2026-08-07',
+        columns: ['VanId', 'ResultID', 'DateCanvassed'],
+        requiredMappedColumns: ['ResultID']
+      })
+    }));
+    expect(service.buildTemplateCsv(profile)).toBe('\uFEFFVanId,ResultID,DateCanvassed\n');
+  });
+
   it('lists effective profiles for a scope, including built-ins and organization overrides', async () => {
     prisma.csvProfile.findMany.mockResolvedValue([
       {

@@ -169,6 +169,76 @@ export class ExportsService {
     });
   }
 
+  private stringRecord(value: unknown): Record<string, string> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+    return Object.fromEntries(
+      Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+    );
+  }
+
+  private renderProfileRows(
+    rows: Array<Record<string, unknown>>,
+    columns: string[],
+    settings: Record<string, unknown>
+  ) {
+    const columnSources = this.stringRecord(settings.columnSources);
+    const requiredColumns = new Set(
+      Array.isArray(settings.requiredColumns)
+        ? settings.requiredColumns.filter((entry): entry is string => typeof entry === 'string')
+        : []
+    );
+    const requiredMappedColumns = new Set(
+      Array.isArray(settings.requiredMappedColumns)
+        ? settings.requiredMappedColumns.filter((entry): entry is string => typeof entry === 'string')
+        : []
+    );
+    const columnFormats = this.stringRecord(settings.columnFormats);
+    const configuredValueMappings =
+      settings.valueMappings && typeof settings.valueMappings === 'object' && !Array.isArray(settings.valueMappings)
+        ? settings.valueMappings as Record<string, unknown>
+        : {};
+
+    return rows.map((row, rowIndex) => {
+      const rendered: Record<string, unknown> = {};
+      for (const column of columns) {
+        const source = columnSources[column] ?? column;
+        const sourceValue = row[source] ?? '';
+        const valueMapping = this.stringRecord(configuredValueMappings[column]);
+        const mappingKey = String(sourceValue);
+        let value: unknown = sourceValue;
+
+        if (requiredMappedColumns.has(column)) {
+          if (!Object.hasOwn(valueMapping, mappingKey)) {
+            throw new BadRequestException(
+              `CSV profile is missing ${column} value mapping for "${mappingKey}" at row ${rowIndex + 1}`
+            );
+          }
+          value = valueMapping[mappingKey];
+        } else if (Object.hasOwn(valueMapping, mappingKey)) {
+          value = valueMapping[mappingKey];
+        }
+
+        if (requiredColumns.has(column) && String(value).trim().length === 0) {
+          throw new BadRequestException(`CSV profile requires ${column} at row ${rowIndex + 1}`);
+        }
+        if (columnFormats[column] === 'positive-integer' && !/^[1-9]\d*$/.test(String(value))) {
+          throw new BadRequestException(`CSV profile requires a positive integer ${column} at row ${rowIndex + 1}`);
+        }
+        if (
+          columnFormats[column] === 'iso8601-offset' &&
+          (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(String(value)) ||
+            Number.isNaN(Date.parse(String(value))))
+        ) {
+          throw new BadRequestException(`CSV profile requires an ISO 8601 ${column} with offset at row ${rowIndex + 1}`);
+        }
+        rendered[column] = this.sanitizeCsvCell(value);
+      }
+      return rendered;
+    });
+  }
+
   private buildPurgeAt(days?: number | null) {
     if (!days || days <= 0) {
       return null;
@@ -324,6 +394,7 @@ export class ExportsService {
       zip: visit.address.zip ?? '',
       visit_time: formatExportTimestamp(visit.visitTime),
       result: visit.result,
+      outcome_code: visit.outcomeCode ?? visit.result,
       contact_made: visit.contactMade ? 'true' : 'false',
       notes: visit.notes ?? '',
       time_zone: getExportTimeZoneLabel(),
@@ -359,7 +430,7 @@ export class ExportsService {
       sync_status: '',
       canvasser_name: ''
     }));
-    const rows = this.renderRows(baseRows, columns);
+    const rows = this.renderProfileRows(baseRows, columns, profileSettings);
     const filenamePrefix =
       typeof profileSettings.filenamePrefix === 'string' && profileSettings.filenamePrefix.trim()
         ? profileSettings.filenamePrefix.trim()

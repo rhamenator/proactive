@@ -134,6 +134,8 @@ Turf imports describe households and turf membership. Results exports describe v
 
 ## Adapting A Real VAN Workflow
 
+The first repository-maintained adapter is documented in [Vendor CSV Adapters](vendor-csv-adapters.md). Keep using this checklist for new vendor operations.
+
 For each real downstream workflow:
 
 1. Record the exact VAN product/context and upload operation.

@@ -34,6 +34,7 @@
 ## Product References
 
 - [Versioned CSV import/export contract and mock data](csv-contract.md)
+- [Validated vendor CSV adapters](vendor-csv-adapters.md)
 - [Privacy-safe operational scenario packs](operational-scenario-packs.md)
 - [V1 final specification](v1-final-spec.md)
 - [Gap analysis](gap-analysis.md)
