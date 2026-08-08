@@ -7,15 +7,15 @@
     {
       "GHSA-5p2g-fcmc-qvqq": {
         "active": true,
-        "notes": "Build-time-only image-size dependency used by Metro on trusted repository assets; no patched release exists. Review with osv-scanner.toml.",
-        "expiry": "2026-11-07"
+        "notes": "Reviewed 2026-08-07: Expo 57 / Metro 0.84.4 uses image-size 1.2.1 on trusted repository assets only; all releases through 2.0.2 remain affected and no patch exists. See docs/security-risk-register.md.",
+        "expiry": "2027-02-07"
       }
     },
     {
       "GHSA-w3rx-r6r6-pgpr": {
         "active": true,
-        "notes": "Build-time-only image-size dependency used by Metro on trusted repository assets; no patched release exists. Review with osv-scanner.toml.",
-        "expiry": "2026-11-07"
+        "notes": "Reviewed 2026-08-07: Expo 57 / Metro 0.84.4 uses image-size 1.2.1 on trusted repository assets only; all releases through 2.0.2 remain affected and no patch exists. See docs/security-risk-register.md.",
+        "expiry": "2027-02-07"
       }
     }
   ]
