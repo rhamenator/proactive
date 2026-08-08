@@ -1,9 +1,9 @@
 [[IgnoredVulns]]
 id = "CVE-2025-71329"
-ignoreUntil = 2026-11-07
-reason = "Transitive image-size dependency is used only by Metro while bundling trusted repository assets; no user-controlled production input reaches the JXL or HEIF parsers. No patched release is available as of 2026-08-07. Review on expiry or when image-size, Metro, or Expo publishes a fix."
+ignoreUntil = 2027-02-07
+reason = "Reviewed 2026-08-07: Expo 57.0.9 resolves Metro 0.84.4 to image-size 1.2.1. GitHub marks all image-size versions through latest 2.0.2 affected with no patch. Metro processes only trusted repository assets here; no production user input reaches JXL or HEIF parsers. Review by 2027-02-07 or immediately when image-size, Metro, React Native, or Expo publishes a compatible fix."
 
 [[IgnoredVulns]]
 id = "CVE-2025-71330"
-ignoreUntil = 2026-11-07
-reason = "Transitive image-size dependency is used only by Metro while bundling trusted repository assets; no user-controlled production input reaches the ICNS parser. No patched release is available as of 2026-08-07. Review on expiry or when image-size, Metro, or Expo publishes a fix."
+ignoreUntil = 2027-02-07
+reason = "Reviewed 2026-08-07: Expo 57.0.9 resolves Metro 0.84.4 to image-size 1.2.1. GitHub marks all image-size versions through latest 2.0.2 affected with no patch. Metro processes only trusted repository assets here; no production user input reaches the ICNS parser. Review by 2027-02-07 or immediately when image-size, Metro, React Native, or Expo publishes a compatible fix."
