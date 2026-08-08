@@ -7,6 +7,8 @@ const owner = process.env.EXPO_OWNER;
 const appName = process.env.EXPO_PUBLIC_APP_NAME ?? 'PROACTIVE FCS';
 const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 const geofenceRadius = Number(process.env.EXPO_PUBLIC_GEOFENCE_RADIUS_METERS ?? '100');
+const syncDiagnosticMaxTransitions = Number(process.env.EXPO_PUBLIC_SYNC_DIAGNOSTIC_MAX_TRANSITIONS ?? '12');
+const syncDiagnosticRetentionDays = Number(process.env.EXPO_PUBLIC_SYNC_DIAGNOSTIC_RETENTION_DAYS ?? '14');
 const iosBundleIdentifier = process.env.IOS_BUNDLE_IDENTIFIER ?? 'com.proactive.fcs';
 const androidPackage = process.env.ANDROID_APPLICATION_ID ?? 'com.proactive.fcs';
 
@@ -63,6 +65,8 @@ const config: ExpoConfig = {
     appEnv,
     apiUrl,
     geofenceRadius,
+    syncDiagnosticMaxTransitions,
+    syncDiagnosticRetentionDays,
     eas: projectId
       ? {
           projectId

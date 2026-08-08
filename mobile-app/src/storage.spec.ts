@@ -144,6 +144,7 @@ import {
   saveSession
 } from './storage';
 import type { AddressState, QueuedVisit, SessionNote, User } from './types';
+import { createQueueDiagnostics } from './syncDiagnostics';
 
 describe('mobile storage helpers', () => {
   beforeEach(() => {
@@ -204,6 +205,7 @@ describe('mobile storage helpers', () => {
         localRecordUuid: 'local-1',
         createdAt: '2026-03-28T10:00:00.000Z',
         syncStatus: 'failed',
+        diagnostics: createQueueDiagnostics('2026-03-28T10:00:00.000Z', false),
         payload: {
           localRecordUuid: 'local-1',
           idempotencyKey: 'local-1',

@@ -1,4 +1,4 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Share, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -7,9 +7,17 @@ import { Screen } from '../components/Screen';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, typography } from '../theme';
 import { formatLocalDateTime } from '../utils/datetime';
+import { buildRedactedSyncDiagnosticExport, queueAgeMinutes } from '../syncDiagnostics';
 
 export function QueueScreen() {
   const { queue, syncQueue, isSyncing, isOnline } = useApp();
+
+  async function shareDiagnostics() {
+    await Share.share({
+      title: 'PROACTIVE redacted sync diagnostics',
+      message: buildRedactedSyncDiagnosticExport(queue)
+    });
+  }
 
   return (
     <Screen>
@@ -30,6 +38,7 @@ export function QueueScreen() {
               <Pill label={isOnline ? 'Online' : 'Offline'} tone={isOnline ? 'success' : 'warning'} />
             </View>
             <Button label="Sync Now" onPress={() => void syncQueue()} loading={isSyncing} />
+            <Button label="Share Redacted Diagnostics" variant="secondary" onPress={() => void shareDiagnostics()} />
           </Card>
         }
         renderItem={({ item }) => (
@@ -47,6 +56,14 @@ export function QueueScreen() {
             <Text style={styles.meta}>
               Saved: {formatLocalDateTime(item.createdAt)}
             </Text>
+            <Text style={styles.meta}>Queue age: {formatQueueAge(queueAgeMinutes(item))}</Text>
+            <Text style={styles.meta}>Retries: {item.diagnostics.retryCount}</Text>
+            <Text style={styles.meta}>
+              Dependency: {formatResult(item.diagnostics.dependencyState)} · Server acknowledgement: {item.diagnostics.serverAcknowledged ? 'Yes' : 'No'}
+            </Text>
+            {item.diagnostics.lastErrorCategory ? (
+              <Text style={styles.meta}>Last error category: {formatResult(item.diagnostics.lastErrorCategory)}</Text>
+            ) : null}
             <Text style={styles.meta}>
               Client time: {formatLocalDateTime(item.payload.clientCreatedAt)}
             </Text>
@@ -67,6 +84,12 @@ export function QueueScreen() {
       />
     </Screen>
   );
+}
+
+function formatQueueAge(minutes: number) {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours} hr ${minutes % 60} min`;
 }
 
 function formatResult(value: string) {
