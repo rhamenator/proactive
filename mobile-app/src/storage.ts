@@ -1,6 +1,7 @@
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 
 import type { AddressState, GpsStatus, QueuedVisit, SessionNote, User, VisitSyncStatus } from './types';
+import { normalizeQueueDiagnostics } from './syncDiagnostics';
 
 const databaseName = 'proactive-mobile.db';
 const kvKeys = {
@@ -117,6 +118,7 @@ function normalizeQueuedVisit(item: unknown): QueuedVisit | null {
     createdAt,
     syncStatus: normalizeVisitSyncStatus(raw.syncStatus, false),
     syncConflictReason: typeof raw.syncConflictReason === 'string' ? raw.syncConflictReason : null,
+    diagnostics: normalizeQueueDiagnostics(addressMeta.__syncDiagnostics, createdAt),
     payload: {
       localRecordUuid: payloadLocalRecordUuid,
       idempotencyKey:
@@ -372,7 +374,7 @@ export async function saveQueue(queue: QueuedVisit[]) {
         item.createdAt,
         item.syncStatus,
         JSON.stringify(item.payload),
-        JSON.stringify(item.addressMeta)
+        JSON.stringify({ ...item.addressMeta, __syncDiagnostics: item.diagnostics })
       );
     }
   });

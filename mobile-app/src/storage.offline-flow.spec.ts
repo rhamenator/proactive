@@ -136,6 +136,7 @@ import {
   saveSessionNote
 } from './storage';
 import type { AddressState, QueuedVisit } from './types';
+import { createQueueDiagnostics } from './syncDiagnostics';
 
 describe('mobile offline flow persistence', () => {
   beforeEach(() => {
@@ -154,6 +155,7 @@ describe('mobile offline flow persistence', () => {
       localRecordUuid: visit.localRecordUuid,
       createdAt: visit.visitTimeIso,
       syncStatus: index === 0 ? 'failed' : 'conflict',
+      diagnostics: createQueueDiagnostics(visit.visitTimeIso, false),
       syncConflictReason: index === 0 ? null : 'payload_mismatch',
       payload: {
         localRecordUuid: visit.localRecordUuid,
@@ -248,6 +250,7 @@ describe('mobile offline flow persistence', () => {
         localRecordUuid: 'local-10',
         createdAt: '2026-03-30T08:00:00.000Z',
         syncStatus: 'pending',
+        diagnostics: createQueueDiagnostics('2026-03-30T08:00:00.000Z', false),
         payload: {
           localRecordUuid: 'local-10',
           idempotencyKey: 'local-10',

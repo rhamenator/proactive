@@ -6,6 +6,40 @@ export type GpsStatus = 'verified' | 'flagged' | 'missing' | 'low_accuracy';
 
 export type VisitSyncStatus = 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict';
 
+export type SyncErrorCategory =
+  | 'network'
+  | 'authentication'
+  | 'authorization'
+  | 'validation'
+  | 'rate_limited'
+  | 'server'
+  | 'conflict'
+  | 'unknown';
+
+export type SyncDependencyState =
+  | 'offline'
+  | 'reachable'
+  | 'auth_required'
+  | 'server_rejected'
+  | 'conflict_review';
+
+export interface SyncTransition {
+  at: string;
+  status: VisitSyncStatus;
+  errorCategory?: SyncErrorCategory | null;
+  dependencyState: SyncDependencyState;
+  serverAcknowledged: boolean;
+}
+
+export interface QueueDiagnostics {
+  retryCount: number;
+  lastAttemptAt?: string | null;
+  lastErrorCategory?: SyncErrorCategory | null;
+  dependencyState: SyncDependencyState;
+  serverAcknowledged: boolean;
+  transitions: SyncTransition[];
+}
+
 export interface OutcomeDefinition {
   id: string;
   code: string;
@@ -131,6 +165,7 @@ export interface QueuedVisit {
   createdAt: string;
   syncStatus: VisitSyncStatus;
   syncConflictReason?: string | null;
+  diagnostics: QueueDiagnostics;
   payload: VisitSubmission;
   addressMeta: {
     addressLine1: string;

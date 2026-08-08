@@ -22,6 +22,7 @@ import type {
   VisitSubmission,
 } from '../types';
 import { createLocalRecordUuid } from '../utils/localIds';
+import { createQueueDiagnostics, transitionQueuedVisit } from '../syncDiagnostics';
 
 type AppContextValue = {
   isBootstrapping: boolean;
@@ -75,12 +76,14 @@ function isFieldRole(role: Role) {
   return role === FIELD_ROLE;
 }
 
-function createQueuedVisit(address: Address, payload: VisitSubmission): QueuedVisit {
+function createQueuedVisit(address: Address, payload: VisitSubmission, isOnline: boolean): QueuedVisit {
+  const createdAt = new Date().toISOString();
   return {
     id: payload.localRecordUuid,
     localRecordUuid: payload.localRecordUuid,
-    createdAt: new Date().toISOString(),
+    createdAt,
     syncStatus: 'pending',
+    diagnostics: createQueueDiagnostics(createdAt, isOnline),
     payload,
     addressMeta: {
       addressLine1: address.addressLine1,
@@ -447,7 +450,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       [addressId]: localState,
     }));
 
-    const queuedItem = createQueuedVisit(address, payload);
+    const queuedItem = createQueuedVisit(address, payload, isOnline);
     setQueue((current) => [...current, queuedItem]);
 
     if (!isOnline) {
@@ -461,7 +464,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     setQueue((current) =>
       current.map((item) =>
-        item.localRecordUuid === localRecordUuid ? { ...item, syncStatus: 'syncing' } : item
+        item.localRecordUuid === localRecordUuid
+          ? transitionQueuedVisit(item, 'syncing', { isOnline: true })
+          : item
       )
     );
 
@@ -479,16 +484,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       );
       await refreshTurf();
     } catch (error) {
+      const conflictReason = getConflictReason(error);
+      const nextSyncStatus: VisitSyncStatus = conflictReason ? 'conflict' : 'failed';
       setQueue((current) =>
         current.map((item) =>
-          item.localRecordUuid === localRecordUuid ? { ...item, syncStatus: 'failed' } : item
+          item.localRecordUuid === localRecordUuid
+            ? {
+                ...transitionQueuedVisit(item, nextSyncStatus, { error }),
+                syncConflictReason: conflictReason
+              }
+            : item
         )
       );
       setAddressState((current) => ({
         ...current,
-        [addressId]: { ...localState, syncStatus: 'failed' },
+        [addressId]: { ...localState, syncStatus: nextSyncStatus, syncConflictReason: conflictReason },
       }));
-      setStatusMessage('Saved locally after a network error. It will retry automatically.');
+      setStatusMessage(
+        conflictReason
+          ? 'Saved locally. This visit needs admin conflict review.'
+          : 'Saved locally after a network error. It will retry automatically.'
+      );
       setErrorMessage(getErrorMessage(error));
     }
   }
@@ -570,7 +586,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setQueue((current) =>
           current.map((queuedItem) =>
             queuedItem.localRecordUuid === item.localRecordUuid
-              ? { ...queuedItem, syncStatus: 'syncing' }
+              ? transitionQueuedVisit(queuedItem, 'syncing', { isOnline: true })
               : queuedItem
           )
         );
@@ -604,8 +620,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             current.map((queuedItem) =>
               queuedItem.localRecordUuid === item.localRecordUuid
                 ? {
-                    ...queuedItem,
-                    syncStatus: nextSyncStatus,
+                    ...transitionQueuedVisit(queuedItem, nextSyncStatus, { error }),
                     syncConflictReason: conflictReason
                   }
                 : queuedItem
