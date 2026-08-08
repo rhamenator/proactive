@@ -166,7 +166,10 @@ describe('proactive-csv/v1 contract', () => {
       address_line1: duplicates[0].address_line1,
       city: duplicates[0].city,
       state: duplicates[0].state,
-      zip: duplicates[0].zip
+      zip: duplicates[0].zip,
+      van_household_id: duplicates[0].van_household_id,
+      van_person_id: duplicates[0].van_person_id,
+      van_id: duplicates[0].van_id
     }));
 
     const encoding = decodeCsvBuffer(
@@ -186,6 +189,28 @@ describe('proactive-csv/v1 contract', () => {
     const highVolume = JSON.parse(
       readFileSync(join(scenarioOutputDirectory, 'bounded-high-volume/manifest.json'), 'utf8')
     );
-    expect(highVolume).toEqual(expect.objectContaining({ rows: 2500, synthetic: true }));
+    expect(highVolume).toEqual(expect.objectContaining({
+      rows: 2500,
+      synthetic: true,
+      expected: expect.objectContaining({ rows: 2500 })
+    }));
+
+    const customVolumeDirectory = join(scenarioOutputDirectory, 'custom-volume');
+    execFileSync(
+      process.execPath,
+      [
+        join(repositoryRoot, 'scripts/generate-mock-csv.mjs'),
+        '--scenario',
+        'bounded-high-volume',
+        '--rows',
+        '10',
+        '--output',
+        customVolumeDirectory
+      ],
+      { cwd: repositoryRoot, stdio: ['ignore', 'ignore', 'pipe'] }
+    );
+    const customVolume = JSON.parse(readFileSync(join(customVolumeDirectory, 'manifest.json'), 'utf8'));
+    expect(customVolume.rows).toBe(10);
+    expect(customVolume.expected.rows).toBe(10);
   });
 });

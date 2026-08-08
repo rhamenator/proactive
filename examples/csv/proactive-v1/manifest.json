@@ -11,7 +11,8 @@
   "expected": {
     "duplicateRows": 0,
     "syncConflicts": 0,
-    "failedSyncs": 0
+    "failedSyncs": 0,
+    "rows": 25
   },
   "seed": 20260807,
   "rows": 25,

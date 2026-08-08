@@ -157,7 +157,10 @@ function applyImportScenario(rows, scenario) {
       unit: rows[0].unit,
       city: rows[0].city,
       state: rows[0].state,
-      zip: rows[0].zip
+      zip: rows[0].zip,
+      van_household_id: rows[0].van_household_id,
+      van_person_id: rows[0].van_person_id,
+      van_id: rows[0].van_id
     };
   }
 
@@ -288,7 +291,7 @@ writeFileSync(
     scenario: options.scenario,
     description: scenarioDefinition.description,
     features: scenarioDefinition.features,
-    expected: scenarioDefinition.expected,
+    expected: { ...scenarioDefinition.expected, rows: options.rows },
     seed: options.seed,
     rows: options.rows,
     generatedAt: 'deterministic-fixture',

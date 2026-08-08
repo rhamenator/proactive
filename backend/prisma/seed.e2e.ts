@@ -183,6 +183,29 @@ async function main() {
       syncConflictFlag: true,
       syncConflictReason: 'payload_mismatch'
     });
+    const failedAddress = {
+      ...scenario.addresses[0],
+      addressLine1: '103 Synthetic Failure Way',
+      addressLine2: null,
+      unit: null,
+      vanHouseholdId: 'MOCK-H-SYNC-FAILED',
+      vanPersonId: 'MOCK-P-SYNC-FAILED',
+      vanId: 'MOCK-V-SYNC-FAILED',
+      latitude: 42.963,
+      longitude: -85.673
+    };
+    scenario.addresses.push(failedAddress);
+    scenario.visits.push({
+      ...scenario.visits[0],
+      localRecordUuid: 'seeded-e2e-local-failed',
+      idempotencyKey: 'seeded-e2e-idem-failed',
+      addressLine1: failedAddress.addressLine1,
+      visitTimeIso: '2026-03-30T23:50:00.000Z',
+      syncStatus: 'failed',
+      syncConflictFlag: false,
+      syncConflictReason: null,
+      notes: 'Synthetic retryable sync failure'
+    });
   } else if (scenarioName === 'bounded-high-volume') {
     const requestedRows = Number(process.env.E2E_SCENARIO_ROWS ?? 2500);
     if (!Number.isSafeInteger(requestedRows) || requestedRows < 1 || requestedRows > 25000) {
@@ -195,6 +218,42 @@ async function main() {
       importedCount: requestedRows,
       pendingReviewCount: 0
     };
+    const baseAddresses = [...scenario.addresses];
+    const baseVisits = [...scenario.visits];
+    const generatedAddresses = Array.from({ length: requestedRows }, (_, index) => {
+      const source = baseAddresses[index % baseAddresses.length];
+      const ordinal = index + 1;
+      return {
+        ...source,
+        addressLine1: `${1000 + ordinal} Synthetic Volume Way`,
+        addressLine2: index % 9 === 0 ? `Fixture Building ${1 + (index % 4)}` : null,
+        unit: index % 4 === 0 ? `Mock Unit ${1 + (index % 20)}` : null,
+        zip: `00${String(index % 1000).padStart(3, '0')}`,
+        vanHouseholdId: `MOCK-H-VOLUME-${String(ordinal).padStart(6, '0')}`,
+        vanPersonId: `MOCK-P-VOLUME-${String(ordinal).padStart(6, '0')}`,
+        vanId: `MOCK-V-VOLUME-${String(ordinal).padStart(6, '0')}`,
+        latitude: 42.9 + (index % 100) * 0.0001,
+        longitude: -85.6 - (index % 100) * 0.0001
+      };
+    });
+    const generatedVisits = generatedAddresses.map((address, index) => {
+      const source = baseVisits[index % baseVisits.length];
+      const ordinal = index + 1;
+      return {
+        ...source,
+        localRecordUuid: `seeded-volume-local-${String(ordinal).padStart(6, '0')}`,
+        idempotencyKey: `seeded-volume-idem-${String(ordinal).padStart(6, '0')}`,
+        addressLine1: address.addressLine1,
+        visitTimeIso: new Date(Date.UTC(2026, 0, 15, 14, index % 60, 0)).toISOString(),
+        syncStatus: 'synced',
+        syncConflictFlag: false,
+        syncConflictReason: null,
+        gpsStatus: 'verified',
+        geofenceValidated: true,
+        notes: index % 7 === 0 ? 'Synthetic bounded-volume revisit' : null
+      };
+    });
+    Object.assign(scenario, { addresses: generatedAddresses, visits: generatedVisits });
   }
   const passwordHash = await bcrypt.hash('Password123!', 10);
 

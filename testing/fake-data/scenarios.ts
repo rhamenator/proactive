@@ -1,4 +1,4 @@
-import { createFixtureFactory } from './factories';
+import { createFixtureFactory, type AddressFixture, type VisitFixture } from './factories';
 
 export function createAdminUiScenario(seed = 'admin-ui') {
   const f = createFixtureFactory({ seed, organizationCode: `org_${seed}` });
@@ -108,7 +108,7 @@ export type OperationalScenarioName = (typeof operationalScenarioNames)[number];
 type AdminUiScenario = ReturnType<typeof createAdminUiScenario>;
 
 function expandScenario(base: AdminUiScenario, rows: number) {
-  const addresses = Array.from({ length: rows }, (_, index) => {
+  const addresses: AddressFixture[] = Array.from({ length: rows }, (_, index) => {
     const source = base.addresses[index % base.addresses.length];
     const ordinal = index + 1;
     return {
@@ -125,7 +125,7 @@ function expandScenario(base: AdminUiScenario, rows: number) {
     };
   });
 
-  const visits = addresses.map((address, index) => {
+  const visits: VisitFixture[] = addresses.map((address, index) => {
     const source = base.visits[index % base.visits.length];
     const ordinal = index + 1;
     return {
@@ -134,6 +134,9 @@ function expandScenario(base: AdminUiScenario, rows: number) {
       idempotencyKey: `mock-scenario-idem-${String(ordinal).padStart(6, '0')}`,
       addressLine1: address.addressLine1,
       visitTimeIso: new Date(Date.UTC(2026, 0, 15, 14, index % 60, 0)).toISOString(),
+      syncStatus: 'synced',
+      syncConflictFlag: false,
+      syncConflictReason: null,
       notes: index % 7 === 0 ? 'Synthetic revisit sequence' : source.notes
     };
   });
@@ -155,6 +158,10 @@ export function createOperationalScenario(
   const rows = requestedRows ?? defaultRows;
   if (!Number.isSafeInteger(rows) || rows < 1 || rows > 25000) {
     throw new Error('Operational scenario rows must be an integer from 1 through 25000');
+  }
+  const minimumRows = name === 'sync-recovery' ? 6 : name === 'duplicate-strategies' || name === 'encoding-edge-cases' ? 2 : 1;
+  if (rows < minimumRows) {
+    throw new Error(`${name} requires at least ${minimumRows} rows`);
   }
 
   const expanded = expandScenario(base, rows);
@@ -186,7 +193,14 @@ export function createOperationalScenario(
       unit: scenario.addresses[0].unit,
       city: scenario.addresses[0].city,
       state: scenario.addresses[0].state,
-      zip: scenario.addresses[0].zip
+      zip: scenario.addresses[0].zip,
+      vanHouseholdId: scenario.addresses[0].vanHouseholdId,
+      vanPersonId: scenario.addresses[0].vanPersonId,
+      vanId: scenario.addresses[0].vanId
+    };
+    scenario.visits[1] = {
+      ...scenario.visits[1],
+      addressLine1: scenario.addresses[0].addressLine1
     };
     scenario.importBatch = { ...scenario.importBatch, importedCount: rows - 1, pendingReviewCount: 1 };
     scenario.scenarioManifest.expected = { ...scenario.scenarioManifest.expected, duplicateRows: 1 };
