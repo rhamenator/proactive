@@ -98,6 +98,26 @@ enum GeographyNodeKind {
   custom
 }
 
+enum RecoveryCaseType {
+  help_desk_mfa_reset
+  help_desk_account_recovery
+  break_glass_account_recovery
+}
+
+enum RecoveryCaseStatus {
+  pending
+  executed
+  rejected
+  expired
+}
+
+enum RecoveryNotificationStatus {
+  not_configured
+  pending
+  delivered
+  failed
+}
+
 model User {
   id                            String                 @id @default(uuid()) @db.Uuid
   firstName                     String                 @map("first_name")
@@ -147,6 +167,9 @@ model User {
   refreshTokens                 AuthRefreshToken[]
   activationTokens              ActivationToken[]
   resetTokens                   PasswordResetToken[]
+  recoveryCasesTargeted         RecoveryCase[]         @relation("RecoveryTarget")
+  recoveryCasesRequested        RecoveryCase[]         @relation("RecoveryRequester")
+  recoveryCasesReviewed         RecoveryCase[]         @relation("RecoveryReviewer")
 
   @@index([organizationId])
   @@index([campaignId])
@@ -180,6 +203,7 @@ model Organization {
   operationalPolicies   OperationalPolicy[]
   csvProfiles           CsvProfile[]
   geographyNodes        GeographyNode[]
+  recoveryCases         RecoveryCase[]
 
   @@map("organizations")
 }
@@ -838,6 +862,34 @@ model ImpersonationSession {
   @@index([organizationId])
   @@index([campaignId])
   @@map("impersonation_sessions")
+}
+
+model RecoveryCase {
+  id                 String                     @id @default(uuid()) @db.Uuid
+  organizationId     String                     @map("organization_id") @db.Uuid
+  targetUserId       String                     @map("target_user_id") @db.Uuid
+  requestedByUserId  String                     @map("requested_by_user_id") @db.Uuid
+  reviewedByUserId   String?                    @map("reviewed_by_user_id") @db.Uuid
+  type               RecoveryCaseType
+  status             RecoveryCaseStatus         @default(pending)
+  reasonText         String                     @map("reason_text")
+  reviewReason       String?                    @map("review_reason")
+  notificationStatus RecoveryNotificationStatus @default(not_configured) @map("notification_status")
+  notificationError  String?                    @map("notification_error")
+  expiresAt          DateTime                   @map("expires_at")
+  createdAt          DateTime                   @default(now()) @map("created_at")
+  reviewedAt         DateTime?                  @map("reviewed_at")
+  executedAt         DateTime?                  @map("executed_at")
+  organization       Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  targetUser         User                       @relation("RecoveryTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+  requestedByUser    User                       @relation("RecoveryRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  reviewedByUser     User?                      @relation("RecoveryReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, createdAt])
+  @@index([targetUserId, status])
+  @@index([requestedByUserId])
+  @@index([reviewedByUserId])
+  @@map("recovery_cases")
 }
 
 model VisitCorrection {

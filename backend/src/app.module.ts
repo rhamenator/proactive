@@ -11,6 +11,7 @@ import { ImportsModule } from './imports/imports.module.js';
 import { PoliciesModule } from './policies/policies.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ReportsModule } from './reports/reports.module.js';
+import { RecoveryModule } from './recovery/recovery.module.js';
 import { RetentionModule } from './retention/retention.module.js';
 import { SecurityModule } from './security/security.module.js';
 import { SystemSettingsModule } from './system-settings/system-settings.module.js';
@@ -35,7 +36,8 @@ import { VisitsModule } from './visits/visits.module.js';
     ImportsModule,
     ExportsModule,
     GeographiesModule,
-    ReportsModule
+    ReportsModule,
+    RecoveryModule
   ],
   controllers: [AppController],
   providers: [AppService]

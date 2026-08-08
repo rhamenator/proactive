@@ -40,6 +40,7 @@
 - [Security risk register](security-risk-register.md)
 - [Configurable geography hierarchy](configurable-geography-hierarchy.md)
 - [Offline sync diagnostics and safe sharing](offline-sync-diagnostics.md)
+- [Privileged help-desk and break-glass recovery](privileged-account-recovery.md)
 - [V1 final specification](v1-final-spec.md)
 - [Gap analysis](gap-analysis.md)
 - [Client review summary](client-review-summary.md)
