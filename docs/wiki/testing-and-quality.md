@@ -75,10 +75,13 @@ Notes:
 - Shared deterministic factories/scenarios:
   - `testing/fake-data/factories.ts`
   - `testing/fake-data/scenarios.ts`
+  - `testing/fake-data/operational-scenarios.json`
 - Shared admin mock scenario + MSW handlers:
   - `testing/mocks/admin-dashboard/scenario.ts`
 
 These fixtures are designed to support both mocked tests and backend seeding.
+
+Generate all privacy-safe CSV and operational packs with `npm run mock:scenarios`. See [Privacy-Safe Operational Scenario Packs](../operational-scenario-packs.md) for scenario names, database seeding, expected counts, and prohibited uses.
 
 ## Seeded Integration Coverage (Current Subset)
 

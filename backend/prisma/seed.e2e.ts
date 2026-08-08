@@ -143,6 +143,118 @@ async function main() {
     },
     mfaSecret: 'JBSWY3DPEHPK3PXP'
   };
+
+  const scenarioName = process.env.E2E_SCENARIO ?? 'clean-lifecycle';
+  const scenarioNames = new Set([
+    'clean-lifecycle',
+    'duplicate-strategies',
+    'encoding-edge-cases',
+    'sync-recovery',
+    'bounded-high-volume'
+  ]);
+  if (!scenarioNames.has(scenarioName)) {
+    throw new Error(`Unsupported E2E_SCENARIO: ${scenarioName}`);
+  }
+
+  if (scenarioName === 'duplicate-strategies') {
+    scenario.importBatch = {
+      ...scenario.importBatch,
+      filename: 'mock-duplicate-strategies.csv',
+      rowCount: 4,
+      importedCount: 1,
+      pendingReviewCount: 1
+    };
+  } else if (scenarioName === 'encoding-edge-cases') {
+    scenario.addresses[0] = {
+      ...scenario.addresses[0],
+      addressLine1: '001 Café Fixture Way',
+      addressLine2: 'Quoted, Fixture Building',
+      unit: 'Mock Unit 01',
+      zip: '00123'
+    };
+    Object.assign(scenario.visits[0], {
+      addressLine1: scenario.addresses[0].addressLine1,
+      notes: 'Multiline synthetic fixture\nsecond line'
+    });
+  } else if (scenarioName === 'sync-recovery') {
+    Object.assign(scenario.visits[0], { syncStatus: 'pending' });
+    Object.assign(scenario.visits[1], {
+      syncStatus: 'conflict',
+      syncConflictFlag: true,
+      syncConflictReason: 'payload_mismatch'
+    });
+    const failedAddress = {
+      ...scenario.addresses[0],
+      addressLine1: '103 Synthetic Failure Way',
+      addressLine2: null,
+      unit: null,
+      vanHouseholdId: 'MOCK-H-SYNC-FAILED',
+      vanPersonId: 'MOCK-P-SYNC-FAILED',
+      vanId: 'MOCK-V-SYNC-FAILED',
+      latitude: 42.963,
+      longitude: -85.673
+    };
+    scenario.addresses.push(failedAddress);
+    scenario.visits.push({
+      ...scenario.visits[0],
+      localRecordUuid: 'seeded-e2e-local-failed',
+      idempotencyKey: 'seeded-e2e-idem-failed',
+      addressLine1: failedAddress.addressLine1,
+      visitTimeIso: '2026-03-30T23:50:00.000Z',
+      syncStatus: 'failed',
+      syncConflictFlag: false,
+      syncConflictReason: null,
+      notes: 'Synthetic retryable sync failure'
+    });
+  } else if (scenarioName === 'bounded-high-volume') {
+    const requestedRows = Number(process.env.E2E_SCENARIO_ROWS ?? 2500);
+    if (!Number.isSafeInteger(requestedRows) || requestedRows < 1 || requestedRows > 25000) {
+      throw new Error('E2E_SCENARIO_ROWS must be an integer from 1 through 25000');
+    }
+    scenario.importBatch = {
+      ...scenario.importBatch,
+      filename: 'mock-bounded-high-volume.csv',
+      rowCount: requestedRows,
+      importedCount: requestedRows,
+      pendingReviewCount: 0
+    };
+    const baseAddresses = [...scenario.addresses];
+    const baseVisits = [...scenario.visits];
+    const generatedAddresses = Array.from({ length: requestedRows }, (_, index) => {
+      const source = baseAddresses[index % baseAddresses.length];
+      const ordinal = index + 1;
+      return {
+        ...source,
+        addressLine1: `${1000 + ordinal} Synthetic Volume Way`,
+        addressLine2: index % 9 === 0 ? `Fixture Building ${1 + (index % 4)}` : null,
+        unit: index % 4 === 0 ? `Mock Unit ${1 + (index % 20)}` : null,
+        zip: `00${String(index % 1000).padStart(3, '0')}`,
+        vanHouseholdId: `MOCK-H-VOLUME-${String(ordinal).padStart(6, '0')}`,
+        vanPersonId: `MOCK-P-VOLUME-${String(ordinal).padStart(6, '0')}`,
+        vanId: `MOCK-V-VOLUME-${String(ordinal).padStart(6, '0')}`,
+        latitude: 42.9 + (index % 100) * 0.0001,
+        longitude: -85.6 - (index % 100) * 0.0001
+      };
+    });
+    const generatedVisits = generatedAddresses.map((address, index) => {
+      const source = baseVisits[index % baseVisits.length];
+      const ordinal = index + 1;
+      return {
+        ...source,
+        localRecordUuid: `seeded-volume-local-${String(ordinal).padStart(6, '0')}`,
+        idempotencyKey: `seeded-volume-idem-${String(ordinal).padStart(6, '0')}`,
+        addressLine1: address.addressLine1,
+        visitTimeIso: new Date(Date.UTC(2026, 0, 15, 14, index % 60, 0)).toISOString(),
+        syncStatus: 'synced',
+        syncConflictFlag: false,
+        syncConflictReason: null,
+        gpsStatus: 'verified',
+        geofenceValidated: true,
+        notes: index % 7 === 0 ? 'Synthetic bounded-volume revisit' : null
+      };
+    });
+    Object.assign(scenario, { addresses: generatedAddresses, visits: generatedVisits });
+  }
   const passwordHash = await bcrypt.hash('Password123!', 10);
 
   const organization = await prisma.organization.upsert({

@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "privacyNotice": "All records are fictional, deterministic, and generated locally without external personal data.",
+  "prohibitedUses": [
+    "production outreach",
+    "identity matching",
+    "representing fixtures as real people or addresses"
+  ],
+  "scenarios": {
+    "clean-lifecycle": {
+      "description": "A clean multi-turf import followed by completed visit and export records.",
+      "defaultRows": 25,
+      "features": ["multi-turf", "visits", "exports"],
+      "expected": { "duplicateRows": 0, "syncConflicts": 0, "failedSyncs": 0 }
+    },
+    "duplicate-strategies": {
+      "description": "A repeated normalized address for exercising skip, merge, review, and error policies.",
+      "defaultRows": 12,
+      "features": ["duplicate-skip", "duplicate-merge", "duplicate-review", "duplicate-error"],
+      "expected": { "duplicateRows": 1, "strategies": ["skip", "merge", "review", "error"] }
+    },
+    "encoding-edge-cases": {
+      "description": "Encoding, quoting, multiline, unit, and leading-zero ZIP fixtures.",
+      "defaultRows": 12,
+      "features": ["utf8-bom", "windows-1252", "quoted-comma", "multiline", "unit", "leading-zero-zip"],
+      "expected": { "utf8Bom": true, "windows1252": true, "leadingZeroZip": true }
+    },
+    "sync-recovery": {
+      "description": "Pending, failed, conflicting, corrected, GPS-exception, and revisit transitions.",
+      "defaultRows": 15,
+      "features": ["pending-sync", "failed-sync", "sync-conflict", "correction", "gps-exception", "revisit"],
+      "expected": { "syncConflicts": 1, "failedSyncs": 1, "pendingSyncs": 1 }
+    },
+    "bounded-high-volume": {
+      "description": "A bounded high-volume dataset for import, export, and regression checks.",
+      "defaultRows": 2500,
+      "features": ["high-volume", "import", "export"],
+      "expected": { "rows": 2500, "maximumSupportedRows": 25000 }
+    }
+  }
+}

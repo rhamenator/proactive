@@ -3,7 +3,7 @@
 These files contain deterministic fictional records generated from `proactive-csv/v1`:
 
 ```bash
-npm run mock:csv -- --rows 25 --seed 20260807 --output examples/csv/proactive-v1
+npm run mock:csv -- --scenario clean-lifecycle --rows 25 --seed 20260807 --output examples/csv/proactive-v1
 ```
 
 - `proactive-turf-import-v1.utf8-bom.csv`: normal spreadsheet-friendly import.
@@ -13,3 +13,5 @@ npm run mock:csv -- --rows 25 --seed 20260807 --output examples/csv/proactive-v1
 - `manifest.json`: generation parameters and privacy notice.
 
 No record represents a real person, household, organization, campaign, or location. See [the formal contract](../../../docs/csv-contract.md) before adapting these examples to a real vendor workflow.
+
+For duplicate, encoding, sync-recovery, and bounded high-volume packs, run `npm run mock:scenarios` and see [the scenario-pack guide](../../../docs/operational-scenario-packs.md).

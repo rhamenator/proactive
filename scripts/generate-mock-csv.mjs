@@ -7,12 +7,15 @@ import { stringify } from 'csv-stringify/sync';
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const contractPath = resolve(repositoryRoot, 'contracts/csv/proactive-v1.json');
 const contract = JSON.parse(readFileSync(contractPath, 'utf8'));
+const scenarioCatalog = JSON.parse(
+  readFileSync(resolve(repositoryRoot, 'testing/fake-data/operational-scenarios.json'), 'utf8')
+);
 
 function printHelp() {
   process.stdout.write(`Generate deterministic, privacy-safe PROACTIVE CSV datasets.
 
 Usage:
-  npm run mock:csv -- [--rows 100] [--seed 20260807] [--output .local/mock-csv]
+  npm run mock:csv -- [--scenario clean-lifecycle] [--rows 25] [--seed 20260807] [--output .local/mock-csv]
 
 The generated identities, addresses, IDs, coordinates, and notes are fictional.
 No external data source or random personal-data service is used.
@@ -21,7 +24,8 @@ No external data source or random personal-data service is used.
 
 function parseArguments(values) {
   const options = {
-    rows: 100,
+    rows: undefined,
+    scenario: 'clean-lifecycle',
     seed: 20260807,
     output: resolve(repositoryRoot, '.local/mock-csv')
   };
@@ -34,7 +38,10 @@ function parseArguments(values) {
     }
 
     const value = values[index + 1];
-    if (argument === '--rows') {
+    if (argument === '--scenario') {
+      options.scenario = value;
+      index += 1;
+    } else if (argument === '--rows') {
       options.rows = Number(value);
       index += 1;
     } else if (argument === '--seed') {
@@ -47,6 +54,12 @@ function parseArguments(values) {
       throw new Error(`Unknown argument: ${argument}`);
     }
   }
+
+  const scenario = scenarioCatalog.scenarios[options.scenario];
+  if (!scenario) {
+    throw new Error(`--scenario must be one of: ${Object.keys(scenarioCatalog.scenarios).join(', ')}`);
+  }
+  options.rows ??= scenario.defaultRows;
 
   if (!Number.isSafeInteger(options.rows) || options.rows < 1 || options.rows > contract.physicalFormat.maxExportRows) {
     throw new Error(`--rows must be an integer from 1 through ${contract.physicalFormat.maxExportRows}`);
@@ -134,6 +147,55 @@ function buildResultRows(importRows, random) {
   }));
 }
 
+function applyImportScenario(rows, scenario) {
+  if (scenario === 'duplicate-strategies' && rows.length > 1) {
+    rows[1] = {
+      ...rows[1],
+      turf_name: rows[0].turf_name,
+      address_line1: rows[0].address_line1,
+      address_line2: rows[0].address_line2,
+      unit: rows[0].unit,
+      city: rows[0].city,
+      state: rows[0].state,
+      zip: rows[0].zip,
+      van_household_id: rows[0].van_household_id,
+      van_person_id: rows[0].van_person_id,
+      van_id: rows[0].van_id
+    };
+  }
+
+  if (scenario === 'encoding-edge-cases' && rows.length > 1) {
+    rows[0] = {
+      ...rows[0],
+      address_line1: '001 Café Fixture Way',
+      address_line2: 'Quoted, Fixture Building',
+      unit: 'Mock Unit 01',
+      zip: '00123'
+    };
+  }
+
+  return rows;
+}
+
+function applyResultScenario(rows, scenario) {
+  if (scenario === 'encoding-edge-cases' && rows.length > 1) {
+    rows[0].notes = 'Quoted fixture, with comma';
+    rows[1].notes = 'Multiline fixture\nsecond synthetic line';
+  }
+
+  if (scenario === 'sync-recovery' && rows.length > 5) {
+    rows[0].sync_status = 'pending';
+    rows[1].sync_status = 'failed';
+    rows[2].sync_status = 'conflict';
+    rows[2].gps_status = 'flagged';
+    rows[3].gps_status = 'low_accuracy';
+    rows[4].gps_status = 'missing';
+    rows[5].notes = 'Synthetic correction after reconnect';
+  }
+
+  return rows;
+}
+
 function buildInternalRows(importRows, resultRows) {
   return resultRows.map((result, index) => {
     const ordinal = index + 1;
@@ -171,8 +233,8 @@ function buildInternalRows(importRows, resultRows) {
       contact_made: result.contact_made,
       notes: result.notes,
       sync_status: result.sync_status,
-      sync_conflict_flag: 'false',
-      sync_conflict_reason: '',
+      sync_conflict_flag: result.sync_status === 'conflict' ? 'true' : 'false',
+      sync_conflict_reason: result.sync_status === 'conflict' ? 'payload_mismatch' : '',
       gps_status: result.gps_status,
       geofence_validated: 'false',
       geofence_distance_meters: '',
@@ -205,8 +267,9 @@ const random = seededRandom(options.seed);
 const importProfile = contract.profiles.proactive_turf_import_v1;
 const resultProfile = contract.profiles.proactive_canvass_results_v1;
 const internalProfile = contract.profiles.internal_master_v1;
-const importRows = buildImportRows(options.rows, random);
-const resultRows = buildResultRows(importRows, random);
+const scenarioDefinition = scenarioCatalog.scenarios[options.scenario];
+const importRows = applyImportScenario(buildImportRows(options.rows, random), options.scenario);
+const resultRows = applyResultScenario(buildResultRows(importRows, random), options.scenario);
 const internalRows = buildInternalRows(importRows, resultRows);
 
 mkdirSync(options.output, { recursive: true });
@@ -225,6 +288,10 @@ writeFileSync(
   `${JSON.stringify({
     synthetic: true,
     contract: `${contract.contract}/v${contract.version}`,
+    scenario: options.scenario,
+    description: scenarioDefinition.description,
+    features: scenarioDefinition.features,
+    expected: { ...scenarioDefinition.expected, rows: options.rows },
     seed: options.seed,
     rows: options.rows,
     generatedAt: 'deterministic-fixture',
