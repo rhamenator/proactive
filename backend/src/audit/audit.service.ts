@@ -11,6 +11,7 @@ export class AuditService {
   async log(
     input: {
       actorUserId?: string | null;
+      organizationId?: string | null;
       actionType: string;
       entityType: string;
       entityId: string;
@@ -27,6 +28,7 @@ export class AuditService {
     return db.auditLog.create({
       data: {
         actorUserId: input.actorUserId ?? null,
+        organizationId: input.organizationId ?? null,
         actionType: input.actionType,
         entityType: input.entityType,
         entityId: input.entityId,

@@ -787,3 +787,33 @@ export interface GeographyNodeRecord {
   parent?: Pick<GeographyNodeRecord, 'id' | 'externalId' | 'name' | 'kind'> | null;
   _count?: { children: number; users: number; turfs: number };
 }
+
+export type RecoveryCaseType = 'help_desk_mfa_reset' | 'help_desk_account_recovery' | 'break_glass_account_recovery';
+export type RecoveryCaseStatus = 'pending' | 'executed' | 'rejected' | 'expired';
+
+export interface RecoveryTargetRecord {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: Role;
+  status: string;
+  mfaEnabled: boolean;
+}
+
+export interface RecoveryCaseRecord {
+  id: string;
+  type: RecoveryCaseType;
+  status: RecoveryCaseStatus;
+  reasonText: string;
+  reviewReason?: string | null;
+  notificationStatus: 'not_configured' | 'pending' | 'delivered' | 'failed';
+  notificationError?: string | null;
+  expiresAt: string;
+  createdAt: string;
+  reviewedAt?: string | null;
+  executedAt?: string | null;
+  targetUser: RecoveryTargetRecord;
+  requestedByUser: Pick<RecoveryTargetRecord, 'id' | 'firstName' | 'lastName' | 'email'>;
+  reviewedByUser?: Pick<RecoveryTargetRecord, 'id' | 'firstName' | 'lastName' | 'email'> | null;
+}

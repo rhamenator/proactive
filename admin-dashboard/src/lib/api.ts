@@ -19,6 +19,9 @@ import type {
   ImpersonationStartResponse,
   LoginResponse,
   RecentVisitRecord,
+  RecoveryCaseRecord,
+  RecoveryCaseType,
+  RecoveryTargetRecord,
   ResolvedConflictReport,
   ProductivityReport,
   ReportFilters,
@@ -373,6 +376,27 @@ export function createApiClient(token?: string | null) {
         {},
         token
       );
+    },
+    listRecoveryCases() {
+      return requestJson<RecoveryCaseRecord[]>('/admin/recovery-cases', {}, token);
+    },
+    listRecoveryTargets() {
+      return requestJson<RecoveryTargetRecord[]>('/admin/recovery-cases/targets', {}, token);
+    },
+    requestRecovery(payload: { targetUserId: string; type: RecoveryCaseType; reason: string }) {
+      return requestJson<RecoveryCaseRecord>('/admin/recovery-cases', {
+        method: 'POST', body: JSON.stringify(payload)
+      }, token);
+    },
+    approveRecovery(caseId: string, reason: string) {
+      return requestJson<RecoveryCaseRecord>(`/admin/recovery-cases/${caseId}/approve`, {
+        method: 'POST', body: JSON.stringify({ reason })
+      }, token);
+    },
+    rejectRecovery(caseId: string, reason: string) {
+      return requestJson<RecoveryCaseRecord>(`/admin/recovery-cases/${caseId}/reject`, {
+        method: 'POST', body: JSON.stringify({ reason })
+      }, token);
     },
     createGeography(payload: {
       externalId: string;
