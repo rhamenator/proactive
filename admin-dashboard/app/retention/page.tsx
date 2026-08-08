@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { ProtectedFrame } from '../../src/components/protected-frame';
-import { Button, Card } from '../../src/components/ui';
+import { Button, Card, Input } from '../../src/components/ui';
 import { getErrorMessage } from '../../src/lib/api';
 import { useAuth, useAuthedApi } from '../../src/lib/auth-context';
 import { formatLocalDateTime } from '../../src/lib/datetime';
@@ -16,6 +16,7 @@ export default function RetentionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [reason, setReason] = useState('Scheduled lifecycle review');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,7 +38,7 @@ export default function RetentionPage() {
     setError(null);
     setMessage(null);
     try {
-      const result = await runSensitiveAction('run retention cleanup', (freshApi) => freshApi.runRetentionCleanup());
+      const result = await runSensitiveAction('run retention cleanup', (freshApi) => freshApi.runRetentionCleanup(reason));
       if (result.skipped) {
         setMessage('Retention cleanup was skipped because another run is already in progress.');
       } else {
@@ -65,7 +66,7 @@ export default function RetentionPage() {
               <Button variant="ghost" onClick={() => void load()} disabled={loading}>
                 {loading ? 'Refreshing...' : 'Refresh'}
               </Button>
-              <Button onClick={() => void runCleanup()} disabled={loading}>
+              <Button onClick={() => void runCleanup()} disabled={loading || reason.trim().length < 3}>
                 Run Cleanup
               </Button>
             </div>
@@ -77,6 +78,17 @@ export default function RetentionPage() {
                 Automation: {summary.automation.enabled ? `enabled every ${summary.automation.intervalMinutes} minutes` : 'disabled'}
                 {summary.lastRunAt ? ` • Last run ${formatLocalDateTime(summary.lastRunAt)}` : ' • No completed cleanup logged yet'}
               </div>
+              <div className="muted">
+                Stages: {summary.policy.stages.join(', ')} • Batch cap: {summary.policy.batchSize} per entity
+                {summary.policy.excludedEntityTypes.length > 0 ? ` • Excluded: ${summary.policy.excludedEntityTypes.join(', ')}` : ''}
+              </div>
+              <label htmlFor="retention-reason">Execution reason</label>
+              <Input
+                id="retention-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="Why is this destructive cleanup being run?"
+              />
               <div className="grid two">
                 {Object.entries(summary.dueNow).map(([key, count]) => (
                   <Card key={key} className="card-subtle stack-tight">
