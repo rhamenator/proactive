@@ -14,7 +14,8 @@ export type CsvField =
   | 'zip'
   | 'latitude'
   | 'longitude'
-  | 'turfName';
+  | 'turfName'
+  | 'geographyExternalId';
 
 export const canonicalAliases: Record<CsvField, string[]> = {
   vanId: ['van_id', 'vanid', 'id', 'recordid'],
@@ -28,7 +29,8 @@ export const canonicalAliases: Record<CsvField, string[]> = {
   zip: ['zip', 'zipcode', 'postal', 'postalcode'],
   latitude: ['latitude', 'lat'],
   longitude: ['longitude', 'lng', 'lon'],
-  turfName: ['turf_name', 'turf', 'district']
+  turfName: ['turf_name', 'turf', 'district'],
+  geographyExternalId: ['geography_external_id', 'geography_id', 'geography_code', 'scope_code']
 };
 
 /**

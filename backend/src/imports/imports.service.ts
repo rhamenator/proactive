@@ -147,6 +147,7 @@ export class ImportsService {
     duplicateStrategy?: DuplicateStrategy;
     teamId?: string | null;
     regionCode?: string | null;
+    geographyExternalId?: string | null;
   }): Promise<ResolvedImportContext> {
     const creator = await this.usersService.findById(input.createdById);
     if (!creator.organizationId) {
@@ -353,6 +354,7 @@ export class ImportsService {
     duplicateStrategy?: DuplicateStrategy;
     teamId?: string | null;
     regionCode?: string | null;
+    geographyExternalId?: string | null;
   }) {
     const {
       creator,
@@ -391,6 +393,7 @@ export class ImportsService {
 
     const createdTurfs: string[] = [];
     const turfs: Array<{ id: string; name: string }> = [];
+    const importedGeographyNodeIds = new Set<string>();
     let addressesImported = 0;
     let invalidRowsSkipped = 0;
     let duplicateRowsSkipped = 0;
@@ -409,6 +412,24 @@ export class ImportsService {
     }> = [];
 
     for (const [turfName, rows] of groupedRows.entries()) {
+      const rowGeographyIds = new Set(
+        rows
+          .map(({ row }) => resolveMappedValue(row, 'geographyExternalId', effectiveMapping))
+          .filter((value): value is string => Boolean(value))
+      );
+      if (rowGeographyIds.size > 1) {
+        throw new BadRequestException(`Turf "${turfName}" maps to multiple geography identifiers`);
+      }
+      const geographyExternalId = Array.from(rowGeographyIds)[0] ?? input.geographyExternalId?.trim() ?? null;
+      const geographyNode = geographyExternalId
+        ? await this.prisma.geographyNode.findFirst({
+            where: { organizationId: creator.organizationId!, externalId: geographyExternalId, isActive: true }
+          })
+        : null;
+      if (geographyExternalId && !geographyNode) {
+        throw new BadRequestException(`Unknown geography identifier "${geographyExternalId}" for turf "${turfName}"`);
+      }
+      if (geographyNode) importedGeographyNodeIds.add(geographyNode.id);
       const existingTurf =
         mode === 'upsert' || mode === 'replace_turf_membership'
           ? await this.prisma.turf.findFirst({
@@ -418,7 +439,8 @@ export class ImportsService {
                 campaignId: effectiveCampaignId,
                 deletedAt: null,
                 ...(team?.id ? { teamId: team.id } : {}),
-                ...(regionCode ? { regionCode } : {})
+                ...(regionCode ? { regionCode } : {}),
+                ...(geographyNode ? { geographyNodeId: geographyNode.id } : {})
               }
             })
           : null;
@@ -434,6 +456,7 @@ export class ImportsService {
             campaignId: effectiveCampaignId,
             teamId: team?.id ?? null,
             regionCode,
+            geographyNodeId: geographyNode?.id ?? null,
             status: TurfStatus.unassigned
           }
         }));
@@ -624,6 +647,7 @@ export class ImportsService {
         campaignId: effectiveCampaignId,
         teamId: team?.id ?? null,
         regionCode,
+        geographyNodeId: importedGeographyNodeIds.size === 1 ? Array.from(importedGeographyNodeIds)[0] : null,
         initiatedByUserId: input.createdById,
         mode,
         duplicateStrategy,
@@ -691,6 +715,7 @@ export class ImportsService {
     duplicateStrategy?: DuplicateStrategy;
     teamId?: string | null;
     regionCode?: string | null;
+    geographyExternalId?: string | null;
   }) {
     const { team, regionCode, effectiveCampaignId, profile, mapping, mode, duplicateStrategy } =
       await this.resolveImportContext(input);
@@ -795,7 +820,8 @@ export class ImportsService {
       scope: {
         campaignId: effectiveCampaignId,
         teamId: team?.id ?? input.teamId ?? null,
-        regionCode
+        regionCode,
+        ...(input.geographyExternalId ? { geographyExternalId: input.geographyExternalId.trim() } : {})
       },
       sampleRows
     };

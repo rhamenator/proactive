@@ -97,7 +97,8 @@ export class ImportsController {
       mode: body.mode,
       duplicateStrategy: body.duplicateStrategy,
       teamId: body.teamId,
-      regionCode: body.regionCode
+      regionCode: body.regionCode,
+      geographyExternalId: body.geographyExternalId
     });
   }
 
@@ -136,7 +137,8 @@ export class ImportsController {
       mode: body.mode,
       duplicateStrategy: body.duplicateStrategy,
       teamId: body.teamId,
-      regionCode: body.regionCode
+      regionCode: body.regionCode,
+      geographyExternalId: body.geographyExternalId
     });
   }
 

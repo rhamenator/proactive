@@ -6,6 +6,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ExportsModule } from './exports/exports.module.js';
+import { GeographiesModule } from './geographies/geographies.module.js';
 import { ImportsModule } from './imports/imports.module.js';
 import { PoliciesModule } from './policies/policies.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -33,6 +34,7 @@ import { VisitsModule } from './visits/visits.module.js';
     AdminModule,
     ImportsModule,
     ExportsModule,
+    GeographiesModule,
     ReportsModule
   ],
   controllers: [AppController],

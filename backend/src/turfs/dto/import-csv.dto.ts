@@ -29,4 +29,8 @@ export class ImportCsvDto {
   @IsOptional()
   @IsString()
   regionCode?: string;
+
+  @IsOptional()
+  @IsString()
+  geographyExternalId?: string;
 }
