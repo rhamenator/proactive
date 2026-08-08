@@ -16,6 +16,7 @@ function buildScopeFromResolvedUser(
     campaignId: user.campaignId ?? jwtUser.campaignId ?? null,
     teamId: user.teamId ?? jwtUser.teamId ?? null,
     regionCode: user.team?.regionCode ?? user.regionCode ?? null,
+    geographyNodeId: user.geographyNodeId ?? null,
     role: user.role ?? jwtUser.role,
     supervisorScopeMode
   };

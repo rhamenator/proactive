@@ -770,3 +770,20 @@ export interface TurfSessionSnapshot {
     endTime?: string | null;
   } | null;
 }
+
+export type GeographyNodeKind = 'region' | 'ward' | 'territory' | 'precinct_cluster' | 'precinct' | 'custom';
+
+export interface GeographyNodeRecord {
+  id: string;
+  organizationId: string;
+  externalId: string;
+  kind: GeographyNodeKind;
+  name: string;
+  parentId?: string | null;
+  depth: number;
+  sortOrder: number;
+  isActive: boolean;
+  metadataJson?: Record<string, unknown> | null;
+  parent?: Pick<GeographyNodeRecord, 'id' | 'externalId' | 'name' | 'kind'> | null;
+  _count?: { children: number; users: number; turfs: number };
+}

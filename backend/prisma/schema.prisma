@@ -89,6 +89,15 @@ enum SupervisorScopeMode {
   region
 }
 
+enum GeographyNodeKind {
+  region
+  ward
+  territory
+  precinct_cluster
+  precinct
+  custom
+}
+
 model User {
   id                            String                 @id @default(uuid()) @db.Uuid
   firstName                     String                 @map("first_name")
@@ -100,6 +109,7 @@ model User {
   campaignId                    String?                @map("campaign_id") @db.Uuid
   teamId                        String?                @map("team_id") @db.Uuid
   regionCode                    String?                @map("region_code")
+  geographyNodeId               String?                @map("geography_node_id") @db.Uuid
   isActive                      Boolean                @default(true) @map("is_active")
   status                        String                 @default("active")
   mfaEnabled                    Boolean                @default(false) @map("mfa_enabled")
@@ -118,6 +128,7 @@ model User {
   organization                  Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign                      Campaign?              @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   team                          Team?                  @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  geographyNode                 GeographyNode?         @relation("UserGeography", fields: [geographyNodeId], references: [id], onDelete: SetNull)
   createdTurfs                  Turf[]                 @relation("TurfsCreated")
   assignments                   TurfAssignment[]
   sessions                      TurfSession[]
@@ -141,6 +152,7 @@ model User {
   @@index([campaignId])
   @@index([teamId])
   @@index([regionCode])
+  @@index([geographyNodeId])
   @@map("users")
 }
 
@@ -167,6 +179,7 @@ model Organization {
   exportBatches         ExportBatch[]
   operationalPolicies   OperationalPolicy[]
   csvProfiles           CsvProfile[]
+  geographyNodes        GeographyNode[]
 
   @@map("organizations")
 }
@@ -245,6 +258,46 @@ model Team {
   @@map("teams")
 }
 
+model GeographyNode {
+  id                 String             @id @default(uuid()) @db.Uuid
+  organizationId     String             @map("organization_id") @db.Uuid
+  externalId         String             @map("external_id")
+  kind               GeographyNodeKind
+  name               String
+  parentId           String?            @map("parent_id") @db.Uuid
+  depth              Int                @default(0)
+  sortOrder          Int                @default(0) @map("sort_order")
+  isActive           Boolean            @default(true) @map("is_active")
+  metadataJson       Json?              @map("metadata_json")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent             GeographyNode?     @relation("GeographyTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children           GeographyNode[]    @relation("GeographyTree")
+  ancestorLinks      GeographyClosure[] @relation("GeographyAncestor")
+  descendantLinks    GeographyClosure[] @relation("GeographyDescendant")
+  users              User[]             @relation("UserGeography")
+  turfs              Turf[]
+  importBatches      ImportBatch[]
+
+  @@unique([organizationId, externalId])
+  @@index([organizationId, parentId])
+  @@index([organizationId, kind])
+  @@map("geography_nodes")
+}
+
+model GeographyClosure {
+  ancestorId   String        @map("ancestor_id") @db.Uuid
+  descendantId String        @map("descendant_id") @db.Uuid
+  depth        Int
+  ancestor     GeographyNode @relation("GeographyAncestor", fields: [ancestorId], references: [id], onDelete: Cascade)
+  descendant   GeographyNode @relation("GeographyDescendant", fields: [descendantId], references: [id], onDelete: Cascade)
+
+  @@id([ancestorId, descendantId])
+  @@index([descendantId, depth])
+  @@map("geography_closure")
+}
+
 model Campaign {
   id                    String                 @id @default(uuid()) @db.Uuid
   organizationId        String                 @map("organization_id") @db.Uuid
@@ -304,6 +357,7 @@ model Turf {
   campaignId      String?          @map("campaign_id") @db.Uuid
   teamId          String?          @map("team_id") @db.Uuid
   regionCode      String?          @map("region_code")
+  geographyNodeId String?          @map("geography_node_id") @db.Uuid
   status          TurfStatus       @default(unassigned)
   isShared        Boolean          @default(false) @map("is_shared")
   createdById     String?          @map("created_by") @db.Uuid
@@ -320,6 +374,7 @@ model Turf {
   organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign        Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   team            Team?            @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  geographyNode   GeographyNode?   @relation(fields: [geographyNodeId], references: [id], onDelete: SetNull)
   createdBy       User?            @relation("TurfsCreated", fields: [createdById], references: [id])
   addresses       Address[]
   assignments     TurfAssignment[]
@@ -332,6 +387,7 @@ model Turf {
   @@index([campaignId])
   @@index([teamId])
   @@index([regionCode])
+  @@index([geographyNodeId])
   @@map("turfs")
 }
 
@@ -639,6 +695,7 @@ model ImportBatch {
   campaignId            String?          @map("campaign_id") @db.Uuid
   teamId                String?          @map("team_id") @db.Uuid
   regionCode            String?          @map("region_code")
+  geographyNodeId       String?          @map("geography_node_id") @db.Uuid
   initiatedByUserId     String?          @map("initiated_by_user_id") @db.Uuid
   mode                  String
   duplicateStrategy     String           @map("duplicate_strategy")
@@ -659,6 +716,7 @@ model ImportBatch {
   organization          Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   campaign              Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   team                  Team?            @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  geographyNode         GeographyNode?   @relation(fields: [geographyNodeId], references: [id], onDelete: SetNull)
   initiatedByUser       User?            @relation("ImportBatchesInitiated", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
   rows                  ImportBatchRow[]
 
@@ -666,6 +724,7 @@ model ImportBatch {
   @@index([campaignId])
   @@index([teamId])
   @@index([regionCode])
+  @@index([geographyNodeId])
   @@index([initiatedByUserId])
   @@index([createdAt])
   @@map("import_batches")

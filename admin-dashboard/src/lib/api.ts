@@ -11,6 +11,8 @@ import type {
   ExportBatchRecord,
   FieldUserRecord,
   GpsReviewItem,
+  GeographyNodeKind,
+  GeographyNodeRecord,
   GpsExceptionsReport,
   ImportBatchRecord,
   ImportDuplicateReviewRecord,
@@ -360,6 +362,49 @@ export function createApiClient(token?: string | null) {
     },
     listTeams() {
       return requestJson<TeamRecord[]>('/admin/teams', {}, token);
+    },
+    listGeographies(options?: { includeInactive?: boolean; parentId?: string | null; kind?: GeographyNodeKind }) {
+      const params = new URLSearchParams();
+      if (options?.includeInactive) params.set('includeInactive', 'true');
+      if (options?.parentId !== undefined) params.set('parentId', options.parentId ?? '');
+      if (options?.kind) params.set('kind', options.kind);
+      return requestJson<GeographyNodeRecord[]>(
+        `/admin/geographies${params.toString() ? `?${params.toString()}` : ''}`,
+        {},
+        token
+      );
+    },
+    createGeography(payload: {
+      externalId: string;
+      kind: GeographyNodeKind;
+      name: string;
+      parentId?: string | null;
+      sortOrder?: number;
+      isActive?: boolean;
+    }) {
+      return requestJson<GeographyNodeRecord>('/admin/geographies', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }, token);
+    },
+    updateGeography(id: string, payload: Partial<{
+      kind: GeographyNodeKind;
+      name: string;
+      parentId: string | null;
+      sortOrder: number;
+      isActive: boolean;
+      reason: string;
+    }>) {
+      return requestJson<GeographyNodeRecord>(`/admin/geographies/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }, token);
+    },
+    assignUserGeography(nodeId: string, userId: string, reason: string) {
+      return requestJson<FieldUserRecord>(`/admin/geographies/${nodeId}/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ reason })
+      }, token);
     },
     createTeam(payload: {
       code: string;

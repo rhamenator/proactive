@@ -5,6 +5,7 @@ export interface AccessScope {
   campaignId?: string | null;
   teamId?: string | null;
   regionCode?: string | null;
+  geographyNodeId?: string | null;
   role?: UserRole;
   supervisorScopeMode?: SupervisorScopeMode;
 }

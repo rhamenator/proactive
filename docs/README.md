@@ -38,6 +38,7 @@
 - [Privacy-safe operational scenario packs](operational-scenario-packs.md)
 - [Retention and lifecycle policy](retention-lifecycle-policy.md)
 - [Security risk register](security-risk-register.md)
+- [Configurable geography hierarchy](configurable-geography-hierarchy.md)
 - [V1 final specification](v1-final-spec.md)
 - [Gap analysis](gap-analysis.md)
 - [Client review summary](client-review-summary.md)

@@ -11,6 +11,9 @@ describe('ImportsService', () => {
     team: {
       findFirst: jest.fn()
     },
+    geographyNode: {
+      findFirst: jest.fn()
+    },
     importBatch: {
       create: jest.fn(),
       update: jest.fn(),
@@ -72,6 +75,7 @@ describe('ImportsService', () => {
       campaignId: 'campaign-1'
     });
     prisma.team.findFirst.mockResolvedValue(null);
+    prisma.geographyNode.findFirst.mockResolvedValue(null);
     prisma.turf.findFirst.mockResolvedValue(null);
     prisma.turf.create
       .mockResolvedValueOnce({
@@ -160,6 +164,35 @@ describe('ImportsService', () => {
         { id: 'turf-2', name: 'South Turf' }
       ]
     });
+  });
+
+  it('maps a stable geography external ID onto imported turfs and the import batch', async () => {
+    prisma.geographyNode.findFirst.mockResolvedValue({ id: 'geo-ward-4', externalId: 'WARD-4', organizationId: 'org-1' });
+    prisma.turf.create.mockResolvedValue({ id: 'turf-geo', name: 'Ward Turf' });
+    prisma.household.create.mockResolvedValue({ id: 'household-geo' });
+
+    await service.importCsv({
+      createdById: 'admin-1',
+      csv: 'turf_name,geography_code,address_line1,city,state\nWard Turf,WARD-4,10 Main St,Detroit,MI\n'
+    });
+
+    expect(prisma.geographyNode.findFirst).toHaveBeenCalledWith({
+      where: { organizationId: 'org-1', externalId: 'WARD-4', isActive: true }
+    });
+    expect(prisma.turf.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ geographyNodeId: 'geo-ward-4' })
+    });
+    expect(prisma.importBatch.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ geographyNodeId: 'geo-ward-4' })
+    });
+  });
+
+  it('fails closed when an import references an unknown geography external ID', async () => {
+    await expect(service.importCsv({
+      createdById: 'admin-1',
+      csv: 'turf_name,geography_external_id,address_line1,city,state\nWard Turf,OTHER-ORG,10 Main St,Detroit,MI\n'
+    })).rejects.toThrow('Unknown geography identifier "OTHER-ORG"');
+    expect(prisma.turf.create).not.toHaveBeenCalled();
   });
 
   it('uses normalized address matching for non-VAN duplicates', async () => {
