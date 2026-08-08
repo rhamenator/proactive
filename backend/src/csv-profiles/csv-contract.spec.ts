@@ -28,6 +28,30 @@ const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const contract = JSON.parse(
   readFileSync(join(repositoryRoot, 'contracts/csv/proactive-v1.json'), 'utf8')
 ) as CsvContract;
+const ngpVanAdapter = JSON.parse(
+  readFileSync(
+    join(repositoryRoot, 'contracts/csv/adapters/ngpvan-vancrm-bulk-canvass-results-v1.json'),
+    'utf8'
+  )
+) as {
+  contract: string;
+  validatedOn: string;
+  csv: {
+    columns: string[];
+    requiredValues: string[];
+    columnSources: Record<string, string>;
+  };
+  excludedFields: string[];
+};
+const ngpVanJobTemplate = JSON.parse(
+  readFileSync(
+    join(repositoryRoot, 'contracts/csv/adapters/ngpvan-vancrm-bulk-canvass-results-v1.job-template.json'),
+    'utf8'
+  )
+) as {
+  file: { columns: Array<{ name: string }> };
+  actions: Array<{ resourceType: string; mappingTypes: Array<{ name: string }> }>;
+};
 
 describe('proactive-csv/v1 contract', () => {
   const prisma = {
@@ -82,6 +106,57 @@ describe('proactive-csv/v1 contract', () => {
       expect(legacy.mappingJson).toEqual(versioned.mappingJson);
       expect(legacy.settingsJson?.columns).toEqual(versioned.settingsJson?.columns);
     }
+  });
+
+  it('keeps the NGP VAN CRM adapter and synthetic pass/fail fixtures aligned with its dated contract', async () => {
+    const profile = await service.resolveProfile({
+      direction: CsvProfileDirection.export,
+      code: 'ngpvan_vancrm_bulk_canvass_results_v1'
+    });
+    expect(ngpVanAdapter).toEqual(expect.objectContaining({
+      contract: 'ngpvan-vancrm-bulk-canvass-results',
+      validatedOn: '2026-08-07'
+    }));
+    expect(profile.settingsJson).toEqual(expect.objectContaining({
+      columns: ngpVanAdapter.csv.columns,
+      columnSources: ngpVanAdapter.csv.columnSources,
+      requiredColumns: ngpVanAdapter.csv.requiredValues
+    }));
+    expect(ngpVanJobTemplate.file.columns.map((column) => column.name)).toEqual(ngpVanAdapter.csv.columns);
+    expect(ngpVanJobTemplate.actions[0]).toEqual(expect.objectContaining({
+      resourceType: 'Contacts',
+      mappingTypes: [expect.objectContaining({ name: 'CanvassResults' })]
+    }));
+    expect(ngpVanAdapter.excludedFields).toEqual(expect.arrayContaining([
+      'notes',
+      'gps_status',
+      'latitude',
+      'longitude',
+      'sync_status'
+    ]));
+
+    const success = parse(
+      decodeCsvBuffer(
+        readFileSync(
+          join(repositoryRoot, 'testing/fake-data/vendor-adapters/ngpvan-vancrm-bulk-canvass-results-v1.success.csv')
+        )
+      ),
+      { columns: true, bom: true }
+    ) as Record<string, string>[];
+    expect(Object.keys(success[0])).toEqual(ngpVanAdapter.csv.columns);
+    expect(success[0]).toEqual({ VanId: '123456', ResultID: '14', DateCanvassed: '2026-03-28T10:00:00.000Z' });
+
+    const failure = parse(
+      decodeCsvBuffer(
+        readFileSync(
+          join(repositoryRoot, 'testing/fake-data/vendor-adapters/ngpvan-vancrm-bulk-canvass-results-v1.failure.csv')
+        )
+      ),
+      { columns: true, bom: true }
+    ) as Record<string, string>[];
+    expect(failure[0].VanId).toBe('');
+    expect(failure[0].ResultID).not.toMatch(/^[1-9]\d*$/);
+    expect(Number.isNaN(Date.parse(failure[0].DateCanvassed))).toBe(true);
   });
 
   it('generates deterministic privacy-safe fixtures with contract-exact headers', async () => {

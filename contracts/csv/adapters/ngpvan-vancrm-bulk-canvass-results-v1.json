@@ -1,0 +1,57 @@
+{
+  "contract": "ngpvan-vancrm-bulk-canvass-results",
+  "version": 1,
+  "status": "validated-against-public-documentation",
+  "validatedOn": "2026-08-07",
+  "vendor": "NGP VAN",
+  "productContexts": ["EveryAction 8", "VoteBuilder", "SmartVAN"],
+  "operation": "POST /v4/bulkImportJobs with Contacts / CanvassResults mapping",
+  "sourceDocumentation": [
+    "https://docs.ngpvan.com/reference/bulkimportjobs",
+    "https://docs.ngpvan.com/reference/bulkimportmappingtypesmappingtypename",
+    "https://docs.ngpvan.com/docs/faqs"
+  ],
+  "csv": {
+    "encoding": "utf-8-bom",
+    "delimiter": ",",
+    "headerRequired": true,
+    "columns": ["VanId", "ResultID", "DateCanvassed"],
+    "requiredValues": ["VanId", "ResultID", "DateCanvassed"],
+    "columnFormats": {
+      "VanId": "positive-integer",
+      "ResultID": "positive-integer",
+      "DateCanvassed": "iso8601-offset"
+    },
+    "columnSources": {
+      "VanId": "van_id",
+      "ResultID": "outcome_code",
+      "DateCanvassed": "visit_time"
+    }
+  },
+  "scopedConfigurationRequired": {
+    "valueMappings.ResultID": "Map each PROACTIVE outcome code to the tenant's current VAN ResultID.",
+    "bulkImportJob.ContactTypeID": "Supply a tenant-valid static value in the job mapping.",
+    "bulkImportJob.CanvassedBy": "Supply a tenant-valid static user ID in the job mapping."
+  },
+  "excludedFields": [
+    "address_line1",
+    "address_line2",
+    "unit",
+    "city",
+    "state",
+    "zip",
+    "notes",
+    "gps_status",
+    "latitude",
+    "longitude",
+    "accuracy_meters",
+    "distance_from_target_feet",
+    "sync_status",
+    "canvasser_name"
+  ],
+  "limitations": [
+    "The adapter prepares the delimited file only; it does not submit the Bulk Import Job.",
+    "Headers aid debugging, but the Bulk Import Job file.columns array and its order are authoritative.",
+    "ResultID, ContactTypeID, and CanvassedBy values are tenant-specific and must be validated in the target VAN context."
+  ]
+}

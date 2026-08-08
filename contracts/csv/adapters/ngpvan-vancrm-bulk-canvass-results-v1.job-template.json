@@ -1,0 +1,33 @@
+{
+  "description": "PROACTIVE canvass results",
+  "file": {
+    "fileName": "ngpvan-vancrm-bulk-canvass-results-v1.csv",
+    "hasHeader": true,
+    "hasQuotes": false,
+    "sourceUrl": "HTTPS_OR_SFTP_URL_TO_ZIP",
+    "columnDelimiter": "Csv",
+    "columns": [
+      { "name": "VanId" },
+      { "name": "ResultID" },
+      { "name": "DateCanvassed" }
+    ]
+  },
+  "actions": [
+    {
+      "actionType": "loadMappedFile",
+      "resourceType": "Contacts",
+      "resultFileSizeKbLimit": 5000,
+      "mappingTypes": [
+        {
+          "name": "CanvassResults",
+          "fieldValueMappings": [
+            { "fieldName": "ResultID", "columnName": "ResultID" },
+            { "fieldName": "DateCanvassed", "columnName": "DateCanvassed" },
+            { "fieldName": "ContactTypeID", "staticValue": "TENANT_CONTACT_TYPE_ID" },
+            { "fieldName": "CanvassedBy", "staticValue": "TENANT_USER_ID" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -78,6 +78,12 @@ const PROACTIVE_CANVASS_RESULTS_V1_COLUMNS = [
   'canvasser_name'
 ];
 
+const NGPVAN_VANCRM_BULK_CANVASS_RESULTS_V1_COLUMNS = [
+  'VanId',
+  'ResultID',
+  'DateCanvassed'
+];
+
 const INTERNAL_MASTER_V1_COLUMNS = [
   'visit_id',
   'organization_id',
@@ -190,6 +196,41 @@ const BUILT_IN_PROFILES: CsvProfileRecord[] = [
       markExportedDefault: false,
       contractVersion: 'proactive-csv/v1',
       columns: INTERNAL_MASTER_V1_COLUMNS
+    }
+  },
+  {
+    id: null,
+    direction: CsvProfileDirection.export,
+    code: 'ngpvan_vancrm_bulk_canvass_results_v1',
+    name: 'NGP VAN CRM Bulk Canvass Results v1',
+    description: 'Validated CSV file adapter for VAN CRM Bulk Import Jobs used by EveryAction 8, VoteBuilder, and SmartVAN. Requires scoped ResultID mappings.',
+    organizationId: null,
+    campaignId: null,
+    isActive: true,
+    explicitRecord: false,
+    sourceScope: 'built_in',
+    mappingJson: null,
+    settingsJson: {
+      filenamePrefix: 'ngpvan-vancrm-bulk-canvass-results-v1',
+      markExportedDefault: false,
+      adapterContract: 'ngpvan-vancrm-bulk-canvass-results/v1',
+      validatedOn: '2026-08-07',
+      columns: NGPVAN_VANCRM_BULK_CANVASS_RESULTS_V1_COLUMNS,
+      columnSources: {
+        VanId: 'van_id',
+        ResultID: 'outcome_code',
+        DateCanvassed: 'visit_time'
+      },
+      requiredColumns: NGPVAN_VANCRM_BULK_CANVASS_RESULTS_V1_COLUMNS,
+      requiredMappedColumns: ['ResultID'],
+      columnFormats: {
+        VanId: 'positive-integer',
+        ResultID: 'positive-integer',
+        DateCanvassed: 'iso8601-offset'
+      },
+      valueMappings: {
+        ResultID: {}
+      }
     }
   },
   {

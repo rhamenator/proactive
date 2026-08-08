@@ -225,6 +225,104 @@ describe('ExportsService', () => {
     expect(result.csv).not.toContain("'-85.6681");
   });
 
+  it('renders exact NGP VAN CRM bulk-canvass headers and tenant-mapped values without internal fields', async () => {
+    csvProfilesService.resolveProfile.mockResolvedValueOnce({
+      code: 'ngpvan_vancrm_bulk_canvass_results_v1',
+      name: 'NGP VAN CRM Bulk Canvass Results v1',
+      settingsJson: {
+        filenamePrefix: 'ngpvan-vancrm-bulk-canvass-results-v1',
+        columns: ['VanId', 'ResultID', 'DateCanvassed'],
+        columnSources: { VanId: 'van_id', ResultID: 'outcome_code', DateCanvassed: 'visit_time' },
+        requiredColumns: ['VanId', 'ResultID', 'DateCanvassed'],
+        requiredMappedColumns: ['ResultID'],
+        columnFormats: { VanId: 'positive-integer', ResultID: 'positive-integer', DateCanvassed: 'iso8601-offset' },
+        valueMappings: { ResultID: { knocked: '14' } }
+      }
+    });
+    prisma.visitLog.findMany.mockResolvedValue([
+      {
+        id: 'visit-vendor-1',
+        visitTime: new Date('2026-03-28T10:00:00.000Z'),
+        result: VisitResult.knocked,
+        outcomeCode: 'knocked',
+        contactMade: false,
+        notes: 'Must not leave PROACTIVE',
+        gpsStatus: GpsStatus.verified,
+        latitude: 42.9634,
+        longitude: -85.6681,
+        accuracyMeters: 5,
+        syncStatus: SyncStatus.synced,
+        syncConflictFlag: false,
+        address: {
+          household: null,
+          vanId: '123456',
+          addressLine1: '100 Main St',
+          addressLine2: null,
+          unit: null,
+          city: 'Grand Rapids',
+          state: 'MI',
+          zip: '49503'
+        },
+        canvasser: { firstName: 'Pat', lastName: 'Field' },
+        outcomeDefinition: { id: 'outcome-1', isFinalDisposition: true },
+        turf: { id: 'turf-1', name: 'North' },
+        geofenceResult: { distanceFromTargetFeet: 12.3 }
+      }
+    ]);
+
+    const result = await service.vanResultsCsv({
+      organizationId: 'org-1',
+      profileCode: 'ngpvan_vancrm_bulk_canvass_results_v1'
+    });
+
+    expect(result.csv).toBe('\uFEFFVanId,ResultID,DateCanvassed\n123456,14,2026-03-28T10:00:00.000Z\n');
+    expect(result.csv).not.toContain('gps');
+    expect(result.csv).not.toContain('Main St');
+    expect(result.csv).not.toContain('Must not leave');
+  });
+
+  it('rejects NGP VAN CRM exports with an unmapped outcome before recording an artifact', async () => {
+    csvProfilesService.resolveProfile.mockResolvedValueOnce({
+      code: 'ngpvan_vancrm_bulk_canvass_results_v1',
+      name: 'NGP VAN CRM Bulk Canvass Results v1',
+      settingsJson: {
+        columns: ['VanId', 'ResultID', 'DateCanvassed'],
+        columnSources: { VanId: 'van_id', ResultID: 'outcome_code', DateCanvassed: 'visit_time' },
+        requiredColumns: ['VanId', 'ResultID', 'DateCanvassed'],
+        requiredMappedColumns: ['ResultID'],
+        columnFormats: { VanId: 'positive-integer', ResultID: 'positive-integer', DateCanvassed: 'iso8601-offset' },
+        valueMappings: { ResultID: {} }
+      }
+    });
+    prisma.visitLog.findMany.mockResolvedValue([
+      {
+        id: 'visit-vendor-failure',
+        visitTime: new Date('2026-03-28T10:00:00.000Z'),
+        result: VisitResult.knocked,
+        outcomeCode: 'knocked',
+        contactMade: false,
+        notes: null,
+        gpsStatus: GpsStatus.missing,
+        latitude: null,
+        longitude: null,
+        accuracyMeters: null,
+        syncStatus: SyncStatus.synced,
+        syncConflictFlag: false,
+        address: { household: null, vanId: '123456', addressLine1: '100 Main St', addressLine2: null, unit: null, city: 'Grand Rapids', state: 'MI', zip: '49503' },
+        canvasser: { firstName: 'Pat', lastName: 'Field' },
+        outcomeDefinition: { id: 'outcome-1', isFinalDisposition: true },
+        turf: { id: 'turf-1', name: 'North' },
+        geofenceResult: null
+      }
+    ]);
+
+    await expect(service.vanResultsCsv({
+      organizationId: 'org-1',
+      profileCode: 'ngpvan_vancrm_bulk_canvass_results_v1'
+    })).rejects.toThrow('CSV profile is missing ResultID value mapping for "knocked" at row 1');
+    expect(prisma.exportBatch.create).not.toHaveBeenCalled();
+  });
+
   it('rejects an export that would exceed the row cap instead of silently truncating it', async () => {
     prisma.visitLog.findMany.mockResolvedValue(
       Array.from({ length: 25_001 }, (_, index) => ({ id: `visit-${index}` }))
