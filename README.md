@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/assets/logo.png" alt="PROACTIVE logo" width="220">
+</p>
+
 # PROACTIVE Field Canvassing System
 
 PROACTIVE helps outreach teams plan door-to-door work, send canvassers into the field with a mobile app, and see results come back into one shared system.
