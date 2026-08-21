@@ -56,7 +56,7 @@
     }
   },
   "dependencies": {
-    "@nestjs/common": "11.1.28",
+    "@nestjs/common": "11.1.29",
     "effect": "3.22.0",
     "path-to-regexp": "8.4.2",
     "react": "19.2.3",
