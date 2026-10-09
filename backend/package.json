@@ -14,7 +14,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@nestjs/common": "11.1.28",
+    "@nestjs/common": "11.2.7",
     "@nestjs/core": "11.1.28",
     "@nestjs/jwt": "11.0.2",
     "@nestjs/platform-express": "11.1.28",
